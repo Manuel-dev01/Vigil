@@ -34,6 +34,9 @@ importers:
       '@qorechain/rdk':
         specifier: 0.9.0
         version: 0.9.0(viem@2.57.20(typescript@7.0.2))
+      undici:
+        specifier: ^8.12.4
+        version: 8.12.4
       viem:
         specifier: ^2.57.20
         version: 2.57.20(typescript@7.0.2)
@@ -910,6 +913,10 @@ packages:
 
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
+
+  undici@8.12.4:
+    resolution: {integrity: sha512-8Mx+uNKKER2bA4AdtedkqRbwUCIJFr2nJckXRe5yrDqzePqwLP7VNcctN8/XdmDSbF7mS+jJKIszlL+vbam1VA==}
+    engines: {node: '>=22.19.0'}
 
   viem@2.57.20:
     resolution: {integrity: sha512-LSvREzKT7xFXpmxW2YFJ/OtcZRkSGLp5zywSgadBf0qQCeqh2+FxHHWyrS2zEG7ZfBWQQvk8HI1i4HPzSMD14g==}
@@ -1868,6 +1875,8 @@ snapshots:
       '@typescript/typescript-win32-x64': 7.0.2
 
   undici-types@8.9.0: {}
+
+  undici@8.12.4: {}
 
   viem@2.57.20(typescript@7.0.2):
     dependencies:
