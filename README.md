@@ -8,14 +8,15 @@
 
 | Piece | State |
 |---|---|
-| Inbox replay matches on-chain roots (watchtower seed) | not yet exercised |
-| `pqcVerify` / `pqcKeyStatus` probed via `eth_call` | not yet exercised |
+| Inbox replay matches on-chain roots (watchtower seed) | **12 of 12** live batches on two rollups reproduced (read-only: `scripts/spike-a-replay.ts`, offline test in `scripts/test/`) |
+| `pqcVerify` / `pqcKeyStatus` probed via `eth_call` | Done (read-only): FIPS 204 pure ML-DSA-87, empty context; ~312k gas per direct call (`scripts/spike-b-pqcverify.ts`) |
+| Q-Day Drill vault (`PQGuardVault`) | 21 Foundry tests pass; deployment not yet exercised |
 | Rollup `vigil-1` | not yet exercised |
 | Anchored batches and settlement receipts | not yet exercised |
 | Withdrawals | not yet exercised |
 | qledger-v1 watchtower, fraud challenge | not yet exercised |
 | ML-KEM-1024 sealed data lane | not yet exercised |
-| Threat model | not yet written |
+| Threat model | [v0](THREAT_MODEL.md) |
 
 ## Layout
 
