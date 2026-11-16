@@ -1,0 +1,39 @@
+{
+  "recordedAt": "2026-11-16T19:51:56.917Z",
+  "evmChainId": 9800,
+  "evmBlock": "10213070",
+  "conventions": {
+    "pure, empty context (FIPS 204 default)": true,
+    "pure, context 'vigil/spike-b/v1'": false,
+    "internal (raw message, no context prefix)": false
+  },
+  "controls": {
+    "message with one bit flipped": false,
+    "signature with one bit flipped": false,
+    "another public key": false
+  },
+  "estimateGas": {
+    "msg 32 B": "312080",
+    "msg 256 B": "320950",
+    "msg 1024 B": "352240",
+    "msg 4096 B": "474550"
+  },
+  "pqcKeyStatus": {
+    "RDK creator qor1ekyftdz36tndvnmttjexmzpgj48j0mfwk007rp": {
+      "address": "0xCd8895B451d2E6d64F6b5Cb26D8828954f27ed2E",
+      "registered": true,
+      "algorithmId": 1,
+      "pubkeyBytes": 2592,
+      "possessionProven": true,
+      "estimateGas": "24038"
+    },
+    "address with no key": {
+      "address": "0x000000000000000000000000000000000000dEaD",
+      "registered": false,
+      "algorithmId": 0,
+      "pubkeyBytes": 0,
+      "possessionProven": false,
+      "estimateGas": "23822"
+    }
+  }
+}
