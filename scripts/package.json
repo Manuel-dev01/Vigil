@@ -1,0 +1,19 @@
+{
+  "name": "@vigil/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spikes, end-to-end and drill scripts for Vigil.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "spike:a": "tsx spike-a-replay.ts",
+    "spike:b": "tsx spike-b-pqcverify.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0",
+    "@noble/post-quantum": "^0.7.1",
+    "@qorechain/rdk": "0.9.0",
+    "viem": "^2.57.20"
+  }
+}
