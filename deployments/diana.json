@@ -1,0 +1,10 @@
+{
+  "network": "qorechain-diana",
+  "PQGuardVault": {
+    "address": "0x40b6b90d69b4a6e2277583ff7d98912c03255591",
+    "guardian": "0x9f64F05CEF5cAE9e25AC0eD14809be6eE7045247",
+    "deployTx": "0x87f60392092af80d31738703c4cb913c2a67cc92a662c09dc442de69111df152",
+    "block": "10241823",
+    "deployer": "0x1bC560A26898F1178170B255Fa65CC7B0b603a4e"
+  }
+}

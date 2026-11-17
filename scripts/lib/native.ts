@@ -1,6 +1,6 @@
 /** Native-lane (Cosmos) transactions from a unified eth-native account, hybrid-signed. */
 import { StargateClient } from "@cosmjs/stargate";
-import type { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { EthNativeSigner, deriveUnifiedAccount, type UnifiedAccount } from "@qorechain/sdk";
 import { loadRoleEnv, requireVar } from "./env.ts";
 
@@ -48,13 +48,13 @@ export async function balances(addr: string): Promise<Record<string, string>> {
 export async function sendHybrid(
   account: UnifiedAccount,
   messages: EncodeObject[],
-  opts: { gas: number; memo?: string },
+  opts: { gas: number; memo?: string; registry?: Registry },
 ): Promise<{ transactionHash: string; height?: number; gasUsed?: bigint }> {
   const auth = await getJson<{ account: { account_number: string; sequence: string } }>(
     `/cosmos/auth/v1beta1/accounts/${account.cosmos}`,
   );
   const transport = await StargateClient.connect(RPC);
-  const signer = new EthNativeSigner(account, { rest: REST });
+  const signer = new EthNativeSigner(account, { rest: REST, ...(opts.registry ? { registry: opts.registry } : {}) });
   const feeUqor = Math.ceil(opts.gas * 0.12);
   const res = await signer.signAndBroadcast(transport, {
     chainId: CHAIN_ID,

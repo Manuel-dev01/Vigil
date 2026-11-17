@@ -10,7 +10,7 @@
 |---|---|
 | Inbox replay matches on-chain roots (watchtower seed) | **12 of 12** live batches on two rollups reproduced (read-only: `scripts/spike-a-replay.ts`, offline test in `scripts/test/`) |
 | `pqcVerify` / `pqcKeyStatus` probed via `eth_call` | Done (read-only): FIPS 204 pure ML-DSA-87, empty context; ~312k gas per direct call (`scripts/spike-b-pqcverify.ts`) |
-| Q-Day Drill vault (`PQGuardVault`) | 21 Foundry tests pass; deployment not yet exercised |
+| Q-Day Drill vault (`PQGuardVault`) | Deployed at `0x40b6b90d69b4a6e2277583ff7d98912c03255591`, 25 QOR, accepts a real ML-DSA-87 signature via `pqcVerify` (EVIDENCE rows 1 to 8); 21 Foundry tests |
 | Rollup `vigil-1` | not yet exercised |
 | Anchored batches and settlement receipts | not yet exercised |
 | Withdrawals | not yet exercised |

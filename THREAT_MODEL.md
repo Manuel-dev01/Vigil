@@ -55,7 +55,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 
 ## 6. The Q-Day Drill (18 Nov 2026)
 
-**Setup.** *Designed; not yet exercised on chain. Rows are added as each step lands.*
+**Setup.** *Exercised on 17 Nov 2026: EVIDENCE.md rows 1 to 8.* The drill account is `qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq` / `0x9f64F05CEF5cAE9e25AC0eD14809be6eE7045247`. PQGuardVault is at `0x40b6b90d69b4a6e2277583ff7d98912c03255591` and holds 25 QOR. The drill account holds ~73.8 QOR, 500 fUSD, 0.5 fETH and 0.02 fBTC as bank coins. Neither account has a window. The deployed vault accepted a real ML-DSA-87 signature from the drill key in an `eth_call` and rejected a tampered one. After the drill, this account becomes Vigil's rollup creator (the "Glass Key": its classical key is public, and nothing can be stolen while it never opens a window).
 - **Drill account.** A fresh **unified eth-native** account: one secp256k1 key whose 20 address bytes are the same account on the Native and EVM lanes, so the key handed to the attacker really is the account on both lanes. Its ML-DSA-87 key (the SDK's canonical, address-bound derivation) is registered with a proof of possession as its first transaction. **It never opens an EVM window or an EIP-7702 consent.**
 - **PQGuardVault.** It holds QOR and fUSD. `guardian` is the drill account. A release needs the guardian's ML-DSA-87 signature over `vigil/pqguard/v1 | chainid | vault | nonce | token | recipient | amount | deadline`.
 - **Deployment.** A *separate* deployer account deploys the vault inside a short **unscoped** window (1 tx, 120 blocks, 0.25 QOR cap). The window must be unscoped because the chain refuses contract creation under `allowed_targets`. The deployer closes it immediately, and funding goes over the Native lane, so no window is needed.
@@ -109,6 +109,8 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 ## 10. Findings
 
 - **RDK 0.9.0's watchtower validator is wrong for qledger-v1.** `transitionRootValidator` (used by `watchBatches` and `qorollup watchtower --canonical`) reports **12 of 12 honest qledger batches as invalid**. The CLI stays silent today only because `watchBatches` validates pending batches only, and every batch on chain is finalized. On a pending honest batch it would report "a challenge would win", and `fraudProofForBatch` would build an old-rule proof that the chain rejects (error 51). Reproduce: `scripts/kit-gap-check.ts`. To be reported upstream.
+
+- **F2: fest ERC-20 tokens are two different balances.** fUSD is an `OWNER_EXTERNAL` token pair: the faucet pays bank coins (`erc20:0x9714…`), while `fUSD.balanceOf` is the ERC-20 side (0 for every account we checked). A bank send to a contract leaves bank coins that the contract's ERC-20 logic cannot move, so they are stranded. Converting with `MsgConvertCoin` failed inside x/erc20 (EVIDENCE row 9). Vigil contracts therefore hold value in native QOR only until token conversion works.
 
 ## 11. Residual risks
 
