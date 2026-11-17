@@ -122,7 +122,7 @@ switch (step) {
     const amount = [
       ...(qor > 0 ? [{ denom: "uqor", amount: String(Math.round(qor * 1e6)) }] : []),
       ...(fusd > 0 ? [{ denom: `erc20:${FUSD}`, amount: String(Math.round(fusd * 1e6)) }] : []),
-    ];
+    ].sort((a, b) => (a.denom < b.denom ? -1 : 1)); // Coins must be sorted by denom
     console.log(`plan: native MsgSend from DEPLOYER to vault ${to}: ${JSON.stringify(amount)}`);
     if (!broadcast || amount.length === 0) break;
     const res = await sendHybrid(deployer, [bank.send({ fromAddress: deployer.cosmos, toAddress: to, amount })], { gas: 300_000, memo: "vigil: fund PQGuardVault" });
