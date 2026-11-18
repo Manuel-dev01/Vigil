@@ -1,5 +1,7 @@
 # Settlement receipts
 
+> `vigil-1` is **not operated by the Vigil team**. Its creator, `qor107qx…tztr`, is another participant (checked 18 Nov 2026). These receipts are an outside watcher's independent verification of that rollup, and an example of checking any rollup without its keys.
+
 Snapshots of `@qorechain/rdk` settlement receipts, built with `buildSettlementReceipt` and checked with `verifySettlementReceipt` against the live chain (`scripts/receipts-snapshot.ts`).
 
 The chain prunes finalized batch records after `finalized_batch_retention_blocks` (432,000 blocks on testnet, about 6 days). Once a batch's record is pruned, its receipt can no longer be built from chain state, so we snapshot each receipt while the record exists. `summary.json` in each folder records the height at which every receipt was verified, and the result.
