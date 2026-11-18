@@ -1,0 +1,383 @@
+{
+  "recordedAt": "2026-11-18T16:11:24.477Z",
+  "evmChainId": 9800,
+  "evmBlock": "10324836",
+  "s1": {
+    "pass": true,
+    "keyStatus": {
+      "creator": "qor107qxkklc0znm38tl0595asa9z73c69w85tsztr",
+      "creatorEvm": "0x7F806B5bF878a7b89d7F7d0b4ec3a517A38d15C7",
+      "registered": true,
+      "algorithmId": 1,
+      "pubkeyBytes": 2592,
+      "possessionProven": true,
+      "matchesRestKey": true
+    },
+    "estimateGasOneCall": "315250",
+    "anchors": [
+      {
+        "batch": 0,
+        "signBytes": 140,
+        "msgSha256": "0xac2e5f52af2d7b1475ac2730777fc9a0a177f6570a9acf5e9fba67370c6b21ba",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 1,
+        "signBytes": 140,
+        "msgSha256": "0x91c92c1422498bd3935b1884e6cade40495eed61659a5b0d7c20d29d3a8e46d3",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 2,
+        "signBytes": 140,
+        "msgSha256": "0xd9c1ea485b8b3b1c0d5620d91ebecb60dec6bc7429fe6b29652fd51b16c74549",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 3,
+        "signBytes": 140,
+        "msgSha256": "0xedb2331e15c7a45adb14756b4aecd6126935874aa15460b44fff61b20d38d937",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 4,
+        "signBytes": 140,
+        "msgSha256": "0x56b13f800040d850fbb18c88bdfaa727b384c83feb62f794be67dd5328a33217",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 5,
+        "signBytes": 140,
+        "msgSha256": "0xd9093aed19238316018ce0ec00d9f20d6968b4d1d09f59e1c44b49e526a699df",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 6,
+        "signBytes": 140,
+        "msgSha256": "0x5246c142bfb817113f322279e9d962e18432050b375153db5f124db87533e94d",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 7,
+        "signBytes": 140,
+        "msgSha256": "0x687c4a56fc85a8eafdd0db62dff9de3aa391133159bd1053a334e78efb0c33a1",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 8,
+        "signBytes": 140,
+        "msgSha256": "0xb32b0518df1660937ba1c424fa17fa5f17a21b59e757a7d76b547be7b84d2c3b",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 9,
+        "signBytes": 140,
+        "msgSha256": "0x98838c0d1300585e1cac74eee0f0076c571a419f07389c663b29dd53b931af8a",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 10,
+        "signBytes": 140,
+        "msgSha256": "0x7b977feb9feeae5b4593006db3efc8707daa8e63d612032a0b70b8de435b18d3",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 11,
+        "signBytes": 140,
+        "msgSha256": "0x9f163cdc560a62db50801e6f26bfbbb92c09be81f91ec32baa2e781207d6e535",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 12,
+        "signBytes": 140,
+        "msgSha256": "0x9a2ee13873ec865917f38c25aaa94c0fe370d7e1805f55f69484e4e995aa31ed",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 13,
+        "signBytes": 140,
+        "msgSha256": "0x672d6177d942710bca6612471c473bc757840a4761475c71c4fda06a7855b8ab",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 14,
+        "signBytes": 140,
+        "msgSha256": "0xcec0761a649bb903093b57d402e8e3b3f7901ce5f688bdfadd48ac223d65b88d",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 15,
+        "signBytes": 140,
+        "msgSha256": "0x31f243d4054ff4f8f79e7171489f02dff30f95356db55ef1e62523035c48759d",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 16,
+        "signBytes": 140,
+        "msgSha256": "0xc1d5f85eeea34a61d4b4b836b629fa6388d381df10894670ad15ec0947c2bcbd",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 17,
+        "signBytes": 140,
+        "msgSha256": "0x5f27ca2f185709548ec471f2346e24b14625f94b117de9f93a9eb27647a4c9a4",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 18,
+        "signBytes": 140,
+        "msgSha256": "0x80fc6690b664a6d79cf831acb918f37f6409bfb86cbabbdb99510044644630df",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 19,
+        "signBytes": 140,
+        "msgSha256": "0x364f8724d281dace3843d77cb5429676a5d08928ca11da7baf0c85ab9a382728",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 20,
+        "signBytes": 140,
+        "msgSha256": "0xa621668e19317f0f7a3ecc26315126e224ac793a1bf1206ed3c7979271da3a3a",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 21,
+        "signBytes": 140,
+        "msgSha256": "0x2bcd4a921c2b48a69401156004a4db2d9b47e5089c1aa3fa652d84243971113e",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 22,
+        "signBytes": 140,
+        "msgSha256": "0x470dbcf79c61ff04c0e160064ace60fd914706dee3957d478694375bfb8c5bb9",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 23,
+        "signBytes": 140,
+        "msgSha256": "0xbdb781fc129312d637ec45b26833c468cffe038403e2309458c085800264b03c",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 24,
+        "signBytes": 140,
+        "msgSha256": "0xbf0cb1c00ad97dd8ba3cd2b81a34c846919c03f4db3eed78d86583cac4e79f71",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 25,
+        "signBytes": 140,
+        "msgSha256": "0xf515814e6fe102b5187566d954cd8224943dd6f794542e1ad2e79a3d47f97623",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 26,
+        "signBytes": 140,
+        "msgSha256": "0xe386508bd046ab67cd7a07dd113453f6459646431c1f241ade7dd7e7b50d34b2",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 27,
+        "signBytes": 140,
+        "msgSha256": "0xb216b35f4fc985e95bacb74d8d5b06bc7e9bc6c920691108de2798801c687485",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      },
+      {
+        "batch": 28,
+        "signBytes": 140,
+        "msgSha256": "0xe699fb2b4133556920e97c95fecdbfbebf97790f836c0ae0103b093ef2354f21",
+        "offline": true,
+        "onChain": true,
+        "flippedMsg": false
+      }
+    ]
+  },
+  "s2": {
+    "pass": true,
+    "success": true,
+    "digest": "0xba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "expected": "0xba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  },
+  "s3": {
+    "pass": false,
+    "context": "eth_call only; a mined transaction may differ (S3b)",
+    "pinnedBlock": "10324836",
+    "blockhash": [
+      {
+        "height": "10324835",
+        "offset": 1,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0x276764d15a97ba5d78da1f388e25c69817acd952e3c7defff5cd311bb1f83ad8",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324834",
+        "offset": 2,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0x123e0322d3c696b23128022779ed97bde4444249bd6733404bc91a5ad7f51f49",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324820",
+        "offset": 16,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0xd1471c6ca840c1d340742e2c87bd0098e26846ea8c1f1f3b96cd1e8a11a09a24",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324772",
+        "offset": 64,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0xffae9e5d60721382be910b3d09d7353bd6eced91e5b66bf1d9fc73ac79b73dc3",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324708",
+        "offset": 128,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0x7426475aa7d69bf2153c8358c05663572f98a370b679bde0170c6c7090967bf2",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324581",
+        "offset": 255,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0xfd3629730a52ebc69386fa739a16c89de90b94ce567aba42eb3ecde64f0b508e",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324580",
+        "offset": 256,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0xfdd78e0f15108ab791067df70a19a54a934aa387788baff097cc4ebf40e0190c",
+        "equal": false,
+        "zero": true
+      },
+      {
+        "height": "10324579",
+        "offset": 257,
+        "blockhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "cometHash": "0x9eeb83007b5e1f712d9f068f017a7d7bc78d90de51fb0fe606fb31a70be639b2",
+        "equal": false,
+        "zero": true
+      }
+    ],
+    "relativeControl": {
+      "evmNumber": "10324844",
+      "blockhashNumberMinus1": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "blockhashNumberMinus2": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "vmHistoryServeWindow": "8192",
+    "eip2935": {
+      "address": "0x0000F90827F1C53a10cb7A02335B175320002935",
+      "codeBytes": 0,
+      "reads": [
+        {
+          "height": "10324536",
+          "offset": 300,
+          "result": "0x",
+          "cometHash": "0x9bd923652122b46714a5207b7fb52d2e01d96bef27bf13da950e741cf64e894a",
+          "equal": false
+        },
+        {
+          "height": "10323836",
+          "offset": 1000,
+          "result": "0x",
+          "cometHash": "0x4bc62f9f4cd031596b5ff5b0c5b159db1336f7483251842509fca22f2c1c6e02",
+          "equal": false
+        },
+        {
+          "height": "10320836",
+          "offset": 4000,
+          "result": "0x",
+          "cometHash": "0xf1e011bf9a7e04afc0e9ad8f01e7332b496ea4b0ec606c998d4dfce8be5efa60",
+          "equal": false
+        },
+        {
+          "height": "10316836",
+          "offset": 8000,
+          "result": "0x",
+          "cometHash": "0xc20695fcf7a089e24c0b64f07d8b06185d573303579f8f6b1ab86cc34a88db09",
+          "equal": false
+        },
+        {
+          "height": "10316645",
+          "offset": 8191,
+          "result": "0x",
+          "cometHash": "0xc73782a74b08e450f8332e242287d876de68f92fa1724640f59c038e032f05f9",
+          "equal": false
+        },
+        {
+          "height": "10315836",
+          "offset": 9000,
+          "result": "0x",
+          "cometHash": "0x6c6bdcf52fedeee67815202a121d63df7dca624d86c7d408ade605919f5bde73",
+          "equal": false
+        }
+      ]
+    }
+  }
+}
