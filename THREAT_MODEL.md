@@ -55,6 +55,14 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 
 ## 6. The Q-Day Drill (18 Nov 2026)
 
+**Registered drill account (18 Nov 2026).** The account Vigil registered with the fest is `qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s` / `0x16B7aB42fD64282931B1589f3e15720B7340f9c7`.
+- It registered its ML-DSA-87 key with proof of possession at height 10,266,300.
+- It has never opened an EVM window.
+- It held 99.8 QOR plus fest tokens on drill day.
+- Its drill-day proof (a hybrid-signed self-send at height 10,320,624, tx `A49757DE…A0C3`) was accepted by the fest.
+
+The PQGuardVault setup below was prepared on a second account and is kept as evidence of the vault design. It was **not** the registered drill target. *Drill results: to be added when the fest publishes the attack log.*
+
 **Setup.** *Exercised on 17 Nov 2026: EVIDENCE.md rows 1 to 8.* The drill account is `qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq` / `0x9f64F05CEF5cAE9e25AC0eD14809be6eE7045247`. PQGuardVault is at `0x40b6b90d69b4a6e2277583ff7d98912c03255591` and holds 25 QOR. The drill account holds ~73.8 QOR, 500 fUSD, 0.5 fETH and 0.02 fBTC as bank coins. Neither account has a window. The deployed vault accepted a real ML-DSA-87 signature from the drill key in an `eth_call` and rejected a tampered one. After the drill, this account becomes Vigil's rollup creator (the "Glass Key": its classical key is public, and nothing can be stolen while it never opens a window).
 - **Drill account.** A fresh **unified eth-native** account: one secp256k1 key whose 20 address bytes are the same account on the Native and EVM lanes, so the key handed to the attacker really is the account on both lanes. Its ML-DSA-87 key (the SDK's canonical, address-bound derivation) is registered with a proof of possession as its first transaction. **It never opens an EVM window or an EIP-7702 consent.**
 - **PQGuardVault.** It holds QOR and fUSD. `guardian` is the drill account. A release needs the guardian's ML-DSA-87 signature over `vigil/pqguard/v1 | chainid | vault | nonce | token | recipient | amount | deadline`.
