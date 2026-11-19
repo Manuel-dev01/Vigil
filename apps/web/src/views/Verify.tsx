@@ -50,6 +50,7 @@ export function VerifyView() {
   const [receipt, setReceipt] = useState<SettlementReceipt>();
   const [pasted, setPasted] = useState("");
   const [result, setResult] = useState<ReceiptVerification>();
+  const [finality, setFinality] = useState<{ final: boolean; status: string; until?: number }>();
   const [took, setTook] = useState<number>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
@@ -74,11 +75,24 @@ export function VerifyView() {
     setBusy("Verifying against the chain…");
     setError(undefined);
     setResult(undefined);
+    setFinality(undefined);
     try {
       const { rdk } = await chain();
       const t0 = performance.now();
       const v = await verifySettlementReceipt(r, { client: rdk });
       setTook(Math.round(performance.now() - t0));
+      // A receipt's anchor exists from the moment the batch is submitted. The
+      // batch is settled only once its challenge window has closed.
+      const [batch, rollup] = await Promise.all([rdk.rest.getBatch(r.rollupId, r.batchIndex).catch(() => undefined), rdk.rest.getRollup(r.rollupId)]);
+      setFinality(
+        batch
+          ? {
+              final: batch.status === "finalized",
+              status: batch.status,
+              ...(batch.submittedTime && rollup.challengeWindowSec ? { until: batch.submittedTime + rollup.challengeWindowSec } : {}),
+            }
+          : { final: false, status: "not found" },
+      );
       setResult(v);
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
@@ -187,6 +201,16 @@ export function VerifyView() {
                         : "The anchor's layer height equals the batch index, so its block and time are this batch's.",
                       ok: !!result.anchor && result.anchor.layerHeight === receipt.batchIndex,
                     },
+                    {
+                      key: "final",
+                      what: "The batch is final",
+                      why: finality?.final
+                        ? "Its challenge window has closed, so no fraud proof can remove it."
+                        : finality?.until
+                          ? `It is ${finality.status} and can still be challenged until ${new Date(finality.until * 1000).toUTCString()}.`
+                          : `The chain reports it as ${finality?.status ?? "unknown"}.`,
+                      ok: !!finality?.final,
+                    },
                   ].map((c, i, all) => {
                     const firstFail = all.findIndex((x) => !x.ok);
                     const reached = result.valid || firstFail === -1 || i <= firstFail;
@@ -205,12 +229,14 @@ export function VerifyView() {
                     );
                   })}
                 </ul>
-                <div className={`verdict ${result.valid && result.anchor?.layerHeight === receipt.batchIndex ? "ok" : "bad"}`}>
+                <div className={`verdict ${!result.valid ? "bad" : result.anchor?.layerHeight !== receipt.batchIndex ? "bad" : finality?.final ? "ok" : "warn"}`}>
                   {!result.valid
                     ? `Not valid: ${result.reason ?? "a check failed"}`
-                    : result.anchor?.layerHeight === receipt.batchIndex
-                      ? `Valid: batch ${receipt.batchIndex} of ${receipt.rollupId} is settled on ${CHAIN_ID}.`
-                      : `The state root is settled, but this receipt carries the anchor of layer height ${result.anchor?.layerHeight}, not batch ${receipt.batchIndex}'s own. Its block and time are that batch's.`}
+                    : result.anchor?.layerHeight !== receipt.batchIndex
+                      ? `The state root is anchored, but this receipt carries the anchor of layer height ${result.anchor?.layerHeight}, not batch ${receipt.batchIndex}'s own. Its block and time are that batch's.`
+                      : finality?.final
+                        ? `Valid: batch ${receipt.batchIndex} of ${receipt.rollupId} is settled and final on ${CHAIN_ID}.`
+                        : `Anchored and signed, but not final yet: batch ${receipt.batchIndex} can still be challenged. Do not treat it as settled.`}
                 </div>
                 <dl className="kv">
                   <dt>Mode</dt>
