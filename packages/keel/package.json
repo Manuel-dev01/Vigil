@@ -8,6 +8,8 @@
   "scripts": {
     "start": "tsx src/main.ts",
     "deposit": "tsx src/deposit.ts",
+    "send": "tsx src/l2-send.ts",
+    "claim": "tsx src/claim.ts",
     "l2-key": "tsx src/l2-key.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
