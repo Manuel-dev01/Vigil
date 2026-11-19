@@ -1,0 +1,28 @@
+{
+  "name": "@vigil/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vigil's web app: watch vigil-pay-1 live, verify settlement receipts against the chain and open sealed payslips, all in the browser over the node's websocket.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@qorechain/qoreseal": "0.1.0",
+    "@qorechain/rdk": "0.9.0",
+    "@vigil/chain-ws": "workspace:*",
+    "@vigil/sealed": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "vite": "8.3.5"
+  }
+}
