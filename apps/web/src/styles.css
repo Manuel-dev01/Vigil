@@ -113,6 +113,7 @@ textarea { width: 100%; min-height: 140px; font-family: var(--mono); font-size: 
 .verdict { margin-top: 14px; padding: 12px 14px; border-radius: 10px; font-weight: 600; }
 .verdict.ok { background: var(--ok-soft); color: var(--ok); }
 .verdict.bad { background: var(--bad-soft); color: var(--bad); }
+.verdict.warn { background: var(--warn-soft); color: var(--warn); }
 .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 13.5px; margin-top: 10px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
