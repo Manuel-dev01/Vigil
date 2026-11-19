@@ -3,13 +3,18 @@
  * deliberately wrong state root; our watchtowers must challenge it and the chain
  * must slash the bond (50% burned, 50% to the challenger).
  *
- * Approved in writing by Manuel on 19 Nov 2026 (one drill). The evil key lives
- * only in repo/.env.evil-submitter. Every step simulates unless --broadcast.
+ * Drill 1 was approved in writing by Manuel on 19 Nov 2026, with the key in
+ * repo/.env.evil-submitter (on Manuel's machine). Drill 2 was approved by OoJae
+ * on 19 Nov 2026 (OoJae approves spending since the handover), with a fresh key
+ * in repo/.env.evil-submitter-2. One drill per approval. Every step simulates
+ * unless --broadcast.
  *
- *   tsx drill/fraud-drill.ts status
- *   tsx drill/fraud-drill.ts bond   [--broadcast]     # bond 1,000 QOR
- *   tsx drill/fraud-drill.ts attack [--broadcast]     # post a no-op, then submit the wrong batch
- *   tsx drill/fraud-drill.ts watch                     # follow the batch until rejected or finalized
+ *   tsx drill/fraud-drill.ts status [--role evil-submitter-2]
+ *   tsx drill/fraud-drill.ts bond   [--role …] [--broadcast]   # bond 1,000 QOR
+ *   tsx drill/fraud-drill.ts attack [--role …] [--broadcast]   # post a no-op, then submit the wrong batch
+ *   tsx drill/fraud-drill.ts watch  [--role …]                  # follow the batch until rejected or finalized
+ *
+ * The evil account first needs its PQ key: tsx drill/register-pqc.ts --role <role> --broadcast
  *
  * Before submitting, the script builds our watchtower's fraud proof against the
  * wrong batch and checks it with checkQledgerFraud: the drill only goes ahead
@@ -28,7 +33,9 @@ const broadcast = args.includes("--broadcast");
 
 const rdk = createRdkClient({ network: "testnet" });
 const env = { chainId: rdk.network.chainId, rollupId: ROLLUP };
-const evil = await loadRoleAccount("evil-submitter");
+const role = args.includes("--role") ? args[args.indexOf("--role") + 1]! : "evil-submitter";
+if (!/^evil-submitter(-\d+)?$/.test(role)) throw new Error(`--role must be an evil-submitter account, got ${role}`);
+const evil = await loadRoleAccount(role);
 const flip = (h: string) => (h[0] === "0" ? "1" : "0") + h.slice(1);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -117,7 +124,7 @@ switch (step) {
         return undefined;
       });
       if (!res) { await sleep(3000); continue; }
-      console.log(`EVIL BATCH ${evilBatch.batchIndex} submitted: tx ${res.transactionHash} height ${res.height}. Now run: tsx drill/fraud-drill.ts watch`);
+      console.log(`EVIL BATCH ${evilBatch.batchIndex} submitted: tx ${res.transactionHash} height ${res.height}. Now run: tsx drill/fraud-drill.ts watch --role ${role}`);
       break;
     }
     break;
