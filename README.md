@@ -11,7 +11,7 @@
 | Inbox replay matches on-chain roots (watchtower seed) | **12 of 12** live batches on two rollups reproduced (read-only: `scripts/spike-a-replay.ts`, offline test in `scripts/test/`) |
 | `pqcVerify` / `pqcKeyStatus` probed via `eth_call` | Done (read-only): FIPS 204 pure ML-DSA-87, empty context; ~312k gas per direct call (`scripts/spike-b-pqcverify.ts`) |
 | Q-Day Drill vault (`PQGuardVault`) | Deployed at `0x40b6b90d69b4a6e2277583ff7d98912c03255591`, 25 QOR, accepts a real ML-DSA-87 signature via `pqcVerify` (EVIDENCE rows 1 to 8); 21 Foundry tests |
-| Our rollup (id to be chosen: `vigil-1` belongs to another participant) | not yet created |
+| Our rollup `vigil-pay-1` (qledger-v1, based, optimistic) | Created 19 Nov at height 10,351,825, creator bonded as submitter (EVIDENCE rows 13 and 14). No batches yet: the sequencer is not running |
 | Anchored batches and settlement receipts | not yet exercised |
 | Withdrawals | not yet exercised |
 | qledger-v1 watchtower, fraud challenge | not yet exercised |
