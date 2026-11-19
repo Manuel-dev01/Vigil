@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { buildSettlementReceipt, verifySettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
-import { CHAIN_ID, KNOWN, ROLLUP, chain, short } from "../chain.ts";
+import { CHAIN_ID, KNOWN, REPO, ROLLUP, chain, short } from "../chain.ts";
+import { RECEIPT_VERIFIER, checkInEvm, evmCovers, type EvmCheck } from "../evm.ts";
 
 const CHECKS: { key: keyof ReceiptVerification["checks"]; what: string; why: string }[] = [
   { key: "rollupLayerBinding", what: "Rollup and layer belong together", why: "The chain says this rollup settles to the receipt's layer." },
@@ -52,6 +53,7 @@ export function VerifyView() {
   const [result, setResult] = useState<ReceiptVerification>();
   const [finality, setFinality] = useState<{ final: boolean; status: string; until?: number }>();
   const [took, setTook] = useState<number>();
+  const [evm, setEvm] = useState<EvmCheck | { error: string }>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -76,6 +78,11 @@ export function VerifyView() {
     setError(undefined);
     setResult(undefined);
     setFinality(undefined);
+    setEvm(undefined);
+    // The contract check runs alongside; it never decides the verdict above, only adds to it.
+    const evmCheck = evmCovers(r)
+      ? checkInEvm(r).catch((e: unknown) => ({ error: String(e instanceof Error ? e.message : e) }))
+      : Promise.resolve(undefined);
     try {
       const { rdk } = await chain();
       const t0 = performance.now();
@@ -94,6 +101,7 @@ export function VerifyView() {
           : { final: false, status: "not found" },
       );
       setResult(v);
+      setEvm(await evmCheck);
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -260,6 +268,67 @@ export function VerifyView() {
               </>
             )}
           </section>
+          {result && receipt && RECEIPT_VERIFIER && evmCovers(receipt) && (
+            <section className="panel" aria-live="polite">
+              <h2>
+                3. In Solidity <small>QoreChain EVM</small>
+              </h2>
+              {!evm && <p className="empty">Asking the contract…</p>}
+              {evm && "error" in evm && <p className="err">The EVM check did not run: {evm.error}</p>}
+              {evm && !("error" in evm) && (
+                <ul className="checks">
+                  <li>
+                    <span className={evm.valid ? "mark-ok" : "mark-bad"} aria-label={evm.valid ? "passed" : "failed"}>
+                      {evm.valid ? "✓" : "✕"}
+                    </span>
+                    <span>
+                      <span className="what">
+                        The contract says: {evm.result} (layer height {receipt.layerHeight})
+                      </span>
+                      <br />
+                      <span className="why">
+                        It rebuilt the anchor message, read the creator's key through the pqcKeyStatus precompile and verified the ML-DSA-87
+                        signature with pqcVerify ({evm.ms} ms, a free eth_call).
+                      </span>
+                    </span>
+                  </li>
+                  <li>
+                    <span
+                      className={evm.record.attested && evm.record.sameRoot && !evm.record.conflicted ? "mark-ok" : evm.record.attested ? "mark-bad" : "mark-skip"}
+                      aria-label={evm.record.attested ? (evm.record.sameRoot && !evm.record.conflicted ? "passed" : "failed") : "not yet"}
+                    >
+                      {evm.record.attested ? (evm.record.sameRoot && !evm.record.conflicted ? "✓" : "✕") : "–"}
+                    </span>
+                    <span>
+                      <span className="what">
+                        {!evm.record.attested
+                          ? "Not on the contract's record yet"
+                          : evm.record.conflicted
+                            ? "Conflicted on the contract's record"
+                            : evm.record.sameRoot
+                              ? `On the contract's record since EVM block ${evm.record.block.toLocaleString()}`
+                              : "The contract's record shows another root for this height"}
+                      </span>
+                      <br />
+                      <span className="why">
+                        Anyone can submit an anchor; the contract records the first valid root for each layer height, and marks a height
+                        conflicted for good if the creator's key ever signed two roots for it. Other contracts read the record instead of
+                        re-checking the signature.
+                      </span>
+                    </span>
+                  </li>
+                </ul>
+              )}
+              <p className="note" style={{ marginTop: 10 }}>
+                Contract <code>{short(RECEIPT_VERIFIER.address, 8)}</code> (
+                <a href={`${REPO}/blob/main/contracts/src/SettlementReceiptVerifier.sol`} target="_blank" rel="noreferrer">
+                  source
+                </a>
+                ), no owner, fixed to {ROLLUP} and its creator. EVM code cannot read the rollup module, so it cannot tell whether a batch is
+                final; that comes from the checks above.
+              </p>
+            </section>
+          )}
         </aside>
       </div>
     </>
