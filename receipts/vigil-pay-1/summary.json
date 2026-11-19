@@ -1,7 +1,7 @@
 {
   "rollupId": "vigil-pay-1",
-  "checkedAt": "2026-11-19T04:39:02.556Z",
-  "height": 10356261,
+  "checkedAt": "2026-11-19T07:17:02.371Z",
+  "height": 10362355,
   "summary": [
     {
       "batchIndex": 0,
@@ -15,6 +15,11 @@
     },
     {
       "batchIndex": 2,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 3,
       "valid": true,
       "failed": []
     }

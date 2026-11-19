@@ -47,6 +47,10 @@ pnpm --filter @vigil/keel claim -- --env <submitter .env> [--batch N] [--broadca
   - It recomputes them by replaying the rollup, with every root checked.
   - Each proof is the qledger sibling path. `test/withdrawal-proof.test.ts` checks these paths against `vigil-1`'s recorded withdrawals.
 
+## Hosting
+
+`packages/keel/Dockerfile` builds Keel from the repo root. We run `vigil-pay-1`'s Keel from it on Railway: one instance, a volume at `/data` for the snapshot, and the creator key set as secret variables (`PRIVATE_KEY` and `QORE_PQC_RECOVERY_CODE`, read from the process environment when `--env` is not given). The image sets `KEEL_LOCK=0`, since a container has no other Keel to race. Only one Keel may hold a key, so the local copy stays stopped while the hosted one runs. `KEEL_DRY_RUN=1` pauses sending without stopping it.
+
 ## Tests
 
 `packages/keel/test/snapshot.test.ts` rebuilds `vigil-1`'s state from recorded chain data (29 batches). It checks that the snapshot reloads to the chain's final root and that a tampered snapshot is refused.
