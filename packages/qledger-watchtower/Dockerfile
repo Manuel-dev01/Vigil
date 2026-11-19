@@ -23,5 +23,8 @@ COPY packages/qledger-watchtower packages/qledger-watchtower
 ENV WATCHTOWER_ROLLUP=vigil-pay-1 \
     WATCHTOWER_MODE=observe \
     WATCHTOWER_INTERVAL=10 \
-    WATCHTOWER_DATA=/data/watchtower
+    WATCHTOWER_DATA=/data/watchtower \
+    WATCHTOWER_FOLLOW=ws \
+    WATCHTOWER_GAS_PRICE=0.3 \
+    WATCHTOWER_CHALLENGE_DELAY=0
 CMD ["sh", "-c", "exec node --import tsx packages/qledger-watchtower/src/cli.ts --rollup \"$WATCHTOWER_ROLLUP\" --mode \"$WATCHTOWER_MODE\" --interval \"$WATCHTOWER_INTERVAL\" --data \"$WATCHTOWER_DATA\""]
