@@ -1,0 +1,24 @@
+{
+  "name": "@vigil/qledger-watchtower",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A qledger-v1 watchtower: re-executes every batch of a QoreChain rollup from chain data, archives the inbox, and challenges wrong batches with a self-checked fraud proof.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "vigil-watchtower": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "watch": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "0.39.0",
+    "@qorechain/rdk": "0.9.0",
+    "@qorechain/sdk": "0.14.0",
+    "@vigil/core": "workspace:*"
+  }
+}
