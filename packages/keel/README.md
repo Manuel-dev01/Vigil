@@ -4,8 +4,8 @@ Keel sequences Vigil's qledger-v1 based rollup. It runs as the rollup's creator,
 
 ## What one pass does
 
-1. Reads the rollup's inbox. If nothing is waiting, it stops there.
-2. Brings the local ledger up to the chain's latest batch. Any batch it has not seen is re-executed and checked root by root. On a based rollup any bonded submitter may post, so Keel never assumes the last batch was its own.
+1. Brings the local ledger up to the chain's latest batch. Any batch it has not seen is re-executed and checked root by root. On a based rollup any bonded submitter may post, so Keel never assumes the last batch was its own. If a batch does not reproduce, or the rollup was rolled back, see "Fraud and rollback" below.
+2. Reads the rollup's inbox. If nothing is waiting, it stops there.
 3. Plans the next batch with `planQledgerBatch` from `@qorechain/rdk`. This applies the chain's admission rules, then fetches, checks and re-executes the entries.
 4. Signs the batch's v2 anchor bytes (`anchorSignBytesForBatch`) with the creator's registered ML-DSA-87 key.
 5. Simulates the `MsgSubmitBatch`.
@@ -19,7 +19,14 @@ Keel refuses to start in these cases:
 - an EVM window is open;
 - another Keel holds the lock.
 
-It stops, and does not build on top, if a published batch does not reproduce.
+## Fraud and rollback
+
+Keel never builds on a batch it cannot reproduce. On a based rollup any bonded submitter can post one, so Keel handles it without stopping:
+
+- **Blocked.** When a batch on chain does not reproduce, Keel stays at the batch before it, submits nothing and logs `awaiting_challenge`. It logs again with each heartbeat until the watchtower's challenge removes the batch. If the batch finalizes instead, Keel logs `fraud_finalized` and stays paused, because the rollup then needs a human.
+- **Rollback.** An upheld challenge drops the bad batch and every later unfinalized batch. The inbox rolls back to the end of the last good batch (`rdk_inbox_rolled_back`), and the next batch reuses the dropped index. When the batch Keel's state ended on is gone, rejected or replaced, Keel logs `rollback`, rebuilds its ledger from the chain, and batches the rolled-back entries again.
+
+`test/sync.test.ts` covers these cases on recorded chain data: a batch that does not reproduce, a fraud that finalized, batches dropped by a challenge, an index reused by a different batch, and rejected records left at the top. `send` refuses to post while a batch is blocked, and `claim` never reads withdrawals from a batch that does not reproduce.
 
 ## Run
 
@@ -27,7 +34,7 @@ It stops, and does not build on top, if a published batch does not reproduce.
 pnpm --filter @vigil/keel start -- --env <creator .env> [--rollup vigil-pay-1] [--interval 6] [--dry-run] [--once]
 ```
 
-- Logs are JSON lines, one per event: `start`, `state_ready`, `batch_replayed`, `batch_submitted`, `heartbeat`, `pass_failed` and `fatal`.
+- Logs are JSON lines, one per event: `start`, `state_ready`, `batch_replayed`, `batch_submitted`, `heartbeat`, `awaiting_challenge`, `unblocked`, `rollback`, `fraud_finalized`, `pass_failed` and `fatal`. Only start-up problems are fatal; a failed pass is retried.
 - `data/keel/<rollup>/status.json` holds the latest pass.
 - `--dry-run` plans and simulates batches but never sends one.
 
