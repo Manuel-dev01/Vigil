@@ -1,0 +1,21 @@
+{
+  "name": "@vigil/chain-ws",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Read QoreChain state from a browser with no server in between: the node's REST routes, answered over its CometBFT websocket (abci_query) and decoded with the chain's own reflected protobuf descriptors.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "snapshot": "tsx scripts/snapshot-descriptors.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.16.0"
+  },
+  "devDependencies": {
+    "@qorechain/rdk": "0.9.0"
+  }
+}
