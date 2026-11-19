@@ -18,7 +18,14 @@ export function readEnvFile(path: string): Record<string, string> {
 }
 
 export async function loadOperator(envPath: string): Promise<UnifiedAccount> {
-  const env = readEnvFile(envPath);
+  return loadOperatorFrom(readEnvFile(envPath));
+}
+
+/**
+ * The same, from a map of variables: a hosted Keel reads them from its process
+ * environment (secret service variables) instead of a file.
+ */
+export async function loadOperatorFrom(env: Record<string, string | undefined>): Promise<UnifiedAccount> {
   if (env["QORE_MNEMONIC"]) return deriveUnifiedAccount(env["QORE_MNEMONIC"], 0);
   const key = env["PRIVATE_KEY"];
   const code = env["QORE_PQC_RECOVERY_CODE"];

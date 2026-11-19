@@ -15,6 +15,12 @@
  * --dry-run plans and simulates every batch but never sends one.
  * One Keel per key: a lock file in the data directory refuses a second copy
  * (two sequencers on one key race for the account sequence).
+ *
+ * Hosted (see Dockerfile): without --env the key comes from the process
+ * environment (PRIVATE_KEY + QORE_PQC_RECOVERY_CODE, or QORE_MNEMONIC), and
+ * KEEL_ROLLUP, KEEL_DATA_DIR, KEEL_DRY_RUN=1 and KEEL_LOCK=0 stand in for the
+ * flags. A single-replica container turns the lock off: its PIDs repeat across
+ * restarts, so a stale lock could look alive.
  */
 import "./net.ts";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -30,7 +36,7 @@ import {
   withdrawalsRootError,
 } from "@qorechain/rdk";
 import { TESTNET } from "@vigil/core";
-import { argValue, loadOperator } from "./account.ts";
+import { argValue, loadOperator, loadOperatorFrom } from "./account.ts";
 import { HybridSender } from "./chain.ts";
 import { emptyState, loadSnapshot, saveSnapshot, snapshotOf, stateFrom, type LedgerState } from "./snapshot.ts";
 import { syncLedger } from "./sync.ts";
@@ -39,13 +45,13 @@ class FatalError extends Error {}
 
 const argv = process.argv.slice(2);
 const envPath = argValue(argv, "--env") ?? process.env["KEEL_ENV"];
-const rollupId = argValue(argv, "--rollup") ?? "vigil-pay-1";
+const rollupId = argValue(argv, "--rollup") ?? process.env["KEEL_ROLLUP"] ?? "vigil-pay-1";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const dataDir = resolve(argValue(argv, "--data") ?? resolve(repoRoot, "data/keel", rollupId));
-const intervalMs = Math.max(2, Number(argValue(argv, "--interval") ?? "6")) * 1000;
-const dryRun = argv.includes("--dry-run");
+const dataDir = resolve(argValue(argv, "--data") ?? process.env["KEEL_DATA_DIR"] ?? resolve(repoRoot, "data/keel", rollupId));
+const intervalMs = Math.max(2, Number(argValue(argv, "--interval") ?? process.env["KEEL_INTERVAL"] ?? "6")) * 1000;
+const dryRun = argv.includes("--dry-run") || process.env["KEEL_DRY_RUN"] === "1";
 const once = argv.includes("--once");
-if (!envPath) throw new Error("Pass --env <path to the creator's .env> (or set KEEL_ENV)");
+const useLock = process.env["KEEL_LOCK"] !== "0";
 
 const env = { chainId: TESTNET.chainId, rollupId };
 const snapshotPath = resolve(dataDir, "ledger.json");
@@ -92,7 +98,7 @@ const releaseLock = () => {
 };
 
 // ------------------------------------------------------------------ preflight
-const account = await loadOperator(envPath);
+const account = envPath ? await loadOperator(envPath) : await loadOperatorFrom(process.env);
 const sender = new HybridSender(account);
 const rdk = createRdkClient({ network: "testnet" });
 const rest = rdk.rest;
@@ -126,13 +132,16 @@ log("info", "start", {
   dataDir,
   intervalMs,
   dryRun,
+  keySource: envPath ? "file" : "environment",
 });
 
-try {
-  takeLock();
-} catch (err) {
-  log("error", "lock_refused", { reason: (err as Error).message });
-  process.exit(1);
+if (useLock) {
+  try {
+    takeLock();
+  } catch (err) {
+    log("error", "lock_refused", { reason: (err as Error).message });
+    process.exit(1);
+  }
 }
 let stopping = false;
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
