@@ -21,6 +21,7 @@
     "cosmjs-types": "0.11.0",
     "undici": "^8.12.4",
     "viem": "^2.57.20",
-    "@vigil/core": "workspace:*"
+    "@vigil/core": "workspace:*",
+    "@vigil/qledger-watchtower": "workspace:*"
   }
 }

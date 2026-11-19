@@ -97,6 +97,16 @@ export class RollupTracker {
     return j;
   }
 
+  /** The honest ledger whose root is `root` (after a judged batch, or the empty ledger). A copy. */
+  ledgerFor(root: string): QledgerLedger | undefined {
+    return this.states.get(norm(root))?.clone();
+  }
+
+  /** Make sure the archive holds every inbox entry up to `to` (e.g. the inbox head). */
+  async ensureEntries(to: number): Promise<void> {
+    if (to > this.archive.head) this.archive.append(await this.source.fetchEntries(this.archive.head, to, this.archive.accAt(this.archive.head)!));
+  }
+
   /** The judgement already reached for a batch, if any. */
   judgementFor(b: PublishedBatch): Judgement | undefined {
     return this.judged.get(key(b));
