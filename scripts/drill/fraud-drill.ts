@@ -12,7 +12,7 @@
  *   tsx drill/fraud-drill.ts status [--role evil-submitter-2]
  *   tsx drill/fraud-drill.ts bond   [--role …] [--broadcast]   # bond 1,000 QOR
  *   tsx drill/fraud-drill.ts attack [--role …] [--broadcast]   # post a no-op, then submit the wrong batch
- *   tsx drill/fraud-drill.ts watch  [--role …]                  # follow the batch until rejected or finalized
+ *   tsx drill/fraud-drill.ts watch  [--role …]                  # follow the rollup until the evil bond is slashed (or 70 min pass)
  *
  * The evil account first needs its PQ key: tsx drill/register-pqc.ts --role <role> --broadcast
  *
@@ -131,15 +131,27 @@ switch (step) {
   }
 
   case "watch": {
+    // An upheld challenge removes the rejected batch (and every later unfinalized
+    // one) from the batch list, so a "rejected" status never shows up there. What
+    // does show is the slash: the evil submitter's bond drops. Stop on that.
     const start = Date.now();
+    const bondAtStart = await bond();
+    if (bondAtStart === 0n) throw new Error(`${evil.cosmos} has no bond on ${ROLLUP}: nothing to watch (already slashed, or never bonded)`);
     let last = "";
+    let upheld = false;
     while (Date.now() - start < 70 * 60_000) {
+      const now = await bond();
       const batches = await rdk.rest.listBatches(ROLLUP);
-      const line = batches.slice(-3).map((b) => `${b.batchIndex}:${b.status}:${b.stateRoot.slice(0, 8)}`).join(" ") + ` | evil bond ${Number(await bond()) / 1e6} QOR`;
+      const line = batches.slice(-3).map((b) => `${b.batchIndex}:${b.status}:${b.stateRoot.slice(0, 8)}`).join(" ") + ` | evil bond ${Number(now) / 1e6} QOR`;
       if (line !== last) { console.log(`${new Date().toISOString()} ${line}`); last = line; }
-      if (batches.some((b) => b.status === "rejected")) { console.log("a batch was REJECTED: challenge upheld"); break; }
+      if (now < bondAtStart) {
+        console.log(`UPHELD: the evil bond fell from ${Number(bondAtStart) / 1e6} to ${Number(now) / 1e6} QOR. Find the challenger in the rdk_fraud_upheld event of the block that slashed it.`);
+        upheld = true;
+        break;
+      }
       await sleep(5000);
     }
+    if (!upheld) console.log("no slash within 70 min: the wrong batch outlived the 3,600 s challenge window. Check the watchtowers' logs.");
     break;
   }
 
