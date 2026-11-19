@@ -1,0 +1,10 @@
+{
+  "chainId": "qorechain-diana",
+  "nodeVersion": "0.38.26",
+  "height": 10390021,
+  "source": "wss://rpc-testnet.qore.host/websocket abci_query /cosmos.reflection.v1.ReflectionService/FileDescriptors",
+  "files": 211,
+  "filesOnNode": 526,
+  "bytes": 365878,
+  "sha256": "c51523b3d3d8a78b42cbcaf4f09bbd05508145b0984c0d3abd98eed82c1ceb64"
+}
