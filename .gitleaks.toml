@@ -1,0 +1,13 @@
+# Default gitleaks rules, plus an allowlist for public recipient-card fields
+# (cards/<qor1…>.json): the SHA3-256 of a registered ML-KEM-1024 public key and
+# the classical key type. Neither is a secret; both are also readable on chain.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public recipient-card fields"
+regexTarget = "line"
+regexes = [
+  '''^\s*"mlkemKeySha3": "[0-9a-f]{64}",?$''',
+  '''^\s*"keyType": "eth_secp256k1",?$''',
+]
