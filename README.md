@@ -11,9 +11,9 @@
 | Inbox replay matches on-chain roots (watchtower seed) | **12 of 12** live batches on two rollups reproduced (read-only: `scripts/spike-a-replay.ts`, offline test in `scripts/test/`) |
 | `pqcVerify` / `pqcKeyStatus` probed via `eth_call` | Done (read-only): FIPS 204 pure ML-DSA-87, empty context; ~312k gas per direct call (`scripts/spike-b-pqcverify.ts`) |
 | Q-Day Drill vault (`PQGuardVault`) | Deployed at `0x40b6b90d69b4a6e2277583ff7d98912c03255591`, 25 QOR, accepts a real ML-DSA-87 signature via `pqcVerify` (EVIDENCE rows 1 to 8); 21 Foundry tests |
-| Our rollup `vigil-pay-1` (qledger-v1, based, optimistic) | Created and bonded 19 Nov (EVIDENCE 13 and 14). Our sequencer Keel (`packages/keel`) submitted batch 0 from the first deposit (EVIDENCE 15 and 16) |
-| Anchored batches and settlement receipts | `vigil-pay-1` batch 0: anchored in its submission tx by ML-DSA-87; replay matches; settlement receipt valid with a live client (EVIDENCE 16, `receipts/vigil-pay-1/`) |
-| Withdrawals | not yet exercised |
+| Our rollup `vigil-pay-1` (qledger-v1, based, optimistic) | Created and bonded 19 Nov (EVIDENCE 13 and 14). Our sequencer Keel (`packages/keel`) has batched a deposit, a transfer and a withdrawal (batches 0 to 2, all finalized; EVIDENCE 15 to 20) |
+| Anchored batches and settlement receipts | `vigil-pay-1` batches 0 to 2: each anchored in its submission tx by ML-DSA-87; replay matches; settlement receipts valid with a live client (EVIDENCE 16, 18, 20; `receipts/vigil-pay-1/`) |
+| Withdrawals | One L2 withdrawal (0.25 QOR) committed in batch 2 and executed on L1 with its qledger proof once final; a second claim is refused (EVIDENCE 19 to 21) |
 | qledger-v1 watchtower, fraud challenge | not yet exercised |
 | ML-KEM-1024 sealed data lane | not yet exercised |
 | Threat model | [v0](THREAT_MODEL.md) |
