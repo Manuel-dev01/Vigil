@@ -5,6 +5,13 @@
   "description": "Keel: the sequencer for Vigil's qledger-v1 based rollup. Plans each batch from the inbox, anchors it with the creator's ML-DSA-87 key and submits it hybrid-signed.",
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {
+    "./account": "./src/account.ts",
+    "./chain": "./src/chain.ts",
+    "./sync": "./src/sync.ts",
+    "./snapshot": "./src/snapshot.ts",
+    "./l2-key": "./src/l2-key.ts"
+  },
   "scripts": {
     "start": "tsx src/main.ts",
     "deposit": "tsx src/deposit.ts",
