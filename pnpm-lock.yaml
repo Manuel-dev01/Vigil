@@ -23,6 +23,27 @@ importers:
 
   packages/core: {}
 
+  packages/keel:
+    dependencies:
+      '@cosmjs/proto-signing':
+        specifier: 0.39.0
+        version: 0.39.0
+      '@cosmjs/stargate':
+        specifier: 0.39.0
+        version: 0.39.0
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.57.20(typescript@7.0.2))
+      '@qorechain/sdk':
+        specifier: 0.14.0
+        version: 0.14.0(viem@2.57.20(typescript@7.0.2))
+      '@vigil/core':
+        specifier: workspace:*
+        version: link:../core
+      undici:
+        specifier: ^8.12.4
+        version: 8.12.4
+
   scripts:
     dependencies:
       '@cosmjs/proto-signing':

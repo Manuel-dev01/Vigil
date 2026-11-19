@@ -1,0 +1,22 @@
+{
+  "name": "@vigil/keel",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Keel: the sequencer for Vigil's qledger-v1 based rollup. Plans each batch from the inbox, anchors it with the creator's ML-DSA-87 key and submits it hybrid-signed.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "deposit": "tsx src/deposit.ts",
+    "l2-key": "tsx src/l2-key.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cosmjs/proto-signing": "0.39.0",
+    "@cosmjs/stargate": "0.39.0",
+    "@qorechain/rdk": "0.9.0",
+    "@qorechain/sdk": "0.14.0",
+    "@vigil/core": "workspace:*",
+    "undici": "^8.12.4"
+  }
+}
