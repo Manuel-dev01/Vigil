@@ -16,7 +16,7 @@
  * if the chain is certain to uphold the challenge.
  */
 import "../lib/net.ts";
-import { bondRollupSubmitterMsg, createRdkClient, postRollupDataMsg, submitBatchMsg } from "@qorechain/rdk";
+import { bondRollupSubmitterMsg, createRdkClient, createRdkRegistry, postRollupDataMsg, submitBatchMsg } from "@qorechain/rdk";
 import { InboxArchive, RollupTracker, chainSource, checkBatch, buildChallenge, type PublishedBatch } from "@vigil/qledger-watchtower";
 import { balances, getJson, loadRoleAccount, sendHybrid } from "../lib/native.ts";
 
@@ -58,7 +58,7 @@ switch (step) {
     console.log(`plan: bond ${Number(BOND_UQOR) / 1e6} QOR from ${evil.cosmos} on ${ROLLUP} (currently bonded ${Number(have) / 1e6})`);
     if (have >= BOND_UQOR) { console.log("already bonded"); break; }
     if (!broadcast) break;
-    const res = await sendHybrid(evil, [bondRollupSubmitterMsg({ submitter: evil.cosmos, rollupId: ROLLUP, amount: BOND_UQOR.toString() })], { gas: 400_000, memo: "vigil fraud drill: bond" });
+    const res = await sendHybrid(evil, [bondRollupSubmitterMsg({ submitter: evil.cosmos, rollupId: ROLLUP, amount: BOND_UQOR.toString() })], { gas: 400_000, memo: "vigil fraud drill: bond", registry: createRdkRegistry() });
     console.log(`bond tx ${res.transactionHash} height ${res.height}`);
     break;
   }
@@ -77,7 +77,7 @@ switch (step) {
         console.log(`dry run: would build batch ${latest.batchIndex + 1} from consumed ${inbox.consumedSequence} to head+1`);
         break;
       }
-      const post = await sendHybrid(evil, [postRollupDataMsg({ poster: evil.cosmos, rollupId: ROLLUP, data: payload })], { gas: 300_000, memo: "vigil fraud drill: post" });
+      const post = await sendHybrid(evil, [postRollupDataMsg({ poster: evil.cosmos, rollupId: ROLLUP, data: payload })], { gas: 300_000, memo: "vigil fraud drill: post", registry: createRdkRegistry() });
       console.log(`post tx ${post.transactionHash} height ${post.height}`);
 
       // 2. Build the honest batch over [consumed, head], then corrupt its state root.
@@ -112,7 +112,7 @@ switch (step) {
         dataHash: evilBatch.dataHash,
         withdrawalsRoot: evilBatch.withdrawalsRoot,
         inboxEnd: evilBatch.inboxEnd,
-      })], { gas: 600_000, memo: "vigil fraud drill: deliberately wrong batch" }).catch((e: Error) => {
+      })], { gas: 600_000, memo: "vigil fraud drill: deliberately wrong batch", registry: createRdkRegistry() }).catch((e: Error) => {
         console.log(`submit failed: ${e.message.slice(0, 200)}`);
         return undefined;
       });
