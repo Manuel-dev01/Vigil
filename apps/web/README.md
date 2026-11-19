@@ -15,3 +15,13 @@ pnpm install
 pnpm --filter @vigil/web dev      # http://localhost:5173
 pnpm --filter @vigil/web build    # static site in apps/web/dist, servable from any path
 ```
+
+## Live
+
+https://web-production-324cc271.up.railway.app is served by [Caddy](deploy/Caddyfile) on Railway, with a strict Content-Security-Policy (scripts from the site only; network only to the site and the node's websocket). [`/version.json`](https://web-production-324cc271.up.railway.app/version.json) names the commit it was built from and the SHA-256 of every file it serves. To deploy:
+
+```bash
+pnpm --filter @vigil/web build
+node apps/web/deploy/package-site.mjs          # refuses a modified tree
+railway up apps/web/deploy/out --path-as-root --service <web>
+```
