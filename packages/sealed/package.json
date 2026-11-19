@@ -20,5 +20,10 @@
     "@qorechain/sdk": "0.14.0",
     "@vigil/core": "workspace:*",
     "@vigil/keel": "workspace:*"
+  },
+  "exports": {
+    "./payslip": "./src/payslip.ts",
+    "./data-receipt": "./src/data-receipt.ts",
+    "./inbox": "./src/inbox.ts"
   }
 }

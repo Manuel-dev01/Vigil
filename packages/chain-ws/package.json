@@ -6,7 +6,8 @@
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./descriptors/*": "./descriptors/*"
   },
   "scripts": {
     "snapshot": "tsx scripts/snapshot-descriptors.ts",
