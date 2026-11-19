@@ -9,6 +9,13 @@
  * saved locally; on start it is checked against the chain and any batches it
  * missed are replayed root by root.
  *
+ * Fraud and rollback (see sync.ts): a batch on chain that does not reproduce
+ * blocks Keel, which logs `awaiting_challenge` and submits nothing until the
+ * watchtower's challenge removes it (`fraud_finalized` if it can no longer be
+ * challenged). When an upheld challenge rolls the rollup back, Keel logs
+ * `rollback`, rebuilds its ledger from the chain and re-batches the rolled-back
+ * inbox entries.
+ *
  *   pnpm --filter @vigil/keel start -- --env <creator .env> [--rollup vigil-pay-1]
  *        [--data <dir>] [--interval <seconds>] [--dry-run] [--once]
  *
@@ -39,7 +46,7 @@ import { TESTNET } from "@vigil/core";
 import { argValue, loadOperator, loadOperatorFrom } from "./account.ts";
 import { HybridSender } from "./chain.ts";
 import { emptyState, loadSnapshot, saveSnapshot, snapshotOf, stateFrom, type LedgerState } from "./snapshot.ts";
-import { syncLedger } from "./sync.ts";
+import { syncLedger, type SyncResult } from "./sync.ts";
 
 class FatalError extends Error {}
 
@@ -157,33 +164,68 @@ function persist(state: LedgerState): void {
   saveSnapshot(snapshotPath, snapshotOf(env, state, new Date().toISOString()));
 }
 
-async function resync(state: LedgerState): Promise<LedgerState> {
-  try {
-    const r = await syncLedger(rest, env, state, (b) =>
-      log("info", "batch_replayed", { batchIndex: b.batchIndex, inboxEnd: b.inboxEnd, stateRoot: b.stateRoot }),
-    );
-    if (r.replayed > 0) persist(r.state);
-    return r.state;
-  } catch (err) {
-    throw new FatalError((err as Error).message);
+const writeStatus = (s: Record<string, unknown>) =>
+  writeFileSync(statusPath, JSON.stringify({ ts: new Date().toISOString(), ...s }, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v), 2) + "\n");
+
+// A batch that does not reproduce is the watchtower's to challenge. Keel never
+// builds on it: it waits, says so once (and again with each heartbeat), and
+// carries on by itself once the challenge rolls the rollup back.
+let blocked: SyncResult["blocked"];
+let blockedLoggedAt = 0;
+function noteBlocked(b: SyncResult["blocked"]): void {
+  const key = (x: SyncResult["blocked"]) => (x ? `${x.batchIndex}:${x.status}` : "");
+  if (!b) {
+    if (blocked) log("info", "unblocked", { batchIndex: blocked.batchIndex });
+    blocked = undefined;
+    return;
   }
+  if (key(b) !== key(blocked) || Date.now() - blockedLoggedAt > HEARTBEAT_MS) {
+    // A finalized batch can no longer be challenged: the rollup needs a human.
+    if (b.status === "finalized") log("error", "fraud_finalized", b);
+    else log("warn", "awaiting_challenge", b);
+    blockedLoggedAt = Date.now();
+  }
+  blocked = b;
+}
+
+async function resync(from: LedgerState): Promise<LedgerState> {
+  const r = await syncLedger(rest, env, from, (b) =>
+    log("info", "batch_replayed", { batchIndex: b.batchIndex, inboxEnd: b.inboxEnd, stateRoot: b.stateRoot }),
+  );
+  if (r.rolledBack) {
+    log("warn", "rollback", { fromBatchIndex: r.rolledBack.fromBatchIndex, toBatchIndex: r.state.batchIndex, reason: r.rolledBack.reason });
+  }
+  if (r.replayed > 0 || r.rolledBack) persist(r.state);
+  noteBlocked(r.blocked);
+  return r.state;
 }
 
 let state: LedgerState;
-const snap = loadSnapshot(snapshotPath);
-state = snap ? stateFrom(snap, env) : emptyState();
-state = await resync(state);
-persist(state);
-log("info", "state_ready", { batchIndex: state.batchIndex, inboxEnd: state.inboxEnd, stateRoot: hex(state.ledger.root()) });
+try {
+  const snap = loadSnapshot(snapshotPath);
+  state = snap ? stateFrom(snap, env) : emptyState();
+  state = await resync(state);
+  persist(state);
+} catch (err) {
+  log("error", "fatal", { reason: `could not load or sync the ledger: ${(err as Error).message}` });
+  process.exit(2);
+}
+log("info", "state_ready", { batchIndex: state.batchIndex, inboxEnd: state.inboxEnd, stateRoot: hex(state.ledger.root()), blocked });
 
 // ------------------------------------------------------------------ loop
-async function pass(): Promise<"idle" | "submitted" | "planned"> {
+async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned"> {
+  // Sync on every pass, even with an empty inbox: another submitter's batch,
+  // a fraudulent one or a rollback can arrive at any time.
+  state = await resync(state);
+  if (blocked) {
+    writeStatus({ state: "blocked", batchIndex: state.batchIndex, blocked });
+    return "blocked";
+  }
   const inbox = await rest.getInbox(rollupId);
   if (inbox.headSequence <= inbox.consumedSequence) {
-    writeFileSync(statusPath, JSON.stringify({ ts: new Date().toISOString(), state: "idle", inbox, batchIndex: state.batchIndex }, null, 2) + "\n");
+    writeStatus({ state: "idle", inbox, batchIndex: state.batchIndex });
     return "idle";
   }
-  state = await resync(state);
   const plan = await planQledgerBatch(rest, { ...env, submitter: sender.address, ledger: state.ledger });
   const rootErr = withdrawalsRootError(plan.input.withdrawalsRoot);
   if (rootErr) throw new Error(`batch ${plan.input.batchIndex}: ${rootErr}`);
@@ -223,7 +265,7 @@ async function pass(): Promise<"idle" | "submitted" | "planned"> {
     feeUqor: res.feeUqor,
     events: [...new Set(res.events.map((e) => e.type))].filter((t) => !["tx", "message", "coin_spent", "coin_received", "transfer"].includes(t)),
   });
-  writeFileSync(statusPath, JSON.stringify({ ts: new Date().toISOString(), state: "submitted", lastBatch: { ...planned, tx: res.transactionHash, height: res.height } }, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v), 2) + "\n");
+  writeStatus({ state: "submitted", lastBatch: { ...planned, tx: res.transactionHash, height: res.height } });
   return "submitted";
 }
 
@@ -234,10 +276,16 @@ while (!stopping) {
     const r = await pass();
     if (Date.now() - lastBeat > HEARTBEAT_MS) {
       const bal = await sender.balanceUqor();
-      log(bal < LOW_BALANCE_UQOR ? "warn" : "info", "heartbeat", { batchIndex: state.batchIndex, inboxEnd: state.inboxEnd, balanceUqor: bal });
+      log(bal < LOW_BALANCE_UQOR ? "warn" : "info", "heartbeat", {
+        batchIndex: state.batchIndex,
+        inboxEnd: state.inboxEnd,
+        balanceUqor: bal,
+        ...(blocked && { blockedAt: blocked.batchIndex }),
+      });
       lastBeat = Date.now();
     }
     if (r === "submitted") wait = 2000; // more may be waiting (a batch takes at most 64 entries)
+    if (r === "blocked") wait = Math.max(intervalMs, 15_000); // the challenge comes from the watchtower; no need to re-fetch the bad batch every few seconds
   } catch (err) {
     if (err instanceof FatalError) {
       log("error", "fatal", { reason: err.message });

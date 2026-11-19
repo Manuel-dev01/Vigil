@@ -39,9 +39,12 @@ const fmt = (u: bigint) => `${(Number(u) / 1e6).toLocaleString("en-US", { maximu
 
 const rest = createRdkClient({ network: "testnet" }).rest;
 const withBatches: { batchIndex: number; status: string; finalizedAt: number; withdrawals: QledgerWithdrawal[] }[] = [];
-await syncLedger(rest, env, emptyState(), (b, r) => {
+const synced = await syncLedger(rest, env, emptyState(), (b, r) => {
   if (r.withdrawals.length) withBatches.push({ batchIndex: b.batchIndex, status: b.status, finalizedAt: b.finalizedAt, withdrawals: r.withdrawals });
 });
+// Withdrawals are only taken from batches that reproduce. One that does not is
+// fraud: its withdrawals are never claimed here, and nothing after it is read.
+if (synced.blocked) console.warn(`note: ${synced.blocked.reason}; batches from ${synced.blocked.batchIndex} on are skipped`);
 const targets = withBatches.filter((b) => only === undefined || b.batchIndex === Number(only));
 if (!targets.length) {
   console.log(only === undefined ? "no batch commits a withdrawal" : `batch ${only} commits no withdrawal`);

@@ -69,7 +69,12 @@ if (to && to.length !== 32) throw new Error("the destination account id must be 
 const rest = createRdkClient({ network: "testnet" }).rest;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const snap = loadSnapshot(resolve(repoRoot, "data/keel", rollupId, "ledger.json"));
-const { state } = await syncLedger(rest, env, snap ? stateFrom(snap, env) : emptyState());
+const synced = await syncLedger(rest, env, snap ? stateFrom(snap, env) : emptyState());
+if (synced.blocked) {
+  console.error(`refused: ${synced.blocked.reason}. Wait for the watchtower's challenge to roll it back; a transaction built now could be rolled back with it.`);
+  process.exit(1);
+}
+const { state } = synced;
 const { ledger, pendingEntries } = await withPending(rest, env, state);
 const sender = ledger.get(from.accountId);
 
