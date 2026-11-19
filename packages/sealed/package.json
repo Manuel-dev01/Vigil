@@ -1,0 +1,24 @@
+{
+  "name": "@vigil/sealed",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vigil's sealed data lane: QoreSeal hybrid envelopes (ML-KEM-1024 + X25519) posted into the vigil-pay-1 inbox, recipient cards, and data receipts that prove an envelope sits in a finalized, anchored batch.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "seal-key": "tsx src/cli/seal-key.ts",
+    "card": "tsx src/cli/card.ts",
+    "kem": "tsx src/cli/kem.ts",
+    "payslip": "tsx src/cli/payslip.ts",
+    "inbox": "tsx src/cli/inbox.ts",
+    "receipt": "tsx src/cli/receipt.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@qorechain/qoreseal": "0.1.0",
+    "@qorechain/rdk": "0.9.0",
+    "@qorechain/sdk": "0.14.0",
+    "@vigil/core": "workspace:*",
+    "@vigil/keel": "workspace:*"
+  }
+}
