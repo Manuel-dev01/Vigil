@@ -1,6 +1,6 @@
 # Vigil threat model
 
-**Version 1, 19 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
+**Version 1.1, 19 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
 
 This document separates what is **exercised** (backed by a test or a row in [EVIDENCE.md](EVIDENCE.md)) from what is **designed but not yet exercised**. Nothing here claims that Vigil is "quantum-proof". The claim is narrower: no step that moves value depends on a classical signature or a pairing-based proof, and each remaining classical dependency is named below.
 
@@ -18,6 +18,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 - **Watchtowers:** two keys in two hosting regions, both in challenge mode (EVIDENCE 24–27, 46–47).
 - **Sealed payroll lane:** live (EVIDENCE 28–38).
 - **Fraud drills:** two, both upheld on chain (EVIDENCE 39–45, 48–56; §7).
+- **Receipts in three places:** the CLI (`scripts/receipts-snapshot.ts`), the browser (`apps/web`, which reads the chain over the node's websocket with no server of ours), and Solidity: `SettlementReceiptVerifier` has verified and recorded all 11 `vigil-pay-1` anchors on chain (EVIDENCE 57–64; §5, §13).
 
 ## 2. Assets
 
@@ -67,6 +68,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 | **Fast challenge path** | 3 | Follow new batches over the chain websocket, prefetch inbox entries as they are posted, judge in milliseconds, and send with a pre-built signer at gas price 0.3. This changed drill 2's outcome (§7). |
 | **Hybrid L1 accounts plus closed EVM windows** | 1 | A Native-lane transaction needs the account's ML-DSA-87 signature as well as the classical one. An EVM transaction (signed classically only) is admitted only inside a window that was opened by a hybrid-signed message. With no window open, the classical key alone moves nothing on either lane. |
 | **Domain-separated signed messages** | 1, 7 | `pqcVerify` accepts only FIPS 204 pure ML-DSA-87 with an *empty* context (measured, §10), so every Vigil message carries its own tag in the message bytes (e.g. `vigil/pqguard/v1`), plus the chain id, the contract address and a nonce. |
+| **Receipts checked in Solidity with no relayer** (`SettlementReceiptVerifier`) | 1, 3, 7 | The contract rebuilds the chain's v2 anchor message itself, reads the creator's key through `pqcKeyStatus` (possession proven), and verifies the ML-DSA-87 signature with `pqcVerify`. No owner; the rollup, layer and creator are fixed at deployment. Anyone can attest, so no relayer is trusted, and a forged or replayed anchor reverts. It records the first valid root per layer height. If the creator's key ever signed two roots for one height, the height is marked conflicted for good and never reported as attested. What it does not prove is in §13. *Exercised: EVIDENCE 60–63.* |
 | **ML-KEM-1024 + X25519 envelopes (QoreSeal)** | 2 | Confidentiality holds if *either* ML-KEM-1024 or X25519 holds. Post-quantum confidentiality rests on ML-KEM-1024. *Exercised: a sealed payslip opened by its three recipients and by no one else (EVIDENCE 28–38).* |
 
 ## 6. The Q-Day Drill (18 Nov 2026)
@@ -172,35 +174,39 @@ Moving one watchtower to a second provider is open work.
 | On an upheld challenge the chain emits `rdk_fraud_upheld`, slashes the bond (50% burned, 50% to the challenger), removes the rejected batch and every later unfinalized one from the batch list, and rolls the inbox back (`rdk_inbox_rolled_back`). The next batch reuses the index | 19 Nov 2026, drills 1 and 2, and earlier on `wicketgate-pay` batch 2 and `rdk-v328-e2e-mwd5v89d` batch 4 | EVIDENCE 44, 55; `packages/keel/src/sync.ts` |
 | A one-entry challenge with a 149-byte proof used 343,412 gas (drill 1) and 345,265 gas (drill 2); at gas price 0.3 the fee is about 0.18 QOR | 19 Nov 2026 | EVIDENCE 44, 55; `Challenger.gasFor` |
 | A challenge that loses the race fails in delivery, not at CheckTx, so it still pays its fee (0.24 QOR in drill 1) | 19 Nov 2026 | EVIDENCE 45; kit drill-1 write-up |
+| Inside a contract, checking one anchor (rebuild the 144-byte message, `pqcKeyStatus`, `pqcVerify` on a 4,627-byte signature) and recording it costs **279,928 gas** (0.0315 QOR at 0.1125 uqor/gas); ten in one transaction cost 2,305,444 gas | 19 Nov 2026 | EVIDENCE 62–63 |
+| `BLOCKHASH` returns zero inside a **mined** transaction too, for depths 1 to 257, and the EIP-2935 history address returns empty data (spike S3b; S3 had shown the same under `eth_call`). A contract therefore cannot authenticate a block header, so EVM code cannot prove rollup state such as a batch's status | 19 Nov 2026 | EVIDENCE 61; `contracts/src/spikes/BlockhashProbe.sol` |
 | Websocket detection of a new batch takes ~1.6–1.7 s after the block's timestamp; judging a prefetched batch takes 7–20 ms | 19 Nov 2026, both watchtowers | EVIDENCE 50, 55 |
 
 ## 11. Exercised so far
 
-**Tests (19 Nov 2026):** 122 TypeScript tests (vitest) and 21 Foundry tests, all passing.
+**Tests (19 Nov 2026):** 127 TypeScript tests (vitest) and 40 Foundry tests, all passing. 6 more vitest tests run against the live chain only when `VIGIL_LIVE=1`.
 
 | Suite | Tests | What it pins down |
 |---|---|---|
 | `contracts/test/PQGuardVault.t.sol` | 21 | The guardian's ECDSA key alone cannot release, and an ECDSA signature in place of the ML-DSA-87 one fails. Fuzzing: no call from the guardian's key moves funds, and any caller with a garbage signature fails (256 runs each). Replay, redirection (recipient, amount, token, deadline), other-vault and other-chain signatures fail. Expiry; key without proof of possession; unregistered, wrong-algorithm or wrong-length keys; rotated keys invalidate old signatures. An inactive `pqcVerify` or `pqcKeyStatus` is never read as success |
+| `contracts/test/SettlementReceiptVerifier.t.sol` | 19 | Run on `vigil-pay-1`'s 11 real anchors (`test/vectors/anchors-vigil-pay-1.json`). The contract's message equals the RDK's v2 anchor message byte for byte for every anchor, and every signed field, the chain id and the layer change it. A forged root, a signature replayed at another height with the same root, and another account's key all fail. The key must be registered ML-DSA-87 with possession proven and the right length. Inactive precompiles are never read as an answer. Recording: every real anchor recorded once; shared roots across heights are not conflicts; a second signed root marks the height conflicted for good; an unsigned root cannot. The chain id must match the EVM chain |
 | `scripts/test/replay.test.ts` | 58 | Offline replay of recorded chain data; tampering with a state root or an inbox payload is detected |
 | `packages/qledger-watchtower/test/watchtower.test.ts` | 20 | Every recorded live batch is judged valid, and no challenge against an honest batch wins. Wrong state or withdrawals roots are flagged with proofs that win. A batch built on a fraudulent root is invalid too. A rejected batch is ignored and the honest resubmission at the same index is judged on its own. A corrupted inbox archive is refused |
 | `packages/qledger-watchtower/test/fast.test.ts` | 11 | Batches decoded from their submitting tx (drill 1 recording); post sequences read from events; the drill batch judged invalid on arrival with a winning proof; local signing with the cached account; one retry on a sequence mismatch; refusing a challenge the chain would not uphold; gas scaling and cap; the websocket follower. *The backup's delay and skip are exercised live only (§7)* |
 | `packages/keel/test/*.test.ts` | 21 | Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
+| `packages/chain-ws/test/routes.test.ts` | 5 | The chain's protobuf descriptor snapshot matches its recorded hash. The RDK's REST routes map to the right gRPC queries, with path and query parameters encoded into the request. gRPC NotFound becomes HTTP 404; writes and unknown routes are refused |
 | `packages/sealed/test/sealed.test.ts` | 12 | Envelopes open for every named recipient and nobody else, and not on another rollup or chain. An envelope inside a batch leaves its roots unchanged. Data receipts fail if any post, the accumulator or the payload changes. Recipient cards bind all three keys |
 
-The precompiles are mocked in Foundry. Their real behaviour is measured on testnet (§10), and the deployed vault accepted a real ML-DSA-87 signature through `eth_call` (EVIDENCE 1–8).
+The precompiles are mocked in Foundry. Their real behaviour is measured on testnet (§10). The deployed vault accepted a real ML-DSA-87 signature through `eth_call` (EVIDENCE 1–8). The deployed receipt verifier checked all 11 real anchors on chain (EVIDENCE 62–63), and `pnpm --filter @vigil/scripts evm:verifier status` re-checks them for free.
 
 **Live on testnet:**
 - the Q-Day Drill account (§6);
 - `vigil-pay-1` deposits, transfers, a withdrawal executed on L1, and a refused second claim (EVIDENCE 15–21);
 - the hosted sequencer (EVIDENCE 22–23);
 - the sealed payslip (EVIDENCE 28–38);
-- two fraud drills (§7).
+- two fraud drills (§7);
+- settlement receipts checked in the browser against the live chain (`apps/web`), and in Solidity by `SettlementReceiptVerifier` (EVIDENCE 60–63).
 
 **Not yet exercised:**
 - another bonded account taking over from a stopped sequencer;
 - quorum checkpoints;
-- instant exits;
-- receipt verification in the browser and in Solidity.
+- instant exits.
 
 ## 12. Findings
 
@@ -232,6 +238,12 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
   - `fetchQledgerEntries` reads post bytes back from transaction history, which nodes may prune (posted data is retained 648,000 blocks).
   - Vigil's watchtowers keep their own archive, checked against the chain's SHA-256 commitments.
 - **Unanchored batches have no receipt.** If the creator's sequencer dies and a bonded watchtower takes over, safety and withdrawals are unaffected, but those batches carry no x/multilayer anchor, because only the creator's batches are anchored.
+- **The Solidity verifier sees signatures, not chain state.**
+  - What it proves: the rollup creator's chain-registered ML-DSA-87 key signed this state root for this chain, layer and layer height.
+  - What it does not prove: that the chain accepted the anchor, or that the batch is final. A creator could sign a root and never submit it, and a batch removed by a fraud proof leaves its signature valid.
+  - EVM code cannot read the rollup module: the cross-VM precompile reaches only allowlisted CosmWasm contracts, and `BLOCKHASH` is zero even in a mined transaction (§10), so no header proof is possible today.
+  - The conflict mark catches a creator that signs two roots for one height, but only once someone submits the second.
+  - So a contract that relies on the record should wait at least the rollup's challenge window. Where settlement must be certain, check the receipt against the chain itself, as the web app does: it reads the batch record and requires the batch to be final.
 - **Hosted keys (§8).**
   - Our operator keys sit with one hosting provider.
   - If that account is compromised, the attacker gets our liquid QOR and our bond, and can silence our watchtowers. Users' L2 funds stay safe only while some other watcher stays honest and online.
@@ -245,4 +257,5 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 | Version | Date | Change |
 |---|---|---|
 | v0 | 2026-11-16 | First version: assets, adversaries, assumptions, drill design, measured precompile facts, the RDK validator finding |
+| v1.1 | 2026-11-19 | Receipts verified in Solidity: `SettlementReceiptVerifier` (§1, §5), its measured cost and spike S3b (`BLOCKHASH` zero in mined transactions, §10), 19 new Foundry tests and the chain-ws suite (§11), receipt checks in the browser and in Solidity moved to "exercised", and what the contract does not prove (§13) |
 | v1 | 2026-11-19 | Adds the live rollup, the two fraud drills (§7), hosted keys and operating rules (§8), new measured facts on challenges and rollback, the test inventory, findings F3–F4, and residual risks for hosted keys and challenge races. The Q-Day Drill section now records that the registered drill account became the rollup creator and has never opened a window |
