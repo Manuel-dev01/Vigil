@@ -107,6 +107,15 @@ export class RollupTracker {
     if (to > this.archive.head) this.archive.append(await this.source.fetchEntries(this.archive.head, to, this.archive.accAt(this.archive.head)!));
   }
 
+  /**
+   * Judge one batch now, e.g. the moment the websocket delivers it, fetching
+   * only the entries it needs that the archive does not hold yet.
+   */
+  async judgeNow(b: LiveBatch): Promise<Judgement> {
+    await this.ensureEntries(b.inboxEnd);
+    return this.judge(b);
+  }
+
   /** The judgement already reached for a batch, if any. */
   judgementFor(b: PublishedBatch): Judgement | undefined {
     return this.judged.get(key(b));
