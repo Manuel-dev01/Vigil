@@ -11,6 +11,8 @@ import {
   fetchQledgerEntries,
   isRestNotFound,
   type BatchView,
+  type QledgerLedger,
+  type QledgerResult,
   type RestClient,
 } from "@qorechain/rdk";
 import type { LedgerState } from "./snapshot.ts";
@@ -36,7 +38,7 @@ export async function syncLedger(
   rest: RestClient,
   env: { chainId: string; rollupId: string },
   state: LedgerState,
-  onBatch?: (b: BatchView) => void,
+  onBatch?: (b: BatchView, result: QledgerResult) => void,
 ): Promise<{ state: LedgerState; replayed: number }> {
   const latest = await latestBatch(rest, env.rollupId);
   if (!latest) {
@@ -73,10 +75,35 @@ export async function syncLedger(
     batchIndex = b.batchIndex;
     inboxEnd = b.inboxEnd;
     replayed++;
-    onBatch?.(b);
+    onBatch?.(b, result);
   }
   if (hex(ledger.root()) !== norm(latest.stateRoot)) {
     throw new Error(`the local state ${hex(ledger.root())} does not match the latest batch root ${norm(latest.stateRoot)}`);
   }
   return { state: { ledger, batchIndex, inboxEnd }, replayed };
+}
+
+/**
+ * The ledger as it will be once the inbox entries not yet batched are applied:
+ * what a new L2 transaction has to build on (its nonce and balance).
+ */
+export async function withPending(
+  rest: RestClient,
+  env: { chainId: string; rollupId: string },
+  batched: LedgerState,
+): Promise<{ ledger: QledgerLedger; pendingEntries: number; head: number }> {
+  const inbox = await rest.getInbox(env.rollupId);
+  const ledger = batched.ledger.clone();
+  if (inbox.headSequence <= inbox.consumedSequence) return { ledger, pendingEntries: 0, head: inbox.headSequence };
+  if (inbox.consumedSequence !== batched.inboxEnd) {
+    throw new Error(`the inbox was consumed to ${inbox.consumedSequence} but the local state ends at ${batched.inboxEnd}; sync first`);
+  }
+  const entries = await fetchQledgerEntries(rest, {
+    ...env,
+    from: inbox.consumedSequence,
+    to: inbox.headSequence,
+    accFrom: inbox.consumedAcc,
+  });
+  executeQledger(env, ledger, entries);
+  return { ledger, pendingEntries: entries.length, head: inbox.headSequence };
 }

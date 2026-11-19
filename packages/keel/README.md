@@ -36,7 +36,16 @@ Helpers:
 ```sh
 pnpm --filter @vigil/keel l2-key -- new --out <file>   # a qledger-v1 (ML-DSA-44) account key, written 0600
 pnpm --filter @vigil/keel deposit -- --env <depositor .env> --amount 1 --key <file> [--broadcast]
+pnpm --filter @vigil/keel send -- --env <poster .env> --key <l2 key> --amount 0.5 (--to-key <l2 key> | --to <account id> | --withdraw-to <qor1…>) [--broadcast]
+pnpm --filter @vigil/keel claim -- --env <submitter .env> [--batch N] [--broadcast]
 ```
+
+- **`send`** signs a qledger transfer or withdrawal with the L2 key and posts it to the inbox.
+  - The nonce and balance come from the chain: the state after the latest batch plus every entry not yet batched.
+  - It refuses any transaction the rollup would skip, before it costs a post fee.
+- **`claim`** executes the withdrawals of finalized batches on L1.
+  - It recomputes them by replaying the rollup, with every root checked.
+  - Each proof is the qledger sibling path. `test/withdrawal-proof.test.ts` checks these paths against `vigil-1`'s recorded withdrawals.
 
 ## Tests
 
