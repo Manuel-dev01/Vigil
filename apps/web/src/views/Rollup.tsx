@@ -60,7 +60,8 @@ async function load(): Promise<State> {
     rollup,
     inbox,
     batches: [...batches].sort((a, b) => b.batchIndex - a.batchIndex),
-    anchored: new Set(anchors.map((a) => a.stateRoot.toLowerCase())),
+    // An anchor belongs to the batch whose index is its layer height (several batches can share a root).
+    anchored: new Set(anchors.map((a) => `${a.layerHeight}:${a.stateRoot.toLowerCase()}`)),
     bond: bond.amount,
     frauds: frauds.sort((a, b) => b.height - a.height),
     loadedAt: Date.now(),
@@ -164,8 +165,8 @@ export function RollupView() {
     <>
       <h1>{ROLLUP}</h1>
       <p className="lede">
-        A payroll rollup with no admin and no classical authority. Users sign with ML-DSA-44, every batch is anchored with the creator's ML-DSA-87
-        signature, payslips are sealed with ML-KEM-1024, and independent watchtowers re-execute every batch and challenge fraud on chain.
+        A payroll rollup with no admin and no classical authority. Users sign with ML-DSA-44, the creator's sequencer anchors each batch with its ML-DSA-87
+        signature (a bonded standby sequencer takes over, unanchored, if it stops), payslips are sealed with ML-KEM-1024, and independent watchtowers re-execute every batch and challenge fraud on chain.
       </p>
 
       <div className="grid">
@@ -235,7 +236,7 @@ export function RollupView() {
                       <td>
                         {b.inboxEnd - b.inboxStart === 1 ? b.inboxEnd : b.inboxEnd > b.inboxStart ? `${b.inboxStart + 1}–${b.inboxEnd}` : "—"}
                       </td>
-                      <td>{anchored.has(b.stateRoot.toLowerCase()) ? <span className="chip ok">ML-DSA-87</span> : <span className="chip warn">none</span>}</td>
+                      <td>{anchored.has(`${b.batchIndex}:${b.stateRoot.toLowerCase()}`) ? <span className="chip ok">ML-DSA-87</span> : <span className="chip warn">none</span>}</td>
                       <td className="num">{b.submittedAt.toLocaleString()}</td>
                       <td>
                         <a href={`#/verify?batch=${b.batchIndex}`}>Verify receipt</a>
@@ -296,6 +297,11 @@ export function RollupView() {
               <dt>Layer</dt>
               <dd>
                 <code>{rollup.layerId}</code>, created at block {rollup.createdHeight.toLocaleString()}
+              </dd>
+              <dt>Sequencers</dt>
+              <dd>
+                Keel, run by the creator, batches within seconds and anchors each batch. A standby Keel with its own bonded key batches
+                any entry that has waited 30 blocks; anyone else who bonds may do the same.
               </dd>
               <dt>Watchtowers</dt>
               <dd>

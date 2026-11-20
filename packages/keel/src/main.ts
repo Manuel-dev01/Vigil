@@ -20,6 +20,11 @@
  *        [--data <dir>] [--interval <seconds>] [--dry-run] [--once]
  *
  * --dry-run plans and simulates every batch but never sends one.
+ *
+ * Standby (see standby.ts): with --standby-blocks N (KEEL_STANDBY_BLOCKS) Keel
+ * runs as a second sequencer with its own bonded key. It batches only once the
+ * oldest inbox entry has waited N blocks without the primary batching it. A
+ * standby key that is not the creator's submits unanchored batches.
  * One Keel per key: a lock file in the data directory refuses a second copy
  * (two sequencers on one key race for the account sequence).
  *
@@ -47,6 +52,7 @@ import { argValue, loadOperator, loadOperatorFrom } from "./account.ts";
 import { HybridSender } from "./chain.ts";
 import { emptyState, loadSnapshot, saveSnapshot, snapshotOf, stateFrom, type LedgerState } from "./snapshot.ts";
 import { syncLedger, type SyncResult } from "./sync.ts";
+import { parseStandbyBlocks, standbyDecision } from "./standby.ts";
 
 class FatalError extends Error {}
 
@@ -59,6 +65,13 @@ const intervalMs = Math.max(2, Number(argValue(argv, "--interval") ?? process.en
 const dryRun = argv.includes("--dry-run") || process.env["KEEL_DRY_RUN"] === "1";
 const once = argv.includes("--once");
 const useLock = process.env["KEEL_LOCK"] !== "0";
+let standbyBlocks: number | undefined;
+try {
+  standbyBlocks = parseStandbyBlocks(argValue(argv, "--standby-blocks") ?? process.env["KEEL_STANDBY_BLOCKS"]);
+} catch (err) {
+  process.stderr.write(`${(err as Error).message}\n`);
+  process.exit(1);
+}
 
 const env = { chainId: TESTNET.chainId, rollupId };
 const snapshotPath = resolve(dataDir, "ledger.json");
@@ -122,8 +135,12 @@ const problems: string[] = [];
 if (rollup.executionVm !== "qledger-v1") problems.push(`rollup ${rollupId} is not qledger-v1`);
 if (rollup.sequencing !== "based") problems.push(`rollup ${rollupId} is not based`);
 if (rollup.status !== "active") problems.push(`rollup ${rollupId} is ${rollup.status}, not active`);
-if (rollup.creator !== sender.address) problems.push(`this key (${sender.address}) is not the creator (${rollup.creator}), so it cannot anchor`);
-if (!rollup.layerId) problems.push(`rollup ${rollupId} has no layer id to anchor to`);
+// Only the creator's key can anchor. Any other bonded key may still sequence, unanchored, but only as a standby.
+const anchoring = rollup.creator === sender.address;
+if (!anchoring && standbyBlocks === undefined) {
+  problems.push(`this key (${sender.address}) is not the creator (${rollup.creator}), so it cannot anchor; run it as a standby (--standby-blocks N)`);
+}
+if (anchoring && !rollup.layerId) problems.push(`rollup ${rollupId} has no layer id to anchor to`);
 if (BigInt(bond.amount) < BigInt(params.minSubmitterBond ?? "1000000000")) problems.push(`submitter bond ${bond.amount} uqor is below the minimum`);
 if (!pqc.registered || isRegisteredPqcKey(pqc, account.pqc.publicKey) !== true) problems.push("the ML-DSA-87 key in this .env is not the account's registered key");
 if (windowOpen) problems.push("the account has an open EVM window; this key must stay hybrid-only");
@@ -133,6 +150,9 @@ if (problems.length) {
 }
 log("info", "start", {
   sequencer: sender.address,
+  role: standbyBlocks === undefined ? "primary" : "standby",
+  ...(standbyBlocks !== undefined && { standbyBlocks }),
+  anchoring,
   layer: rollup.layerId,
   bond: bond.amount,
   balanceUqor: balance,
@@ -213,7 +233,10 @@ try {
 log("info", "state_ready", { batchIndex: state.batchIndex, inboxEnd: state.inboxEnd, stateRoot: hex(state.ledger.root()), blocked });
 
 // ------------------------------------------------------------------ loop
-async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned"> {
+// The standby says once per waiting entry that it is leaving it to the primary.
+let standbyNoted = -1;
+
+async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned" | "standby"> {
   // Sync on every pass, even with an empty inbox: another submitter's batch,
   // a fraudulent one or a rollback can arrive at any time.
   state = await resync(state);
@@ -226,20 +249,37 @@ async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned"> {
     writeStatus({ state: "idle", inbox, batchIndex: state.batchIndex });
     return "idle";
   }
+  let takeover: { waitedBlocks: number; oldestEntry: number } | undefined;
+  if (standbyBlocks !== undefined) {
+    const [tip, oldest] = await Promise.all([rest.getLatestHeight(), rest.getPostedData(rollupId, inbox.consumedSequence)]);
+    const d = standbyDecision({ tipHeight: tip, oldestWaitingHeight: oldest.height, standbyBlocks });
+    if (!d.due) {
+      if (standbyNoted !== inbox.consumedSequence) {
+        log("info", "standby_waiting", { oldestEntry: inbox.consumedSequence, waitedBlocks: d.waited, standbyBlocks });
+        standbyNoted = inbox.consumedSequence;
+      }
+      writeStatus({ state: "standby", inbox, batchIndex: state.batchIndex, waitedBlocks: d.waited, standbyBlocks });
+      return "standby";
+    }
+    takeover = { waitedBlocks: d.waited, oldestEntry: inbox.consumedSequence };
+    log("warn", "standby_takeover", { ...takeover, standbyBlocks, postedAt: oldest.height, tip });
+  }
   const plan = await planQledgerBatch(rest, { ...env, submitter: sender.address, ledger: state.ledger });
   const rootErr = withdrawalsRootError(plan.input.withdrawalsRoot);
   if (rootErr) throw new Error(`batch ${plan.input.batchIndex}: ${rootErr}`);
-  const anchorSignature = pqcSign(
-    account.pqc.secretKey,
-    anchorSignBytesForBatch({
-      chainId: env.chainId,
-      layerId: rollup.layerId,
-      batchIndex: plan.input.batchIndex,
-      stateRoot: plan.input.stateRoot,
-      txCount: plan.input.txCount,
-    }),
-  );
-  const msg = submitBatchMsg({ sequencer: sender.address, ...plan.input, anchorSignature });
+  const anchorSignature = anchoring
+    ? pqcSign(
+        account.pqc.secretKey,
+        anchorSignBytesForBatch({
+          chainId: env.chainId,
+          layerId: rollup.layerId,
+          batchIndex: plan.input.batchIndex,
+          stateRoot: plan.input.stateRoot,
+          txCount: plan.input.txCount,
+        }),
+      )
+    : undefined;
+  const msg = submitBatchMsg({ sequencer: sender.address, ...plan.input, ...(anchorSignature && { anchorSignature }) });
   const planned = {
     batchIndex: plan.input.batchIndex,
     inboxFrom: inbox.consumedSequence,
@@ -247,6 +287,8 @@ async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned"> {
     txCount: plan.input.txCount,
     stateRoot: hex(plan.input.stateRoot),
     withdrawals: plan.result.withdrawals.length,
+    anchored: anchoring,
+    ...(takeover && { takeover }),
   };
   const sim = await sender.simulate([msg]);
   if (!sim.ok || sim.gasUsed === undefined) throw new Error(`simulate batch ${plan.input.batchIndex} failed: ${sim.error ?? "no gas reported"}`);
