@@ -48,3 +48,16 @@ export function parseStandbyBlocks(raw: string | undefined): number | undefined 
   if (!Number.isInteger(n) || n < 1 || n > 100_000) throw new Error(`standby blocks must be a whole number from 1 to 100000, got "${raw}"`);
   return n;
 }
+
+/**
+ * The inbox sequence of the oldest entry not yet batched. The chain numbers
+ * posted data from 1 (`posted_data/{rollup}/1` is the first entry) and
+ * `consumed_sequence` counts the entries already batched, so it is also the
+ * sequence of the last batched entry: the oldest one still waiting is the next.
+ * (Found in the 20 Nov drill: reading `consumed_sequence` itself measured the
+ * wait from an entry batched long before, so the standby acted at once.)
+ */
+export function oldestWaitingSequence(consumedSequence: number): number {
+  return consumedSequence + 1;
+}
+
