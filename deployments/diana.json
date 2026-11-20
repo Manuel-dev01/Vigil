@@ -6,5 +6,77 @@
     "deployTx": "0x87f60392092af80d31738703c4cb913c2a67cc92a662c09dc442de69111df152",
     "block": "10241823",
     "deployer": "0x1bC560A26898F1178170B255Fa65CC7B0b603a4e"
+  },
+  "SettlementReceiptVerifier": {
+    "address": "0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+    "creator": "0x16B7aB42fD64282931B1589f3e15720B7340f9c7",
+    "chainId": "qorechain-diana",
+    "layerId": "vigil-pay-1",
+    "rollupId": "vigil-pay-1",
+    "deployTx": "0x1d07350d2354cd32bac5c16ec3732407c3e9e2369d99e5bd38409ea3bcafeed5",
+    "block": "10400754",
+    "deployer": "0x0352f370E966c2fE62F7BB53837b6039637d5256",
+    "gasUsed": "1133962"
+  },
+  "BlockhashProbe": {
+    "spike": "S3b",
+    "address": "0x2d484549b2f05c2867c8f7051951b569dab79ca6",
+    "tx": "0x4da5f6c9f9016b86ec4edb4e80f56082347f16e4a4b76945c2c2f51bbdb52254",
+    "block": "10400766",
+    "results": [
+      {
+        "depth": 0,
+        "height": 10400766,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0xdf5a02159976df548b48641e67d56c1a01188d0b735216c359629d1a4db6097b",
+        "match": false
+      },
+      {
+        "depth": 1,
+        "height": 10400765,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0x7fac33fb0a39547865c0c9db8cf3d4dccdb8fec0c5dfbcddda056363bb76212f",
+        "match": false
+      },
+      {
+        "depth": 2,
+        "height": 10400764,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0x68d19298d79e07ec57f49e0bc528707e140d0edc409ed54e2deac1aa8e7d2176",
+        "match": false
+      },
+      {
+        "depth": 10,
+        "height": 10400756,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0x38e862885ebd41e6a2245186000d6e52cf907b54391bc83e68ec212128fd05af",
+        "match": false
+      },
+      {
+        "depth": 100,
+        "height": 10400666,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0x1c2a90f9c1f261fa94e0ca136e3d336b178194f8effdcc526ecebfaf68094ca2",
+        "match": false
+      },
+      {
+        "depth": 256,
+        "height": 10400510,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0x3b8a995440304b62da8ebbe8d0289d564f35599268cc1628aabc808db2527b6c",
+        "match": false
+      },
+      {
+        "depth": 257,
+        "height": 10400509,
+        "evm": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "comet": "0x9e4f8669da0015e4ee3df228f95ca31570e4ca7f6b09b4be9e9c33cefafdbb50",
+        "match": false
+      }
+    ],
+    "eip2935": {
+      "ok": true,
+      "ret": "0x"
+    }
   }
 }

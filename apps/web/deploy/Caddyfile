@@ -13,7 +13,7 @@
 		Referrer-Policy no-referrer
 		X-Frame-Options DENY
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss://rpc-testnet.qore.host; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss://rpc-testnet.qore.host https://evm-testnet.qore.host; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
 		-Server
 	}
 	@assets path /assets/*
