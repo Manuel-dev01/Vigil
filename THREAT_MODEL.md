@@ -1,6 +1,6 @@
 # Vigil threat model
 
-**Version 1.1, 19 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
+**Version 1.2, 20 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
 
 This document separates what is **exercised** (backed by a test or a row in [EVIDENCE.md](EVIDENCE.md)) from what is **designed but not yet exercised**. Nothing here claims that Vigil is "quantum-proof". The claim is narrower: no step that moves value depends on a classical signature or a pairing-based proof, and each remaining classical dependency is named below.
 
@@ -14,7 +14,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 
 **Live on testnet today:**
 - **Rollup:** `vigil-pay-1`, created and bonded 19 Nov (EVIDENCE 13–14).
-- **Sequencer:** Keel, hosted and always on (EVIDENCE 15–23).
+- **Sequencers:** Keel, run by the creator, hosted and always on (EVIDENCE 15–23), and a standby Keel with its own bonded key in another region. With the creator's Keel stopped, the standby batched a user's withdrawal; the creator's Keel then resumed and anchored again (EVIDENCE 65–72; §7).
 - **Watchtowers:** two keys in two hosting regions, both in challenge mode (EVIDENCE 24–27, 46–47).
 - **Sealed payroll lane:** live (EVIDENCE 28–38).
 - **Fraud drills:** two, both upheld on chain (EVIDENCE 39–45, 48–56; §7).
@@ -62,7 +62,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 | **No classical-key authority anywhere.** Contracts have no owner and never check `msg.sender` for authority. Every authorisation is an ML-DSA-87 signature checked with `pqcVerify` against a key read from `pqcKeyStatus` with `possessionProven == true` | 1 | A stolen secp256k1 key can still *call* our contracts, but it cannot authorise anything. Exercised in tests (§11). |
 | **L2 accounts are ML-DSA-44 only** (fixed by qledger-v1) | 1 | No classical key exists at L2. ML-DSA-44 is NIST category 2, a property of qledger-v1 that we cannot change. |
 | **Optimistic re-execution, no SNARK** | 1, 3 | Fraud proofs rest on hashes and re-execution only: no pairings, no trusted setup. We reject Groth16 for anything that moves value, because its soundness falls to Shor. |
-| **Based sequencing** | 3, 5 | Anyone can post, and any bonded account can submit batches, so a dead sequencer cannot freeze funds. Ordering is fixed at L1 inclusion, so the honest result is computable by anyone right away. *Takeover by another submitter: not yet exercised.* |
+| **Based sequencing** | 3, 5 | Anyone can post, and any bonded account can submit batches, so a dead sequencer cannot freeze funds. Ordering is fixed at L1 inclusion, so the honest result is computable by anyone right away. *Exercised 20 Nov: with the creator's Keel stopped, our standby keel-b batched a user's withdrawal 7 blocks after it was posted, and the withdrawal was paid on L1 once final (EVIDENCE 65–72).* |
 | **Watchtower re-execution from chain data** | 3 | We replay the inbox with the RDK's `executeQledger` and judge each batch against the honest state its `prevStateRoot` names, keyed by state root rather than batch index (§12, F3). RDK 0.9.0's built-in `transitionRootValidator` is not used (§12, F1). |
 | **Two watchtowers, two keys, two regions** | 3, 4, 6 | A primary (no delay) and a backup (3 s delay). The backup sends only if the batch is still live after its delay, so one fraud costs one fee, not two. *Exercised in drill 2: the backup skipped correctly.* |
 | **Fast challenge path** | 3 | Follow new batches over the chain websocket, prefetch inbox entries as they are posted, judge in milliseconds, and send with a pre-built signer at gas price 0.3. This changed drill 2's outcome (§7). |
@@ -133,6 +133,15 @@ In each drill a separately funded "evil" account registers its ML-DSA-87 key, bo
 
 **Cost:** each drill costs the team about 500 QOR net (the bond minus the reward, which in drill 1 went to another team), plus fees under 0.5 QOR.
 
+### Kill the sequencer (20 Nov 2026)
+
+The question: if the creator's sequencer dies, do users' withdrawals still go through? vigil-pay-1 is a based rollup, so any account that bonds `min_submitter_bond` (1,000 QOR) may submit batches.
+- **Setup:** a second Keel, keel-b, with its own key and bond (EVIDENCE 65–67), hosted in EU West while the creator's Keel runs in US West. It runs as a **standby**: it batches only an inbox entry that has waited 30 blocks.
+- **Kill:** the creator's Keel was set to dry run (it simulates and submits nothing). A user's 0.1 QOR L2 withdrawal was then posted by a non-operator account (EVIDENCE 68).
+- **Takeover:** keel-b batched it as batch 11 (EVIDENCE 69), unanchored, because only the creator's key can anchor. Both watchtowers judged it valid. After the 3,600 s challenge window keel-b executed the withdrawal on L1 (EVIDENCE 72).
+- **Recovery:** the creator's Keel came back, replayed keel-b's batch and batched the next entry within 5 blocks, anchored at layer height 12 (EVIDENCE 71). The chain accepts the gap at height 11. keel-b stayed in standby and did not race.
+- **What went wrong:** keel-b took over after 7 blocks, not 30. The chain numbers posted data from 1, and the standby measured the wait from the last entry already batched, which was posted the day before. With the creator's Keel alive, that would have made the two sequencers race on every entry, costing the loser a fee each time. Fixed and tested before the recovery step (PR #29; §12, F5).
+
 ## 8. Operations: hosted keys and services
 
 So that the sequencer and the watchtowers run unattended, their keys are held as secret variables by our hosting provider (Railway). Keys are set through stdin and are never printed or committed. Every key is a unified hybrid account (secp256k1 plus a registered ML-DSA-87 key) with no EVM window.
@@ -142,14 +151,15 @@ So that the sequencer and the watchtowers run unattended, their keys are held as
 | **Creator / sequencer** (the registered drill account) | ~768 QOR liquid; 1,000 QOR bond | The thief can spend the liquid QOR and submit wrong batches. Any watchtower then challenges, so the bond is lost, which hurts us, not users. With both halves of the key it could also open an EVM window. **Users' L2 funds stay protected** while one honest watchtower is live: the pool pays only from finalized batches. |
 | **watchtower-2** (primary, US West) | 15 QOR, kept low on purpose | Up to 15 QOR lost. The thief can also use up the key's sequence so its challenges fail; watchtower-3 and other teams' watchers remain. |
 | **watchtower-3** (backup, EU West) | ~9.9 QOR | Up to ~9.9 QOR lost; watchtower-2 and other watchers remain. |
+| **keel-b** (standby sequencer, EU West) | ~9.8 QOR liquid; 1,000 QOR bond | The thief can spend the liquid QOR and submit wrong batches; the watchtowers challenge them and the bond is lost. It cannot anchor, and users' funds stay protected while one honest watchtower is live. |
 
 **Operating rules (each learned on testnet):**
 - **Keep watchtower balances small.** About 15 QOR pays for roughly 80 challenges at about 0.18 QOR each. Rewards are swept to the creator: drill 2's 499.45 QOR went back in tx `5028C03C…9AFD`.
 - **After any manual transaction from a watchtower's key, restart that watchtower.** The challenger caches its account sequence at start-up so it can sign without a round trip, and it refreshes only after a sequence-mismatch refusal. One outside transaction would otherwise cost its next challenge a refusal and a retry.
-- **One running process per key.** Two sequencers, or two watchtowers, on one key clash on the account sequence. Keel resumes from chain state plus its own volume, never from memory.
+- **One running process per key.** Two sequencers, or two watchtowers, on one key clash on the account sequence. Two sequencers on *two* keys are fine: the standby waits 30 blocks before it acts. Keel resumes from chain state plus its own volume, never from memory.
 - **Restarts are covered.** Railway stops the old container before starting the new one, so no key ever runs twice. During a watchtower restart (~10 s) the other watchtower keeps watching, and the challenge window is 3,600 s.
 
-**Correlated failure.** Both watchtowers and the sequencer run on the same provider in one account. If that account is compromised, all three keys go at once. If the provider is down, all three stop. What remains then:
+**Correlated failure.** Both watchtowers and both sequencers run on the same provider in one account (in two regions). If that account is compromised, all four keys go at once. If the provider is down, all four stop. What remains then:
 - the challenge window (3,600 s);
 - other teams' watchers (seen in drill 1);
 - the based-rollup property, under which any bonded account may submit batches.
@@ -176,11 +186,13 @@ Moving one watchtower to a second provider is open work.
 | A challenge that loses the race fails in delivery, not at CheckTx, so it still pays its fee (0.24 QOR in drill 1) | 19 Nov 2026 | EVIDENCE 45; kit drill-1 write-up |
 | Inside a contract, checking one anchor (rebuild the 144-byte message, `pqcKeyStatus`, `pqcVerify` on a 4,627-byte signature) and recording it costs **279,928 gas** (0.0315 QOR at 0.1125 uqor/gas); ten in one transaction cost 2,305,444 gas | 19 Nov 2026 | EVIDENCE 62–63 |
 | `BLOCKHASH` returns zero inside a **mined** transaction too, for depths 1 to 257, and the EIP-2935 history address returns empty data (spike S3b; S3 had shown the same under `eth_call`). A contract therefore cannot authenticate a block header, so EVM code cannot prove rollup state such as a batch's status | 19 Nov 2026 | EVIDENCE 61; `contracts/src/spikes/BlockhashProbe.sol` |
+| The chain numbers posted data from 1: `posted_data/{rollup}/{n}` is the n-th entry, and `consumed_sequence` is the sequence of the last batched entry, so the oldest waiting entry is `consumed_sequence + 1` | 20 Nov 2026 | `packages/keel/test/standby.test.ts` (the drill's real heights) |
+| A batch from a bonded account other than the creator is accepted without an anchor (no `state_anchored`); the creator anchors again afterwards, leaving a gap in the layer heights (0–10, 12) | 20 Nov 2026 | EVIDENCE 69, 71 |
 | Websocket detection of a new batch takes ~1.6–1.7 s after the block's timestamp; judging a prefetched batch takes 7–20 ms | 19 Nov 2026, both watchtowers | EVIDENCE 50, 55 |
 
 ## 11. Exercised so far
 
-**Tests (19 Nov 2026):** 127 TypeScript tests (vitest) and 40 Foundry tests, all passing. 6 more vitest tests run against the live chain only when `VIGIL_LIVE=1`.
+**Tests (20 Nov 2026):** 134 TypeScript tests (vitest) and 40 Foundry tests, all passing. 6 more vitest tests run against the live chain only when `VIGIL_LIVE=1`.
 
 | Suite | Tests | What it pins down |
 |---|---|---|
@@ -189,7 +201,7 @@ Moving one watchtower to a second provider is open work.
 | `scripts/test/replay.test.ts` | 58 | Offline replay of recorded chain data; tampering with a state root or an inbox payload is detected |
 | `packages/qledger-watchtower/test/watchtower.test.ts` | 20 | Every recorded live batch is judged valid, and no challenge against an honest batch wins. Wrong state or withdrawals roots are flagged with proofs that win. A batch built on a fraudulent root is invalid too. A rejected batch is ignored and the honest resubmission at the same index is judged on its own. A corrupted inbox archive is refused |
 | `packages/qledger-watchtower/test/fast.test.ts` | 11 | Batches decoded from their submitting tx (drill 1 recording); post sequences read from events; the drill batch judged invalid on arrival with a winning proof; local signing with the cached account; one retry on a sequence mismatch; refusing a challenge the chain would not uphold; gas scaling and cap; the websocket follower. *The backup's delay and skip are exercised live only (§7)* |
-| `packages/keel/test/*.test.ts` | 21 | Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
+| `packages/keel/test/*.test.ts` | 28 | Standby: it leaves fresh entries to the primary, takes over once the oldest waiting entry has waited the full margin, and measures that wait from the next entry, not the last batched one (the drill's real heights). Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
 | `packages/chain-ws/test/routes.test.ts` | 5 | The chain's protobuf descriptor snapshot matches its recorded hash. The RDK's REST routes map to the right gRPC queries, with path and query parameters encoded into the request. gRPC NotFound becomes HTTP 404; writes and unknown routes are refused |
 | `packages/sealed/test/sealed.test.ts` | 12 | Envelopes open for every named recipient and nobody else, and not on another rollup or chain. An envelope inside a batch leaves its roots unchanged. Data receipts fail if any post, the accumulator or the payload changes. Recipient cards bind all three keys |
 
@@ -201,10 +213,10 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 - the hosted sequencer (EVIDENCE 22–23);
 - the sealed payslip (EVIDENCE 28–38);
 - two fraud drills (§7);
-- settlement receipts checked in the browser against the live chain (`apps/web`), and in Solidity by `SettlementReceiptVerifier` (EVIDENCE 60–63).
+- settlement receipts checked in the browser against the live chain (`apps/web`), and in Solidity by `SettlementReceiptVerifier` (EVIDENCE 60–63);
+- a standby sequencer with its own bond taking over from the stopped creator's Keel, with the withdrawal it batched paid on L1 (EVIDENCE 65–72; §7).
 
 **Not yet exercised:**
-- another bonded account taking over from a stopped sequencer;
 - quorum checkpoints;
 - instant exits.
 
@@ -228,6 +240,10 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
   - The second challenge in the same block was refused in delivery and still paid 0.24 QOR (§7, drill 1).
   - The order within that block matched the gas price (0.15 ahead of 0.12). That is one sample; we have not shown that the chain orders by fee.
   - Our challenger now pays 0.3, and the backup waits 3 s and skips if the batch is already rejected, so our two watchtowers never race each other.
+- **F5: posted data is numbered from 1.**
+  - `posted_data/{rollup}/{n}` is the n-th entry, and `consumed_sequence` equals the sequence of the last batched entry.
+  - In the 20 Nov drill our standby read `posted_data/{consumed_sequence}`, so it measured its wait from an entry batched the day before and took over after 7 blocks instead of 30 (§7).
+  - Fixed in PR #29: the oldest waiting entry is `consumed_sequence + 1`. A test pins the drill's real heights.
 
 ## 13. Residual risks
 
@@ -237,7 +253,8 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 - **Data availability depends on node indexing.**
   - `fetchQledgerEntries` reads post bytes back from transaction history, which nodes may prune (posted data is retained 648,000 blocks).
   - Vigil's watchtowers keep their own archive, checked against the chain's SHA-256 commitments.
-- **Unanchored batches have no receipt.** If the creator's sequencer dies and a bonded watchtower takes over, safety and withdrawals are unaffected, but those batches carry no x/multilayer anchor, because only the creator's batches are anchored.
+- **Unanchored batches have no receipt.** When the standby sequencer batches, safety and withdrawals are unaffected (exercised: EVIDENCE 69, 72), but its batches carry no x/multilayer anchor, because only the creator's key can anchor. Batch 11 of `vigil-pay-1` is such a batch: the browser verifier and `SettlementReceiptVerifier` have no anchor to check for it.
+- **Two sequencers can still race.** If the creator's Keel is slow by more than 30 blocks but not dead, both may submit the same batch index. The chain accepts the first and the loser pays a fee; no state is at risk.
 - **The Solidity verifier sees signatures, not chain state.**
   - What it proves: the rollup creator's chain-registered ML-DSA-87 key signed this state root for this chain, layer and layer height.
   - What it does not prove: that the chain accepted the anchor, or that the batch is final. A creator could sign a root and never submit it, and a batch removed by a fraud proof leaves its signature valid.
@@ -257,5 +274,6 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 | Version | Date | Change |
 |---|---|---|
 | v0 | 2026-11-16 | First version: assets, adversaries, assumptions, drill design, measured precompile facts, the RDK validator finding |
+| v1.2 | 2026-11-20 | Kill-the-sequencer drill (§7): standby sequencer keel-b, takeover, recovery with a gap in anchor heights, and our off-by-one (F5). keel-b in the key table (§8). Two chain facts (§10). Keel tests (§11). Unanchored batches and sequencer races (§13) |
 | v1.1 | 2026-11-19 | Receipts verified in Solidity: `SettlementReceiptVerifier` (§1, §5), its measured cost and spike S3b (`BLOCKHASH` zero in mined transactions, §10), 19 new Foundry tests and the chain-ws suite (§11), receipt checks in the browser and in Solidity moved to "exercised", and what the contract does not prove (§13) |
 | v1 | 2026-11-19 | Adds the live rollup, the two fraud drills (§7), hosted keys and operating rules (§8), new measured facts on challenges and rollback, the test inventory, findings F3–F4, and residual risks for hosted keys and challenge races. The Q-Day Drill section now records that the registered drill account became the rollup creator and has never opened a window |
