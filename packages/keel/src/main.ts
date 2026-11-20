@@ -52,7 +52,7 @@ import { argValue, loadOperator, loadOperatorFrom } from "./account.ts";
 import { HybridSender } from "./chain.ts";
 import { emptyState, loadSnapshot, saveSnapshot, snapshotOf, stateFrom, type LedgerState } from "./snapshot.ts";
 import { syncLedger, type SyncResult } from "./sync.ts";
-import { parseStandbyBlocks, standbyDecision } from "./standby.ts";
+import { oldestWaitingSequence, parseStandbyBlocks, standbyDecision } from "./standby.ts";
 
 class FatalError extends Error {}
 
@@ -251,17 +251,18 @@ async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned" | "s
   }
   let takeover: { waitedBlocks: number; oldestEntry: number } | undefined;
   if (standbyBlocks !== undefined) {
-    const [tip, oldest] = await Promise.all([rest.getLatestHeight(), rest.getPostedData(rollupId, inbox.consumedSequence)]);
+    const oldestEntry = oldestWaitingSequence(inbox.consumedSequence);
+    const [tip, oldest] = await Promise.all([rest.getLatestHeight(), rest.getPostedData(rollupId, oldestEntry)]);
     const d = standbyDecision({ tipHeight: tip, oldestWaitingHeight: oldest.height, standbyBlocks });
     if (!d.due) {
-      if (standbyNoted !== inbox.consumedSequence) {
-        log("info", "standby_waiting", { oldestEntry: inbox.consumedSequence, waitedBlocks: d.waited, standbyBlocks });
-        standbyNoted = inbox.consumedSequence;
+      if (standbyNoted !== oldestEntry) {
+        log("info", "standby_waiting", { oldestEntry, waitedBlocks: d.waited, standbyBlocks });
+        standbyNoted = oldestEntry;
       }
       writeStatus({ state: "standby", inbox, batchIndex: state.batchIndex, waitedBlocks: d.waited, standbyBlocks });
       return "standby";
     }
-    takeover = { waitedBlocks: d.waited, oldestEntry: inbox.consumedSequence };
+    takeover = { waitedBlocks: d.waited, oldestEntry };
     log("warn", "standby_takeover", { ...takeover, standbyBlocks, postedAt: oldest.height, tip });
   }
   const plan = await planQledgerBatch(rest, { ...env, submitter: sender.address, ledger: state.ledger });

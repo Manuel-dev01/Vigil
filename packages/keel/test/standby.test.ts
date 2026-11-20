@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseStandbyBlocks, standbyDecision } from "../src/standby.ts";
+import { oldestWaitingSequence, parseStandbyBlocks, standbyDecision } from "../src/standby.ts";
 
 describe("standby", () => {
   it("does nothing while the inbox is empty", () => {
@@ -33,5 +33,13 @@ describe("standby", () => {
     expect(() => parseStandbyBlocks("-3")).toThrow();
     expect(() => parseStandbyBlocks("2.5")).toThrow();
     expect(() => parseStandbyBlocks("soon")).toThrow();
+  });
+
+  it("measures the wait from the next entry, not the last batched one (posted data is numbered from 1)", () => {
+    // vigil-pay-1 on 20 Nov: consumed_sequence 12; posted_data/12 was batched the day before
+    // (height 10,393,102), and the waiting entry was posted_data/13 (height 10,433,589).
+    expect(oldestWaitingSequence(12)).toBe(13);
+    expect(oldestWaitingSequence(0)).toBe(1);
+    expect(standbyDecision({ tipHeight: 10_433_593, oldestWaitingHeight: 10_433_589, standbyBlocks: 30 }).due).toBe(false);
   });
 });
