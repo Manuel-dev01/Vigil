@@ -27,6 +27,16 @@ export async function loadOperator(envPath: string): Promise<UnifiedAccount> {
  */
 export async function loadOperatorFrom(env: Record<string, string | undefined>): Promise<UnifiedAccount> {
   if (env["QORE_MNEMONIC"]) return deriveUnifiedAccount(env["QORE_MNEMONIC"], 0);
+  // A role file written by scripts/drill/new-account.ts: <ROLE>_MNEMONIC with <ROLE>_QOR_ADDRESS beside it.
+  const roles = Object.keys(env).filter((k) => /^[A-Z0-9_]+_MNEMONIC$/.test(k) && env[k]);
+  if (roles.length > 1) throw new Error(`the .env holds several mnemonics (${roles.join(", ")}); keep one per file`);
+  if (roles.length === 1 && !env["PRIVATE_KEY"]) {
+    const name = roles[0]!;
+    const acct = await deriveUnifiedAccount(env[name]!, 0);
+    const want = env[name.replace(/_MNEMONIC$/, "_QOR_ADDRESS")];
+    if (want && want !== acct.cosmos) throw new Error(`${name} does not derive the address saved beside it`);
+    return acct;
+  }
   const key = env["PRIVATE_KEY"];
   const code = env["QORE_PQC_RECOVERY_CODE"];
   if (!key || !/^0x[0-9a-fA-F]{64}$/.test(key)) throw new Error("the .env needs QORE_MNEMONIC, or PRIVATE_KEY as 0x + 64 hex");
