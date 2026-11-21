@@ -1,6 +1,6 @@
 # Vigil threat model
 
-**Version 1.2, 20 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
+**Version 1.3, 21 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
 
 This document separates what is **exercised** (backed by a test or a row in [EVIDENCE.md](EVIDENCE.md)) from what is **designed but not yet exercised**. Nothing here claims that Vigil is "quantum-proof". The claim is narrower: no step that moves value depends on a classical signature or a pairing-based proof, and each remaining classical dependency is named below.
 
@@ -188,6 +188,7 @@ Moving one watchtower to a second provider is open work.
 | `BLOCKHASH` returns zero inside a **mined** transaction too, for depths 1 to 257, and the EIP-2935 history address returns empty data (spike S3b; S3 had shown the same under `eth_call`). A contract therefore cannot authenticate a block header, so EVM code cannot prove rollup state such as a batch's status | 19 Nov 2026 | EVIDENCE 61; `contracts/src/spikes/BlockhashProbe.sol` |
 | The chain numbers posted data from 1: `posted_data/{rollup}/{n}` is the n-th entry, and `consumed_sequence` is the sequence of the last batched entry, so the oldest waiting entry is `consumed_sequence + 1` | 20 Nov 2026 | `packages/keel/test/standby.test.ts` (the drill's real heights) |
 | A batch from a bonded account other than the creator is accepted without an anchor (no `state_anchored`); the creator anchors again afterwards, leaving a gap in the layer heights (0–10, 12) | 20 Nov 2026 | EVIDENCE 69, 71 |
+| qledger-v1 execution gives identical state roots, withdrawals roots and withdrawals in all five RDK languages: TypeScript (`@qorechain/rdk` 0.9.0), and Go, Rust, Python and Java at qorechain-rdk `2c72e47`. Measured on 10,056 generated cases, mostly valid histories mixed with mutation and edge-case families | 21 Nov 2026 | `scripts/fuzz/` (differential fuzzer) |
 | Websocket detection of a new batch takes ~1.6–1.7 s after the block's timestamp; judging a prefetched batch takes 7–20 ms | 19 Nov 2026, both watchtowers | EVIDENCE 50, 55 |
 
 ## 11. Exercised so far
@@ -204,6 +205,8 @@ Moving one watchtower to a second provider is open work.
 | `packages/keel/test/*.test.ts` | 28 | Standby: it leaves fresh entries to the primary, takes over once the oldest waiting entry has waited the full margin, and measures that wait from the next entry, not the last batched one (the drill's real heights). Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
 | `packages/chain-ws/test/routes.test.ts` | 5 | The chain's protobuf descriptor snapshot matches its recorded hash. The RDK's REST routes map to the right gRPC queries, with path and query parameters encoded into the request. gRPC NotFound becomes HTTP 404; writes and unknown routes are refused |
 | `packages/sealed/test/sealed.test.ts` | 12 | Envelopes open for every named recipient and nobody else, and not on another rollup or chain. An envelope inside a batch leaves its roots unchanged. Data receipts fail if any post, the accumulator or the payload changes. Recipient cards bind all three keys |
+
+**Differential fuzzing** (`scripts/fuzz/`, not part of `pnpm test`): the same generated rollup histories run through qledger-v1 execution in all five RDK languages. The result is 10,056 cases with 0 divergences (§10). The comparator checks itself before each run.
 
 The precompiles are mocked in Foundry. Their real behaviour is measured on testnet (§10). The deployed vault accepted a real ML-DSA-87 signature through `eth_call` (EVIDENCE 1–8). The deployed receipt verifier checked all 11 real anchors on chain (EVIDENCE 62–63), and `pnpm --filter @vigil/scripts evm:verifier status` re-checks them for free.
 
@@ -274,6 +277,7 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 | Version | Date | Change |
 |---|---|---|
 | v0 | 2026-11-16 | First version: assets, adversaries, assumptions, drill design, measured precompile facts, the RDK validator finding |
+| v1.3 | 2026-11-21 | Differential fuzzing of qledger-v1 across the RDK's five languages: 10,056 cases, 0 divergences (§10, §11) |
 | v1.2 | 2026-11-20 | Kill-the-sequencer drill (§7): standby sequencer keel-b, takeover, recovery with a gap in anchor heights, and our off-by-one (F5). keel-b in the key table (§8). Two chain facts (§10). Keel tests (§11). Unanchored batches and sequencer races (§13) |
 | v1.1 | 2026-11-19 | Receipts verified in Solidity: `SettlementReceiptVerifier` (§1, §5), its measured cost and spike S3b (`BLOCKHASH` zero in mined transactions, §10), 19 new Foundry tests and the chain-ws suite (§11), receipt checks in the browser and in Solidity moved to "exercised", and what the contract does not prove (§13) |
 | v1 | 2026-11-19 | Adds the live rollup, the two fraud drills (§7), hosted keys and operating rules (§8), new measured facts on challenges and rollback, the test inventory, findings F3–F4, and residual risks for hosted keys and challenge races. The Q-Day Drill section now records that the registered drill account became the rollup creator and has never opened a window |

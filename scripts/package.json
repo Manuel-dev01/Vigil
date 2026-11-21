@@ -11,7 +11,10 @@
     "spike:b": "tsx spike-b-pqcverify.ts",
     "spike:c": "tsx spike-c-evm-reads.ts",
     "evm:vectors": "tsx evm/anchor-vectors.ts",
-    "evm:verifier": "tsx evm/receipt-verifier.ts"
+    "evm:verifier": "tsx evm/receipt-verifier.ts",
+    "fuzz:setup": "bash fuzz/setup.sh",
+    "fuzz:gen": "tsx fuzz/gen.ts",
+    "fuzz:diff": "tsx fuzz/diff.ts"
   },
   "dependencies": {
     "@cosmjs/proto-signing": "0.39.0",

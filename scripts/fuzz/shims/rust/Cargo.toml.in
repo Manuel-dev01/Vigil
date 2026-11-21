@@ -1,0 +1,10 @@
+[package]
+name = "rust-shim"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+qorechain-rdk = { path = "@RDK_RUST@" }
+serde_json = "1"
+hex = "0.4"
