@@ -274,7 +274,7 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 
 ## 14. Instant exits (23 Nov 2026)
 
-*Exercised on 23 Nov 2026: EVIDENCE.md rows 82 to 92. Contract: `contracts/src/InstantExitVault.sol`. Attester: `packages/qledger-watchtower/src/exits.ts`.*
+*Exercised on 23 Nov 2026: EVIDENCE.md rows 82 to 96. Contract: `contracts/src/InstantExitVault.sol`. Attester: `packages/qledger-watchtower/src/exits.ts`.*
 
 A qledger-v1 withdrawal is paid on L1 only once its batch is final. `InstantExitVault` pays it early, from an LP's liquidity, once both of our watchtowers have re-executed the batch and signed for the withdrawal with ML-DSA-87.
 
@@ -309,7 +309,7 @@ A qledger-v1 withdrawal is paid on L1 only once its batch is final. `InstantExit
 | Version | Date | Change |
 |---|---|---|
 | v0 | 2026-11-16 | First version: assets, adversaries, assumptions, drill design, measured precompile facts, the RDK validator finding |
-| v1.4 | 2026-11-23 | Instant exits (§14): the vault, the attesting watchtowers, who trusts what, and the residual risks. Exercised end to end on vigil-pay-1 (EVIDENCE 82 to 92) |
+| v1.4 | 2026-11-23 | Instant exits (§14): the vault, the attesting watchtowers, who trusts what, and the residual risks. Exercised end to end on vigil-pay-1 (EVIDENCE 82 to 96) |
 | v1.3 | 2026-11-21 | Differential fuzzing of qledger-v1 across the RDK's five languages: 10,056 cases, 0 divergences (§10, §11) |
 | v1.2 | 2026-11-20 | Kill-the-sequencer drill (§7): standby sequencer keel-b, takeover, recovery with a gap in anchor heights, and our off-by-one (F5). keel-b in the key table (§8). Two chain facts (§10). Keel tests (§11). Unanchored batches and sequencer races (§13) |
 | v1.1 | 2026-11-19 | Receipts verified in Solidity: `SettlementReceiptVerifier` (§1, §5), its measured cost and spike S3b (`BLOCKHASH` zero in mined transactions, §10), 19 new Foundry tests and the chain-ws suite (§11), receipt checks in the browser and in Solidity moved to "exercised", and what the contract does not prove (§13) |
