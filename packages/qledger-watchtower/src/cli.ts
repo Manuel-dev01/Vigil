@@ -26,6 +26,14 @@
  *                           watchtower waits this long, then challenges only if
  *                           the batch is still open (so it does not pay to lose
  *                           a race against our own primary)
+ *   --attest-exits <0x…>    WATCHTOWER_EXIT_VAULT: sign instant exits for this
+ *                           InstantExitVault (see src/exits.ts). For each valid,
+ *                           unfinalized batch with withdrawals, the watchtower signs
+ *                           one claim per withdrawal with its ML-DSA-87 key and posts
+ *                           them into the rollup's inbox. Needs --mode challenge.
+ *   --exit-margin <s>       WATCHTOWER_EXIT_MARGIN, default 600: claims expire this
+ *                           long before the batch could be final
+ *   --evm-chain-id <n>      WATCHTOWER_EVM_CHAIN_ID, default 9800
  *
  * Exit code with --once: 0 all valid, 2 an invalid batch was found.
  * Logs are JSON lines on stdout. Secrets are read from the environment only and never logged.
@@ -36,6 +44,7 @@ import { join, resolve } from "node:path";
 import { createRdkClient } from "@qorechain/rdk";
 import { InboxArchive } from "./archive.ts";
 import { Challenger, OUT_OF_GAS, accountFromMnemonic, rpcTransport } from "./challenger.ts";
+import { claimsForBatch, encodeAttestation, recipientBytes, signClaims } from "./exits.ts";
 import { batchesFromTx, postsFromEvents } from "./fast.ts";
 import { TxFollower, websocketUrl, type TxEvent } from "./follow.ts";
 import { RollupTracker, chainSource, type Judgement, type LiveBatch } from "./tracker.ts";
@@ -50,7 +59,13 @@ const dataDir = resolve(opt("--data", "WATCHTOWER_DATA", "./data/watchtower")!);
 const follow = opt("--follow", "WATCHTOWER_FOLLOW", rollupArg === "all" ? "poll" : "ws")!;
 const gasPrice = Number(opt("--gas-price", "WATCHTOWER_GAS_PRICE", "0.3"));
 const challengeDelayMs = Number(opt("--challenge-delay", "WATCHTOWER_CHALLENGE_DELAY", "0")) * 1000;
+const exitVault = opt("--attest-exits", "WATCHTOWER_EXIT_VAULT");
+const exitMarginSec = Number(opt("--exit-margin", "WATCHTOWER_EXIT_MARGIN", "600"));
+const evmChainId = Number(opt("--evm-chain-id", "WATCHTOWER_EVM_CHAIN_ID", "9800"));
 if (!["observe", "challenge"].includes(mode)) throw new Error(`unknown --mode ${mode}`);
+if (exitVault && !/^0x[0-9a-fA-F]{40}$/.test(exitVault)) throw new Error("--attest-exits needs a 0x vault address");
+if (exitVault && mode !== "challenge") throw new Error("--attest-exits needs --mode challenge (it signs and posts with WATCHTOWER_MNEMONIC)");
+if (!(exitMarginSec >= 60)) throw new Error("--exit-margin must be at least 60 seconds");
 if (!["ws", "poll"].includes(follow)) throw new Error(`unknown --follow ${follow}`);
 if (follow === "ws" && rollupArg === "all") throw new Error("--follow ws needs named rollups (--rollup a,b); use --follow poll with --rollup all");
 if (!(gasPrice >= 0.1 && gasPrice <= 10)) throw new Error(`--gas-price ${gasPrice} is outside 0.1..10 uqor per gas`);
@@ -80,6 +95,50 @@ const settle = (id: string) => {
   writeFileSync(challengedPath, JSON.stringify([...challenged], null, 2));
 };
 const inFlight = new Set<string>();
+
+// Instant exits already attested (rollup:batch:stateRoot), and batches too close to final to attest.
+const attestedPath = join(dataDir, "exit-attested.json");
+const attested = new Set<string>(existsSync(attestedPath) ? (JSON.parse(readFileSync(attestedPath, "utf8")) as string[]) : []);
+const attesting = new Set<string>();
+const tooLate = new Set<string>();
+const challengeWindows = new Map<string, number>();
+
+/** Sign and post exit claims for a valid, unfinalized batch with withdrawals. Never throws. */
+async function maybeAttest(rollupId: string, batch: LiveBatch, withdrawals: NonNullable<Extract<Judgement, { kind: "valid" }>["withdrawals"]>): Promise<void> {
+  if (!exitVault || !challenger || !account || withdrawals.length === 0) return;
+  if (batch.status !== "submitted" || batch.submittedTime === undefined) return;
+  const id = `${rollupId}:${batch.batchIndex}:${norm(batch.stateRoot)}`;
+  if (attested.has(id) || attesting.has(id) || tooLate.has(id)) return;
+  attesting.add(id);
+  try {
+    let windowSec = challengeWindows.get(rollupId);
+    if (windowSec === undefined) {
+      windowSec = (await rdk.rest.getRollup(rollupId)).challengeWindowSec ?? 0;
+      challengeWindows.set(rollupId, windowSec);
+    }
+    const claims = claimsForBatch({ batchIndex: batch.batchIndex, stateRoot: batch.stateRoot, submittedTime: batch.submittedTime }, withdrawals, windowSec, exitMarginSec);
+    if (claims[0]!.deadline <= Math.floor(Date.now() / 1000) + 60) {
+      tooLate.add(id);
+      log("exit-attest-skipped", { rollupId, batch: batch.batchIndex, reason: "too close to final", deadline: claims[0]!.deadline });
+      return;
+    }
+    const target = { evmChainId, vault: exitVault, chainId, rollupId };
+    const payload = encodeAttestation({ vault: exitVault, member: recipientBytes(account.cosmos), claims: signClaims(target, account.pqc.secretKey, claims) });
+    const sent = await challenger.post(rollupId, payload, `vigil watchtower: exit attestation ${rollupId} batch ${batch.batchIndex}`);
+    const r = await challenger.outcome(sent.hash);
+    if (r?.code === 0) {
+      attested.add(id);
+      writeFileSync(attestedPath, JSON.stringify([...attested], null, 2));
+      log("exit-attested", { rollupId, batch: batch.batchIndex, withdrawals: claims.length, deadline: claims[0]!.deadline, tx: sent.hash, height: r.height, bytes: payload.length, feeUqor: sent.feeUqor });
+    } else {
+      log("exit-attest-failed", { rollupId, batch: batch.batchIndex, tx: sent.hash, code: r?.code, rawLog: r?.rawLog?.slice(0, 200) });
+    }
+  } catch (e) {
+    log("exit-attest-failed", { rollupId, batch: batch.batchIndex, message: (e as Error).message.slice(0, 240) });
+  } finally {
+    attesting.delete(id);
+  }
+}
 const attempts = new Map<string, number>();
 const MAX_ATTEMPTS = 3;
 
@@ -176,6 +235,13 @@ async function pass(): Promise<void> {
       log("invalid", { rollupId, batch: batch.batchIndex, status: batch.status, judgement, via: "pass" });
       pending.push(maybeChallenge(rollupId, t, batch, judgement, "pass", Date.now()));
     }
+    // Instant exits come after challenges and never hold up a pass.
+    for (const { batch, judgement } of tracked) {
+      if (judgement.kind === "valid" && judgement.withdrawals?.length) {
+        const a = maybeAttest(rollupId, batch, judgement.withdrawals);
+        if (once) pending.push(a);
+      }
+    }
   }
   if (once) await Promise.all(pending);
 }
@@ -221,7 +287,7 @@ function onTx(rollupId: string, kind: "batch" | "post", e: TxEvent): void {
 }
 
 let follower: TxFollower | undefined;
-log("start", { mode, rollup: rollupArg, dataDir, follow, intervalMs, gasPrice, challengeDelayMs, watchtower: account?.cosmos });
+log("start", { mode, rollup: rollupArg, dataDir, follow, intervalMs, gasPrice, challengeDelayMs, watchtower: account?.cosmos, ...(exitVault && { exitVault, exitMarginSec, evmChainId }) });
 for (let first = true; ; first = false) {
   try {
     await pass();

@@ -182,6 +182,31 @@ describe("Challenger", () => {
     expect(decodeTxRaw(transport.sent[0]!).authInfo.signerInfos[0]!.sequence).toBe(9n);
   });
 
+  it("posts to the inbox and never lets a post and a challenge share a sequence number", async () => {
+    const t = await trackerBeforeDrill();
+    const [bad] = batchesFromTx(drill.txs.bad.txBase64, drill.txs.bad.events, "vigil-pay-1");
+    await t.judgeNow(bad!);
+    const account = await deriveUnifiedAccount(TEST_MNEMONIC, 0);
+    const transport = fakeTransport();
+    const ch = new Challenger(account, env.chainId, transport, { gasPrice: 0.3, signBytesVersion: "v2" });
+    await ch.ready();
+    const data = new Uint8Array(4800).fill(7);
+    // Started together: the lane runs them one after the other.
+    const [p, c] = await Promise.all([ch.post("vigil-pay-1", data, "vigil watchtower: exit attestation"), ch.send("vigil-pay-1", t.challenge(bad!), 1)]);
+    expect([p.hash, c.hash]).toEqual(["HASH1", "HASH2"]);
+    expect(p.gas).toBe(Challenger.gasForPost(4800));
+    expect(p.gas).toBeGreaterThan(349_859); // a 3,783-byte post used this much
+    const postTx = decodeTxRaw(transport.sent[0]!);
+    expect(postTx.authInfo.signerInfos[0]!.sequence).toBe(7n);
+    expect(decodeTxRaw(transport.sent[1]!).authInfo.signerInfos[0]!.sequence).toBe(8n);
+    expect(postTx.body.messages[0]!.typeUrl).toBe("/qorechain.rdk.v1.MsgPostRollupData");
+    const msg = createRdkRegistry().decode(postTx.body.messages[0]!) as { poster: string; rollupId: string; data: Uint8Array };
+    expect(msg.poster).toBe(account.cosmos);
+    expect(msg.rollupId).toBe("vigil-pay-1");
+    expect(msg.data).toEqual(data);
+    expect(postTx.body.memo).toBe("vigil watchtower: exit attestation");
+  });
+
   it("refuses a challenge the chain would not uphold", async () => {
     const t = await trackerBeforeDrill();
     const [honest] = batchesFromTx(drill.txs.honest.txBase64, drill.txs.honest.events, "vigil-pay-1");

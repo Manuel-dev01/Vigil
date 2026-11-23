@@ -16,6 +16,7 @@ import {
   postedDataHash,
   qledgerAccumulate,
   type QledgerEntry,
+  type QledgerWithdrawal,
   type RestClient,
 } from "@qorechain/rdk";
 import { InboxArchive, type ArchivedEntry } from "./archive.ts";
@@ -24,6 +25,8 @@ import { buildChallenge, checkBatch, type Challenge, type Field, type PublishedB
 export interface LiveBatch extends PublishedBatch {
   status: string;
   submittedAt: number;
+  /** Unix seconds of the submitting block, when known (REST listings carry it; the websocket path does not). */
+  submittedTime?: number;
 }
 
 /** Where batches and inbox entries come from: the chain, or recorded data in tests. */
@@ -34,7 +37,7 @@ export interface BatchSource {
 }
 
 export type Judgement =
-  | { kind: "valid" }
+  | { kind: "valid"; withdrawals?: QledgerWithdrawal[] }
   | { kind: "invalid"; mismatches: Field[]; honestStateRoot: string; honestWithdrawalsRoot: string }
   | { kind: "descends-from-invalid"; parent: string }
   | { kind: "unknown-parent"; parent: string };
@@ -86,7 +89,7 @@ export class RollupTracker {
       const v = checkBatch(this.env, parent, this.archive.accAt(b.inboxStart)!, this.archive.accAt(b.inboxEnd)!, this.archive.range(b.inboxStart, b.inboxEnd), b);
       this.states.set(v.honest.stateRoot, v.next);
       if (v.valid) {
-        j = { kind: "valid" };
+        j = { kind: "valid", withdrawals: v.honest.paid };
       } else {
         this.invalidRoots.add(norm(b.stateRoot));
         j = { kind: "invalid", mismatches: v.mismatches, honestStateRoot: v.honest.stateRoot, honestWithdrawalsRoot: v.honest.withdrawalsRoot };
@@ -176,6 +179,7 @@ export function chainSource(rest: RestClient, env: RollupEnv, restBase = "https:
         dataHash: b.dataHash,
         status: b.status,
         submittedAt: b.submittedAt,
+        submittedTime: b.submittedTime,
       }));
     },
     async fetchEntries(from, to, accFrom) {

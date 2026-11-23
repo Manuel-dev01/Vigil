@@ -42,7 +42,7 @@ export interface BatchVerdict {
   /** Fields where the published value differs from re-execution. */
   mismatches: Field[];
   /** What an honest batch over the same inputs would have published. */
-  honest: { stateRoot: string; withdrawalsRoot: string; dataHash: string; withdrawals: number };
+  honest: { stateRoot: string; withdrawalsRoot: string; dataHash: string; withdrawals: number; paid: QledgerResult["withdrawals"] };
   /** The state after the honest execution: the parent of the next honest batch. */
   next: QledgerLedger;
 }
@@ -84,7 +84,7 @@ export function checkBatch(
     batchIndex: batch.batchIndex,
     valid: mismatches.length === 0,
     mismatches,
-    honest: { stateRoot: hex(r.stateRoot), withdrawalsRoot: hex(r.withdrawalsRoot), dataHash, withdrawals: r.withdrawals.length },
+    honest: { stateRoot: hex(r.stateRoot), withdrawalsRoot: hex(r.withdrawalsRoot), dataHash, withdrawals: r.withdrawals.length, paid: r.withdrawals },
     next,
   };
 }
