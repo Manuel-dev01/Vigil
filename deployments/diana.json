@@ -78,5 +78,19 @@
       "ok": true,
       "ret": "0x"
     }
+  },
+  "InstantExitVault": {
+    "address": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+    "deployTx": "0x6998fd1e51c35d90c84921de641d7d8c5ea78a27162b484d920d985a6513bc26",
+    "block": "10629388",
+    "quorum": [
+      "0x2684Af6bd37F2fd9cEA02B58D1725d69f3C928CA",
+      "0x13f665a393a96c972606ACfAE757754443DCBa8f"
+    ],
+    "threshold": 2,
+    "lp": "0x16B7aB42fD64282931B1589f3e15720B7340f9c7",
+    "feeBps": 50,
+    "rollupId": "vigil-pay-1",
+    "deployer": "0x0352f370E966c2fE62F7BB53837b6039637d5256"
   }
 }
