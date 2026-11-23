@@ -14,11 +14,25 @@ interface Fraud {
   reward: string;
 }
 
+/** A batch the chain still keeps, or one it has pruned that is known from its surviving anchor. */
+interface Row {
+  key: string;
+  batchIndex: number;
+  status: BatchView["status"] | "pruned";
+  stateRoot: string;
+  batch?: BatchView;
+  anchored: boolean;
+  /** The block the batch was submitted at (for a pruned batch, its anchor's block: the same transaction). */
+  block: number;
+}
+
 interface State {
   rollup: Rollup;
   inbox: InboxView;
   batches: BatchView[];
-  anchored: Set<string>;
+  rows: Row[];
+  pruned: number;
+  latestIndex: number;
   bond: string;
   frauds: Fraud[];
   loadedAt: number;
@@ -56,12 +70,31 @@ async function load(): Promise<State> {
       });
     }
   }
+  // An anchor belongs to the batch whose index is its layer height (several batches can share a root).
+  const anchored = new Set(anchors.map((a) => `${a.layerHeight}:${a.stateRoot.toLowerCase()}`));
+  const kept = new Set(batches.map((b) => b.batchIndex));
+  const latestIndex = Math.max(-1, ...batches.map((b) => b.batchIndex));
+  // The chain deletes finalized batch records after a retention window; their anchors stay.
+  const gone = anchors.filter((a) => !kept.has(a.layerHeight) && a.layerHeight < latestIndex);
+  const rows: Row[] = [
+    ...batches.map((b) => ({
+      key: `${b.batchIndex}:${b.stateRoot}`,
+      batchIndex: b.batchIndex,
+      status: b.status,
+      stateRoot: b.stateRoot,
+      batch: b,
+      anchored: anchored.has(`${b.batchIndex}:${b.stateRoot.toLowerCase()}`),
+      block: b.submittedAt,
+    })),
+    ...gone.map((a) => ({ key: `pruned:${a.layerHeight}`, batchIndex: a.layerHeight, status: "pruned" as const, stateRoot: a.stateRoot, anchored: true, block: a.mainChainHeight })),
+  ].sort((a, b) => b.batchIndex - a.batchIndex || b.block - a.block);
   return {
     rollup,
     inbox,
-    batches: [...batches].sort((a, b) => b.batchIndex - a.batchIndex),
-    // An anchor belongs to the batch whose index is its layer height (several batches can share a root).
-    anchored: new Set(anchors.map((a) => `${a.layerHeight}:${a.stateRoot.toLowerCase()}`)),
+    batches,
+    rows,
+    pruned: gone.length,
+    latestIndex,
     bond: bond.amount,
     frauds: frauds.sort((a, b) => b.height - a.height),
     loadedAt: Date.now(),
@@ -158,7 +191,7 @@ export function RollupView() {
 
   if (error && !state) return <p className="err">Could not read the chain: {error}</p>;
   if (!state) return <p className="empty">Reading {ROLLUP} from the chain…</p>;
-  const { rollup, inbox, batches, anchored, bond, frauds } = state;
+  const { rollup, inbox, batches, rows, pruned, latestIndex, bond, frauds } = state;
   const pending = batches.filter((b) => b.status === "submitted").length;
 
   return (
@@ -184,8 +217,11 @@ export function RollupView() {
         </div>
         <div className="stat">
           <div className="k">Batches</div>
-          <div className="v">{batches.length}</div>
-          <div className="s">{pending ? `${pending} in the challenge window` : "all final"}</div>
+          <div className="v">{latestIndex + 1}</div>
+          <div className="s">
+            {pending ? `${pending} in the challenge window` : "all final"}
+            {pruned ? ` · ${pruned} pruned, anchors kept` : ""}
+          </div>
         </div>
         <div className="stat">
           <div className="k">Inbox</div>
@@ -224,22 +260,32 @@ export function RollupView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {batches.map((b) => (
-                    <tr key={`${b.batchIndex}:${b.stateRoot}`}>
-                      <td className="num">{b.batchIndex}</td>
+                  {rows.map(({ key, batchIndex, status, stateRoot, batch: b, anchored, block }) => (
+                    <tr key={key}>
+                      <td className="num">{batchIndex}</td>
                       <td>
-                        <span className={`chip ${b.status}`}>{b.status}</span> <span className="note">{finalizesIn(b, rollup.challengeWindowSec, now)}</span>
+                        <span
+                          className={`chip ${status}`}
+                          title={status === "pruned" ? "The chain deleted this finalized batch's record after its retention window. Its anchor remains, so its receipt still verifies." : undefined}
+                        >
+                          {status}
+                        </span>{" "}
+                        {b && <span className="note">{finalizesIn(b, rollup.challengeWindowSec, now)}</span>}
                       </td>
                       <td>
-                        <code title={b.stateRoot}>{short(b.stateRoot, 6)}</code>
+                        <code title={stateRoot}>{short(stateRoot, 6)}</code>
                       </td>
+                      <td>{!b ? "—" : b.inboxEnd - b.inboxStart === 1 ? b.inboxEnd : b.inboxEnd > b.inboxStart ? `${b.inboxStart + 1}–${b.inboxEnd}` : "—"}</td>
+                      <td>{anchored ? <span className="chip ok">ML-DSA-87</span> : <span className="chip warn">none</span>}</td>
+                      <td className="num">{block.toLocaleString()}</td>
                       <td>
-                        {b.inboxEnd - b.inboxStart === 1 ? b.inboxEnd : b.inboxEnd > b.inboxStart ? `${b.inboxStart + 1}–${b.inboxEnd}` : "—"}
-                      </td>
-                      <td>{anchored.has(`${b.batchIndex}:${b.stateRoot.toLowerCase()}`) ? <span className="chip ok">ML-DSA-87</span> : <span className="chip warn">none</span>}</td>
-                      <td className="num">{b.submittedAt.toLocaleString()}</td>
-                      <td>
-                        <a href={`#/verify?batch=${b.batchIndex}`}>Verify receipt</a>
+                        {anchored ? (
+                          <a href={`#/verify?batch=${batchIndex}`}>Verify receipt</a>
+                        ) : (
+                          <span className="note" title="Only batches from the creator's sequencer carry an ML-DSA-87 anchor. This one came from the standby or another bonded submitter, so it has no settlement receipt.">
+                            no receipt
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
