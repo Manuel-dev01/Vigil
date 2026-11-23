@@ -43,3 +43,17 @@ describe("standby", () => {
     expect(standbyDecision({ tipHeight: 10_433_593, oldestWaitingHeight: 10_433_589, standbyBlocks: 30 }).due).toBe(false);
   });
 });
+
+import { pickPulseSender } from "../src/pulse.ts";
+
+describe("keep-alive pulse", () => {
+  it("sends from whichever L2 account holds more, so neither drains", () => {
+    expect(pickPulseSender(100_000n, 260_000n, 10_000n)).toBe("b");
+    expect(pickPulseSender(260_000n, 100_000n, 10_000n)).toBe("a");
+    expect(pickPulseSender(50_000n, 50_000n, 10_000n)).toBe("a");
+  });
+  it("refuses when neither account can pay", () => {
+    expect(pickPulseSender(9_999n, 5n, 10_000n)).toBeUndefined();
+    expect(pickPulseSender(9_999n, 10_000n, 10_000n)).toBe("b");
+  });
+});
