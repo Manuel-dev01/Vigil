@@ -1,5 +1,7 @@
 # Vigil
 
+![Vigil: a payments rollup built to survive Q-Day](docs/cover.png)
+
 **A payments rollup built to survive Q-Day, and proven on chain.** Vigil runs `vigil-pay-1`, a qledger-v1 optimistic rollup on the QoreChain testnet (`qorechain-diana`):
 - Users sign with ML-DSA-44.
 - Every batch from the sequencer is anchored with an ML-DSA-87 signature.
