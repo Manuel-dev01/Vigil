@@ -34,6 +34,8 @@
  *   --exit-margin <s>       WATCHTOWER_EXIT_MARGIN, default 600: claims expire this
  *                           long before the batch could be final
  *   --evm-chain-id <n>      WATCHTOWER_EVM_CHAIN_ID, default 9800
+ *   --exit-rollup <id>      WATCHTOWER_EXIT_ROLLUP, default vigil-pay-1: the one rollup
+ *                           the vault serves; no other rollup's inbox is ever posted to
  *
  * Exit code with --once: 0 all valid, 2 an invalid batch was found.
  * Logs are JSON lines on stdout. Secrets are read from the environment only and never logged.
@@ -62,6 +64,7 @@ const challengeDelayMs = Number(opt("--challenge-delay", "WATCHTOWER_CHALLENGE_D
 const exitVault = opt("--attest-exits", "WATCHTOWER_EXIT_VAULT");
 const exitMarginSec = Number(opt("--exit-margin", "WATCHTOWER_EXIT_MARGIN", "600"));
 const evmChainId = Number(opt("--evm-chain-id", "WATCHTOWER_EVM_CHAIN_ID", "9800"));
+const exitRollup = opt("--exit-rollup", "WATCHTOWER_EXIT_ROLLUP", "vigil-pay-1")!;
 if (!["observe", "challenge"].includes(mode)) throw new Error(`unknown --mode ${mode}`);
 if (exitVault && !/^0x[0-9a-fA-F]{40}$/.test(exitVault)) throw new Error("--attest-exits needs a 0x vault address");
 if (exitVault && mode !== "challenge") throw new Error("--attest-exits needs --mode challenge (it signs and posts with WATCHTOWER_MNEMONIC)");
@@ -105,7 +108,7 @@ const challengeWindows = new Map<string, number>();
 
 /** Sign and post exit claims for a valid, unfinalized batch with withdrawals. Never throws. */
 async function maybeAttest(rollupId: string, batch: LiveBatch, withdrawals: NonNullable<Extract<Judgement, { kind: "valid" }>["withdrawals"]>): Promise<void> {
-  if (!exitVault || !challenger || !account || withdrawals.length === 0) return;
+  if (!exitVault || !challenger || !account || withdrawals.length === 0 || rollupId !== exitRollup) return;
   if (batch.status !== "submitted" || batch.submittedTime === undefined) return;
   const id = `${rollupId}:${batch.batchIndex}:${norm(batch.stateRoot)}`;
   if (attested.has(id) || attesting.has(id) || tooLate.has(id)) return;
@@ -287,7 +290,7 @@ function onTx(rollupId: string, kind: "batch" | "post", e: TxEvent): void {
 }
 
 let follower: TxFollower | undefined;
-log("start", { mode, rollup: rollupArg, dataDir, follow, intervalMs, gasPrice, challengeDelayMs, watchtower: account?.cosmos, ...(exitVault && { exitVault, exitMarginSec, evmChainId }) });
+log("start", { mode, rollup: rollupArg, dataDir, follow, intervalMs, gasPrice, challengeDelayMs, watchtower: account?.cosmos, ...(exitVault && { exitVault, exitRollup, exitMarginSec, evmChainId }) });
 for (let first = true; ; first = false) {
   try {
     await pass();
