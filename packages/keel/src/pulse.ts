@@ -18,11 +18,17 @@
  *   4. posts it from the pulse poster (hybrid-signed), then waits up to
  *      PULSE_WAIT_SEC for a batch to consume it and logs that batch.
  *
+ * State: like Keel, the job keeps a ledger snapshot (PULSE_DATA_DIR, hosted on a
+ * volume) and syncs forward from it. Replaying from the empty ledger stops working
+ * once the chain has pruned the rollup's early batch records.
+ *
  * Hosted: QORE_MNEMONIC (the poster), PULSE_L2_SEED_A and PULSE_L2_SEED_B
- * (64 hex each), KEEL_ROLLUP, PULSE_DRY_RUN=1 to simulate only.
- * Local: --env <poster .env> --key-a <l2 key file> --key-b <l2 key file> [--dry-run]
+ * (64 hex each), KEEL_ROLLUP, PULSE_DATA_DIR, PULSE_DRY_RUN=1 to simulate only.
+ * Local: --env <poster .env> --key-a <l2 key file> --key-b <l2 key file> [--data <dir>] [--dry-run]
  */
 import "./net.ts";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fetchPqcStatus, isRegisteredPqcKey } from "@qorechain/sdk";
 import {
   bytesToHex,
@@ -38,7 +44,7 @@ import { TESTNET } from "@vigil/core";
 import { argValue, loadOperator, loadOperatorFrom } from "./account.ts";
 import { HybridSender } from "./chain.ts";
 import { loadL2Key } from "./l2-key.ts";
-import { emptyState } from "./snapshot.ts";
+import { emptyState, loadSnapshot, saveSnapshot, snapshotOf, stateFrom } from "./snapshot.ts";
 import { syncLedger, withPending } from "./sync.ts";
 
 /** The sender is whichever account holds more; ties go to A. Undefined if neither can pay. */
@@ -72,7 +78,15 @@ async function main(): Promise<number> {
 
   const env = { chainId: TESTNET.chainId, rollupId };
   const rest = createRdkClient({ network: "testnet" }).rest;
-  const synced = await syncLedger(rest, env, emptyState());
+  const dataDir = argValue(argv, "--data") ?? process.env["PULSE_DATA_DIR"];
+  const snapPath = dataDir ? resolve(dataDir, rollupId, "ledger.json") : undefined;
+  const snap = snapPath ? loadSnapshot(snapPath) : undefined;
+  const synced = await syncLedger(rest, env, snap ? stateFrom(snap, env) : emptyState());
+  if (snapPath && !synced.blocked) {
+    mkdirSync(dirname(snapPath), { recursive: true });
+    saveSnapshot(snapPath, snapshotOf(env, synced.state, new Date().toISOString()));
+    log("info", "pulse_state", { batchIndex: synced.state.batchIndex, from: snap ? "snapshot" : "empty ledger", snapshot: snapPath });
+  }
   if (synced.blocked) {
     log("warn", "pulse_skipped", { reason: `batch ${synced.blocked.batchIndex} is awaiting a challenge` });
     return 0;
