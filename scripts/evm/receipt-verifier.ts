@@ -11,7 +11,8 @@
  *                 (nothing deployed): every anchor must check Valid, a forged root and a signature
  *                 replayed at another height must fail. Needs no key.
  *   plan          deployer balance, window and gas estimates
- *   open-window   deployer opens an unscoped window (contract creation needs one)
+ *   open-window   deployer opens an unscoped window (contract creation needs one);
+ *                 --scoped: a window that can only call the deployed verifier (for attest)
  *   deploy        CREATE SettlementReceiptVerifier(creator, "qorechain-diana", layer id)
  *   probe         spike S3b: CREATE BlockhashProbe, compare BLOCKHASH in a mined tx with CometBFT
  *   attest        attest anchors not yet recorded (--one <height> for a single attest() call)
@@ -221,9 +222,18 @@ switch (step) {
     break;
   }
   case "open-window": {
-    // Unscoped: contract creation is refused under a scoped window. Bounded by time, count and value.
-    const msg = openEvmWindowMsg({ sender: deployer.cosmos, blocks: 600, maxTxs: 6, maxValue: "1500000" });
-    console.log("plan: MsgOpenEVMWindow from evm-deployer: unscoped, 600 blocks (~20 min), 6 txs, 1.5 QOR value+fee cap");
+    // --scoped (attesting only): the window admits calls to the deployed verifier and nothing else, no
+    // contract creation, 2 txs, 0.25 QOR value+fee cap, 200 blocks.
+    // Unscoped (deploying): contract creation is refused under a scoped window. Bounded by time, count and value.
+    const scoped = args.includes("--scoped");
+    const msg = scoped
+      ? openEvmWindowMsg({ sender: deployer.cosmos, blocks: 200, maxTxs: 2, maxValue: "250000", allowedTargets: [deployed().address] })
+      : openEvmWindowMsg({ sender: deployer.cosmos, blocks: 600, maxTxs: 6, maxValue: "1500000" });
+    console.log(
+      scoped
+        ? `plan: MsgOpenEVMWindow from evm-deployer: scoped to ${deployed().address} only, 200 blocks (~5 min), 2 txs, 0.25 QOR value+fee cap`
+        : "plan: MsgOpenEVMWindow from evm-deployer: unscoped, 600 blocks (~20 min), 6 txs, 1.5 QOR value+fee cap",
+    );
     if (!broadcast) break;
     const res = await sendHybrid(deployer, [msg], { gas: 500_000, memo: "vigil: window to deploy the settlement receipt verifier" });
     console.log(`tx ${res.transactionHash} height ${res.height}`);
