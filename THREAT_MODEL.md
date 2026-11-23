@@ -1,6 +1,6 @@
 # Vigil threat model
 
-**Version 1.3, 21 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
+**Version 1.4, 23 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
 
 This document separates what is **exercised** (backed by a test or a row in [EVIDENCE.md](EVIDENCE.md)) from what is **designed but not yet exercised**. Nothing here claims that Vigil is "quantum-proof". The claim is narrower: no step that moves value depends on a classical signature or a pairing-based proof, and each remaining classical dependency is named below.
 
@@ -272,11 +272,44 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 - **Instant exits trust the quorum, not the chain.** *Not yet built.* A colluding quorum can make LPs pay an exit the chain later does not honour. Users are never at risk from this; LPs are.
 - **Testnet only.** Mainnet has not applied v3.2.8, and nothing here has run on mainnet.
 
-## 14. Change log
+## 14. Instant exits (23 Nov 2026)
+
+*Exercised on 23 Nov 2026: EVIDENCE.md rows 82 to 92. Contract: `contracts/src/InstantExitVault.sol`. Attester: `packages/qledger-watchtower/src/exits.ts`.*
+
+A qledger-v1 withdrawal is paid on L1 only once its batch is final. `InstantExitVault` pays it early, from an LP's liquidity, once both of our watchtowers have re-executed the batch and signed for the withdrawal with ML-DSA-87.
+
+**Flow:**
+1. The user withdraws on L2 to `exitAddressOf(payout)`.
+2. Each watchtower signs one claim per withdrawal of a valid, unfinalized batch and posts it into the rollup's inbox.
+3. Anyone calls `front()`. The vault checks the signatures with `pqcVerify`, against keys read from `pqcKeyStatus`, and pays the payout the amount less 0.5%.
+4. After finality, anyone executes the withdrawal on L1 to the exit address. `sweep()` repays the vault first and forwards the rest to the payout.
+
+**Who trusts what:**
+
+| Party | Trusts | Can lose |
+|---|---|---|
+| User | Nothing beyond the rollup. The exit address is a CREATE2 address derived from the payout; the L2 signature covers it, and it can pay only the vault (up to what was fronted) and the payout. If no one fronts (quorum offline, no liquidity, deadline passed), steps 1 and 4 alone pay the user everything after finality | The 0.5% fee, and only if the exit is fronted |
+| LP | The quorum: that the batch re-executes correctly from an honest parent (so no challenge can remove it), that the claim names the withdrawal the batch really contains, and that the deadline falls before the batch can be final | At most its liquidity, if both quorum keys sign a false claim |
+| Quorum members | Nothing. They sign what they re-executed | Nothing |
+
+**Why the authorisation is sound:**
+- **What a claim binds:** the evm chain id, the vault, the chain and rollup ids, the batch index and state root, the withdrawal index, the amount, the recipient and a deadline. A signature cannot be moved to another vault, chain, rollup, batch, root (a reused index after a rollback is a different exit), withdrawal, amount or payout. `simulate` and the Foundry tests check each field.
+- **No double payment:** the vault fronts an exit at most once, and only before the signed deadline. The watchtower sets the deadline 10 minutes before the batch could be final, and the chain pays a withdrawal on L1 only once final, so a withdrawal already paid on L1 cannot also be fronted.
+- **Keys:** watchtower keys sign in their own process and post into the inbox with their existing hybrid-signed transactions. They never open an EVM window. A relayer submits `front()` from a window scoped to the vault alone (EVIDENCE 90).
+- **Ancestors:** the watchtower attests only a batch whose parent an honest replay reaches. Every unfinalized ancestor is therefore honest too, and no upheld challenge on an earlier batch can roll the fronted withdrawal back.
+
+**Residual risks:**
+- **Same operator.** The quorum is two hot keys run by one team on Railway (§8). Stealing both lets a thief drain the LP's liquidity with false claims, but no user's funds. A production LP should choose quorum members run by different operators.
+- **Bad claim, user debt.** If the quorum signs a claim for a payout that never withdrew, that payout's exit address owes the vault, and its later withdrawals repay that first. The payout did receive the money, so it loses at most the fee, but a compromised quorum can push money onto an address and later take it back.
+- **The deadline depends on clocks and the signed window.** The vault compares the deadline with `block.timestamp`. A quorum that signs a deadline after finality removes the double-payment protection. Again this risks the LP's liquidity only.
+- **Relaying is manual** in this demo (EVIDENCE 91: 68 blocks after the batch). Automating the relayer is straightforward and changes no trust.
+
+## 15. Change log
 
 | Version | Date | Change |
 |---|---|---|
 | v0 | 2026-11-16 | First version: assets, adversaries, assumptions, drill design, measured precompile facts, the RDK validator finding |
+| v1.4 | 2026-11-23 | Instant exits (§14): the vault, the attesting watchtowers, who trusts what, and the residual risks. Exercised end to end on vigil-pay-1 (EVIDENCE 82 to 92) |
 | v1.3 | 2026-11-21 | Differential fuzzing of qledger-v1 across the RDK's five languages: 10,056 cases, 0 divergences (§10, §11) |
 | v1.2 | 2026-11-20 | Kill-the-sequencer drill (§7): standby sequencer keel-b, takeover, recovery with a gap in anchor heights, and our off-by-one (F5). keel-b in the key table (§8). Two chain facts (§10). Keel tests (§11). Unanchored batches and sequencer races (§13) |
 | v1.1 | 2026-11-19 | Receipts verified in Solidity: `SettlementReceiptVerifier` (§1, §5), its measured cost and spike S3b (`BLOCKHASH` zero in mined transactions, §10), 19 new Foundry tests and the chain-ws suite (§11), receipt checks in the browser and in Solidity moved to "exercised", and what the contract does not prove (§13) |
