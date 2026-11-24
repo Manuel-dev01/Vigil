@@ -207,7 +207,7 @@ Moving one watchtower to a second provider is open work.
 
 ## 11. Exercised so far
 
-**Tests (24 Nov 2026):** 169 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 6 more vitest tests run against the live chain only when `VIGIL_LIVE=1`.
+**Tests (24 Nov 2026):** 247 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 7 more vitest tests run against the live chain only when `VIGIL_LIVE=1`.
 
 | Suite | Tests | What it pins down |
 |---|---|---|
@@ -220,8 +220,10 @@ Moving one watchtower to a second provider is open work.
 | `packages/qledger-watchtower/test/exits.test.ts`, `safety.test.ts` | 10 + 7 | Exit messages, signatures, attestation posts within the chain's 6,144-byte limit, payout notices, odd recipients skipped. Verdicts per published batch; no attestation for a child of a withdrawals-root fraud; a torn archive line; the challenge give-up policy; a hung broadcast |
 | `packages/exit-relayer/test/book.test.ts`, `packages/sentinel/test/rules.test.ts` | 8 + 7 | Claims assembled across posts, forged and outsider attestations dropped, withdrawal lists checked against the withdrawals root, window fee caps. The sentinel's alert rules |
 | `packages/qledger-watchtower/test/fast.test.ts` | 12 | Batches decoded from their submitting tx (drill 1 recording); post sequences read from events; the drill batch judged invalid on arrival with a winning proof; local signing with the cached account; one retry on a sequence mismatch; refusing a challenge the chain would not uphold; gas scaling and cap; the websocket follower. *The backup's delay and skip are exercised live only (§7)* |
-| `packages/keel/test/*.test.ts` | 30 | Standby: it leaves fresh entries to the primary, takes over once the oldest waiting entry has waited the full margin, and measures that wait from the next entry, not the last batched one (the drill's real heights). Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
-| `packages/chain-ws/test/routes.test.ts` | 5 | The chain's protobuf descriptor snapshot matches its recorded hash. The RDK's REST routes map to the right gRPC queries, with path and query parameters encoded into the request. gRPC NotFound becomes HTTP 404; writes and unknown routes are refused |
+| `packages/core/test/inbox.test.ts` | 19 | The shared inbox reader: entries by sequence, deposits from events, posts nested inside other messages, accumulator and data-hash mismatches refused, archive fallback for pruned entries confirmed against a retained commitment, tampered or torn archives, 6,000 posts (beyond the old 5,000 limit), a lagging node |
+| `apps/web/test/*.test.ts` | 39 | Attestations accepted only from the member's account with a locally verified ML-DSA-87 signature (real entries 18, 19, 21, 22); out-of-range integers; repayments attributed first-in-first-out; exit addresses computed locally match the vault and the deployed code; receipt gating; the pruned-batch receipt path on the real batch-0 receipt |
+| `packages/keel/test/*.test.ts` | 45 | Standby: it leaves fresh entries to the primary, takes over once the oldest waiting entry has waited the full margin, and measures that wait from the next entry, not the last batched one (the drill's real heights). Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
+| `packages/chain-ws/test/routes.test.ts`, `rpc.test.ts` | 5 + 6 | The chain's protobuf descriptor snapshot matches its recorded hash. The RDK's REST routes map to the right gRPC queries, with path and query parameters encoded into the request. gRPC NotFound becomes HTTP 404; writes and unknown routes are refused |
 | `packages/sealed/test/sealed.test.ts` | 12 | Envelopes open for every named recipient and nobody else, and not on another rollup or chain. An envelope inside a batch leaves its roots unchanged. Data receipts fail if any post, the accumulator or the payload changes. Recipient cards bind all three keys |
 
 **Differential fuzzing** (`scripts/fuzz/`, not part of `pnpm test`): the same generated rollup histories (mostly valid transactions, recipients of 1 to 90 bytes) run through qledger-v1 execution in all five RDK languages. On 10,056 cases all five gave the same state roots, withdrawals roots and withdrawals (§10). The comparator checks itself before each run.
@@ -267,7 +269,7 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
   - In the 20 Nov drill our standby read `posted_data/{consumed_sequence}`, so it measured its wait from an entry batched the day before and took over after 7 blocks instead of 30 (§7).
   - Fixed in PR #29: the oldest waiting entry is `consumed_sequence + 1`. A test pins the drill's real heights.
 
-**24 Nov adversarial study.** Six reviewers attacked every part of Vigil: the contracts, the sequencers and watchtowers, the exit relayer, the web app, our claims against the chain, and operations. F6–F8 are its findings in our own code that put money or fraud detection at risk. All were fixed, tested and deployed the same night. All 105 evidence hashes that existed then checked out on chain.
+**24 Nov adversarial study.** Six reviewers attacked every part of Vigil: the contracts, the sequencers and watchtowers, the exit relayer, the web app, our claims against the chain, and operations. F6–F10 are its findings in our own code that put money, fraud detection or the truth of what we show at risk. All were fixed, tested and deployed the same night. All 105 evidence hashes that existed then checked out on chain.
 - **F6: watchtower exit attestations could drain the watchtowers.**
   - One member's attestation for a batch with two or more withdrawals was over the chain's 6,144-byte post limit (§10). The chain refused it after taking the fee (~0.2 QOR), and the watchtower retried it on every 10 s pass, with no limit, until the claim expired.
   - Separately, any withdrawal at all cost each watchtower an attestation post.
@@ -299,6 +301,26 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
     - simulate after running out of gas;
     - key verdicts on every published field;
     - attest only when every unfinalized ancestor is valid.
+- **F9: our services read the inbox in a way that would stop working.**
+  - Keel, the keep-alive and the relayer read entries through a transaction search that pages through every post the rollup ever had and gives up after 5,000. A post sent inside another message could not be read at all.
+  - After the chain prunes posted data, a service on a fresh volume could not rebuild.
+  - Fixed in PR #46:
+    - one shared reader that fetches each entry by sequence and checks it against the chain's accumulator;
+    - a public archive used only for pruned entries, after a commitment the chain still holds confirms them;
+    - per-service archives on the volumes;
+    - Keel's heartbeat and the keep-alive's exit codes.
+  - Keel's batch planner is the RDK's, step for step, reading through the new reader. Entries must hash to the chain's inbox range commitment before anything is executed.
+- **F10: the web app could be broken or misled by anyone who posts into the inbox.**
+  - A forged attestation with an out-of-range batch index broke the instant-exit page, and a fake posted first could replace a card's headline.
+  - Repayments were counted twice when one payout had two exits.
+  - A failed first subscription left the page showing "Live" with no updates.
+  - Its wording said signatures were "checked in your browser" when they were checked by an `eth_call` to the node's operator.
+  - Fixed in PR #47:
+    - attestations are accepted only from the member's own account, with a local ML-DSA-87 check against pinned key hashes;
+    - range-checked integers;
+    - first-in-first-out repayment;
+    - truthful health and wording;
+    - local exit-address computation.
 
 ## 13. Residual risks
 
@@ -307,7 +329,7 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 - **Removed group members keep the keys of their old epochs.** Epoch keys protect only future messages.
 - **Data availability depends on node indexing and retention.**
   - Post bytes are read back from transaction history, and the chain deletes posted-data commitments after 648,000 blocks (observed, §10).
-  - Vigil's watchtowers keep their own archive, checked against the chain's commitments. A service that loses its volume after that must rebuild from an archive.
+  - Every Vigil service keeps an archive of the entries it has read, checked against the chain's commitments, and a public archive of every entry is in the repository (`data/inbox/`, F9). An entry lost from the chain and from every archive cannot be rebuilt. The reader also depends on the node serving old blocks, and on its transaction index for deposits (with an RPC fallback).
 - **The browser and the services trust one node.** Reads are not proven; a dishonest node could show a false chain state (§9). Signatures marked "in your browser" are verified locally, against what the node reports.
 - **Unanchored batches have no receipt.** When the standby sequencer batches, safety and withdrawals are unaffected (exercised: EVIDENCE 69, 72), but its batches carry no x/multilayer anchor, because only the creator's key can anchor. Batch 11 of `vigil-pay-1` is such a batch: the browser verifier and `SettlementReceiptVerifier` have no anchor to check for it.
 - **Two sequencers can still race.** If the creator's Keel is slow by more than 30 blocks but not dead, both may submit the same batch index. The chain accepts the first and the loser pays a fee; no state is at risk.
@@ -370,7 +392,7 @@ A qledger-v1 withdrawal is paid on L1 only once its batch is final. `InstantExit
 
 | Version | Date | Change |
 |---|---|---|
-| v1.6 | 2026-11-24 | The adversarial study (§12 F6–F8, fixed and deployed); new measured facts: the 6,144-byte post limit, pruning as observed, estimation at gas price 0, window caps counting fees (§10); classical dependencies completed (§9); keep-alive and LP roles in §8; the sentinel; test inventory and CI (§11); residual risks for node trust, double fronting across a rollback, and exhaustible budgets (§13); "Ancestors" corrected (§14) |
+| v1.6 | 2026-11-24 | The adversarial study (§12 F6–F10, fixed and deployed); new measured facts: the 6,144-byte post limit, pruning as observed, estimation at gas price 0, window caps counting fees (§10); classical dependencies completed (§9); keep-alive and LP roles in §8; the sentinel; test inventory and CI (§11); residual risks for node trust, double fronting across a rollback, and exhaustible budgets (§13); "Ancestors" corrected (§14) |
 | v1.5 | 2026-11-24 | The automatic exit relayer (§14): its own key in §8, windows sized to exactly the calls it makes, withdrawal lists checked against the chain's withdrawals root, payout notices, and relayer liveness as a residual risk |
 | v1.4 | 2026-11-23 | Instant exits (§14): the vault, the attesting watchtowers, who trusts what, and the residual risks. Exercised end to end on vigil-pay-1 (EVIDENCE 82 to 96) |
 | v1.3 | 2026-11-21 | Differential fuzzing of qledger-v1 across the RDK's five languages: 10,056 cases, 0 divergences (§10, §11) |

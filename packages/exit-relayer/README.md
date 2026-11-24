@@ -14,6 +14,9 @@ pnpm --filter @vigil/exit-relayer start -- --env ../../.env.exit-relayer --mode 
   --payouts qor1…                                                                       # relay
 ```
 
+## Reading the inbox
+Entries are read one sequence at a time through the shared reader in `@vigil/core/inbox`, each checked against the chain's accumulator. An entry that neither the chain nor an archive holds any more is skipped. An entry missing at the very end is read again later, because the node may simply be behind.
+
 ## No rollup state needed
 To execute a withdrawal, a proof needs the batch's whole withdrawal list. Keel's `claim.ts` gets it by replaying the rollup from its first batch. The relayer takes it from the attestation instead: each quorum member signs every withdrawal of a batch, in order. The list is used only if it reproduces the withdrawals root the chain stores for that batch (`withdrawalsRootMatches`), so a wrong list can't produce a proof the chain accepts. The relayer keeps nothing on disk; on start it reads back `--lookback` inbox entries and asks the chain what is already done (`verifyExit` reverts `AlreadyFronted`; a simulated execution fails with "withdrawal already executed"; an empty exit address has been swept).
 
@@ -42,6 +45,7 @@ A window left open by a crash is closed on the next pass. Every vault function i
 | `--interval` | `EXIT_RELAYER_INTERVAL` | `6` | Seconds between passes |
 | `--front-margin` | `EXIT_FRONT_MARGIN` | `60` | Leave a claim alone this close to its deadline |
 | `--lookback` | `EXIT_LOOKBACK` | `500` | Inbox entries read back on start |
+| | `EXIT_INBOX_ARCHIVE` | none | An archive file (on a volume) for entries the chain has pruned; the committed `data/inbox/` archive is used otherwise |
 | `--window-blocks` | `EXIT_WINDOW_BLOCKS` | `150` | Window length in blocks (about 3.5 minutes) |
 | `--env` | `EXIT_RELAYER_ENV` | none | A `.env` with the key, for local runs; hosted, use the secret `RELAYER_MNEMONIC` |
 
