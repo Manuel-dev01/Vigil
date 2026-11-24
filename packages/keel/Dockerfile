@@ -15,6 +15,9 @@ COPY scripts/package.json scripts/
 RUN pnpm install --frozen-lockfile
 COPY packages/core packages/core
 COPY packages/keel packages/keel
+# The committed inbox archive (public chain data). It seeds the archive Keel keeps on its volume
+# (/data/keel/<rollup>/inbox.jsonl), so even a fresh volume can rebuild after the chain prunes old entries.
+COPY data/inbox data/inbox
 ENV KEEL_DATA_DIR=/data/keel/vigil-pay-1 \
     KEEL_LOCK=0
 # Node as PID 1 receives SIGTERM directly, so Keel stops between passes.
