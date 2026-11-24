@@ -11,9 +11,12 @@ import { describe, expect, it } from "vitest";
 import {
   ATTEST_MAGIC,
   EXIT_DOMAIN,
+  PAYOUT_MAGIC,
   claimsForBatch,
   decodeAttestation,
+  decodePayoutNotice,
   encodeAttestation,
+  encodePayoutNotice,
   exitMessage,
   recipientBytes,
   signClaims,
@@ -116,6 +119,20 @@ describe("inbox payload", () => {
     const [s] = signClaims(target, member.secretKey, [claim]);
     const ok = encodeAttestation({ vault: target.vault, member: "33".repeat(20), claims: [s!] });
     expect(decodeAttestation(ok.subarray(0, ok.length - 1))).toBeUndefined();
+  });
+});
+
+describe("payout notices", () => {
+  it("round-trip, and are told apart from attestations and qledger txs", () => {
+    const bytes = encodePayoutNotice(target.vault, "0x" + "5A".repeat(20));
+    expect(bytes.length).toBe(PAYOUT_MAGIC.length + 40);
+    expect(decodePayoutNotice(bytes)).toEqual({ vault: target.vault, payout: "0x" + "5a".repeat(20) });
+    expect(decodeAttestation(bytes)).toBeUndefined();
+    const [s] = signClaims(target, member.secretKey, [claim]);
+    expect(decodePayoutNotice(encodeAttestation({ vault: target.vault, member: "33".repeat(20), claims: [s!] }))).toBeUndefined();
+    expect(decodePayoutNotice(bytes.subarray(0, bytes.length - 1))).toBeUndefined();
+    expect(decodePayoutNotice(new Uint8Array([...bytes, 0]))).toBeUndefined();
+    expect(() => encodePayoutNotice(target.vault, "0x1234")).toThrow(/payout/);
   });
 });
 

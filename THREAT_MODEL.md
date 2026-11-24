@@ -1,6 +1,6 @@
 # Vigil threat model
 
-**Version 1.4, 23 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
+**Version 1.5, 24 November 2026 (UTC).** Testnet only (`qorechain-diana`, chain v3.2.8). v0 (16 Nov) was written before Vigil had a rollup. v1 adds what has run since: our rollup `vigil-pay-1`, two fraud drills, a sealed data lane, hosted keys and their operating rules.
 
 This document separates what is **exercised** (backed by a test or a row in [EVIDENCE.md](EVIDENCE.md)) from what is **designed but not yet exercised**. Nothing here claims that Vigil is "quantum-proof". The claim is narrower: no step that moves value depends on a classical signature or a pairing-based proof, and each remaining classical dependency is named below.
 
@@ -152,6 +152,7 @@ So that the sequencer and the watchtowers run unattended, their keys are held as
 | **watchtower-2** (primary, US West) | 15 QOR, kept low on purpose | Up to 15 QOR lost. The thief can also use up the key's sequence so its challenges fail; watchtower-3 and other teams' watchers remain. |
 | **watchtower-3** (backup, EU West) | ~9.9 QOR | Up to ~9.9 QOR lost; watchtower-2 and other watchers remain. |
 | **keel-b** (standby sequencer, EU West) | ~9.8 QOR liquid; 1,000 QOR bond | The thief can spend the liquid QOR and submit wrong batches; the watchtowers challenge them and the bond is lost. It cannot anchor, and users' funds stay protected while one honest watchtower is live. |
+| **exit-relayer** (instant exits, §14) | ~2.9 QOR, kept low on purpose | Up to ~2.9 QOR lost. With both halves of the key the thief can open EVM windows, but every vault function is safe for any caller, so it can only pay exits correctly. With the ECDSA half alone it can do nothing: only the ML-DSA-87 key opens a window. Exits fall back to being paid in full after finality. |
 
 **Operating rules (each learned on testnet):**
 - **Keep watchtower balances small.** About 15 QOR pays for roughly 80 challenges at about 0.18 QOR each. Rewards are swept to the creator: drill 2's 499.45 QOR went back in tx `5028C03C…9AFD`.
@@ -159,7 +160,7 @@ So that the sequencer and the watchtowers run unattended, their keys are held as
 - **One running process per key.** Two sequencers, or two watchtowers, on one key clash on the account sequence. Two sequencers on *two* keys are fine: the standby waits 30 blocks before it acts. Keel resumes from chain state plus its own volume, never from memory.
 - **Restarts are covered.** Railway stops the old container before starting the new one, so no key ever runs twice. During a watchtower restart (~10 s) the other watchtower keeps watching, and the challenge window is 3,600 s.
 
-**Correlated failure.** Both watchtowers and both sequencers run on the same provider in one account (in two regions). If that account is compromised, all four keys go at once. If the provider is down, all four stop. What remains then:
+**Correlated failure.** Both watchtowers, both sequencers and the exit relayer run on the same provider in one account (in two regions). If that account is compromised, all five keys go at once. If the provider is down, all five stop. What remains then:
 - the challenge window (3,600 s);
 - other teams' watchers (seen in drill 1);
 - the based-rollup property, under which any bonded account may submit batches.
@@ -274,7 +275,7 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 
 ## 14. Instant exits (23 Nov 2026)
 
-*Exercised on 23 Nov 2026: EVIDENCE.md rows 82 to 96. Contract: `contracts/src/InstantExitVault.sol`. Attester: `packages/qledger-watchtower/src/exits.ts`.*
+*Exercised on 23 Nov 2026: EVIDENCE.md rows 82 to 96. Contract: `contracts/src/InstantExitVault.sol`. Attester: `packages/qledger-watchtower/src/exits.ts`. Automatic relayer (24 Nov): `packages/exit-relayer`.*
 
 A qledger-v1 withdrawal is paid on L1 only once its batch is final. `InstantExitVault` pays it early, from an LP's liquidity, once both of our watchtowers have re-executed the batch and signed for the withdrawal with ML-DSA-87.
 
@@ -296,19 +297,27 @@ A qledger-v1 withdrawal is paid on L1 only once its batch is final. `InstantExit
 - **What a claim binds:** the evm chain id, the vault, the chain and rollup ids, the batch index and state root, the withdrawal index, the amount, the recipient and a deadline. A signature cannot be moved to another vault, chain, rollup, batch, root (a reused index after a rollback is a different exit), withdrawal, amount or payout. `simulate` and the Foundry tests check each field.
 - **No double payment:** the vault fronts an exit at most once, and only before the signed deadline. The watchtower sets the deadline 10 minutes before the batch could be final, and the chain pays a withdrawal on L1 only once final, so a withdrawal already paid on L1 cannot also be fronted.
 - **Keys:** watchtower keys sign in their own process and post into the inbox with their existing hybrid-signed transactions. They never open an EVM window. A relayer submits `front()` from a window scoped to the vault alone (EVIDENCE 90).
+
+**The automatic relayer** (`packages/exit-relayer`, its own key `exit-relayer`, hosted on Railway):
+- **What it does.** It reads the attestations from the inbox, fronts each exit whose payout it knows, and after finality executes the withdrawal on L1 and sweeps the exit address. It holds no rollup state: a batch's withdrawal list comes from the attestation and is used only if it reproduces the withdrawals root the chain stores for the batch.
+- **Its windows open automatically, and that is deliberate.** The QoreChain SDK warns against wallets that open a window on every send, because the window is meant as a deliberate authorisation. Here the authorisation is still post-quantum: only the relayer's ML-DSA-87 key can open a window (a hybrid-signed `MsgOpenEVMWindow`). Each window admits exactly the calls about to be made: one allowed target (the vault), as many transactions as calls, and a value cap equal to their fees. It closes right after. The ECDSA key alone can never reach the EVM.
+- **Trust unchanged.** The relayer is one more "anyone" from the flow above. It cannot redirect money: `front` pays only the payout whose exit address the quorum signed, and `sweep` sends only to the vault and the payout. It refuses to run on the creator's, a quorum member's or the LP's key.
+- **Which exits.** It serves payouts that are configured, announced in the inbox with a payout notice (a no-op entry that grants nothing; a wrong one never matches a signed recipient), or that posted into the inbox themselves.
 - **Ancestors:** the watchtower attests only a batch whose parent an honest replay reaches. Every unfinalized ancestor is therefore honest too, and no upheld challenge on an earlier batch can roll the fronted withdrawal back.
 
 **Residual risks:**
 - **Same operator.** The quorum is two hot keys run by one team on Railway (§8). Stealing both lets a thief drain the LP's liquidity with false claims, but no user's funds. A production LP should choose quorum members run by different operators.
 - **Bad claim, user debt.** If the quorum signs a claim for a payout that never withdrew, that payout's exit address owes the vault, and its later withdrawals repay that first. The payout did receive the money, so it loses at most the fee, but a compromised quorum can push money onto an address and later take it back.
 - **The deadline depends on clocks and the signed window.** The vault compares the deadline with `block.timestamp`. A quorum that signs a deadline after finality removes the double-payment protection. Again this risks the LP's liquidity only.
-- **Relaying is manual** in this demo (EVIDENCE 91: 68 blocks after the batch). Automating the relayer is straightforward and changes no trust.
+- **Relayer liveness.** If the relayer is down or out of funds, nobody fronts, and users are paid in full after finality by anyone executing their withdrawal. A payout the relayer was never told about is not fronted either.
+- **Relayer key on a host.** See §8. Its balance is kept small, and a thief with the whole key can only pay exits correctly.
 
 ## 15. Change log
 
 | Version | Date | Change |
 |---|---|---|
 | v0 | 2026-11-16 | First version: assets, adversaries, assumptions, drill design, measured precompile facts, the RDK validator finding |
+| v1.5 | 2026-11-24 | The automatic exit relayer (§14): its own key in §8, windows sized to exactly the calls it makes, withdrawal lists checked against the chain's withdrawals root, payout notices, and relayer liveness as a residual risk |
 | v1.4 | 2026-11-23 | Instant exits (§14): the vault, the attesting watchtowers, who trusts what, and the residual risks. Exercised end to end on vigil-pay-1 (EVIDENCE 82 to 96) |
 | v1.3 | 2026-11-21 | Differential fuzzing of qledger-v1 across the RDK's five languages: 10,056 cases, 0 divergences (§10, §11) |
 | v1.2 | 2026-11-20 | Kill-the-sequencer drill (§7): standby sequencer keel-b, takeover, recovery with a gap in anchor heights, and our off-by-one (F5). keel-b in the key table (§8). Two chain facts (§10). Keel tests (§11). Unanchored batches and sequencer races (§13) |

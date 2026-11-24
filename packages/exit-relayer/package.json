@@ -1,0 +1,25 @@
+{
+  "name": "@vigil/exit-relayer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pays instant exits automatically: reads the watchtowers' ML-DSA-87 exit attestations from the rollup's inbox, fronts each exit from the InstantExitVault, and after finality executes the withdrawal and sweeps the exit address back to the vault.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "vigil-exit-relayer": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cosmjs/proto-signing": "0.39.0",
+    "@cosmjs/stargate": "0.39.0",
+    "@qorechain/rdk": "0.9.0",
+    "@qorechain/sdk": "0.14.0",
+    "@vigil/core": "workspace:*",
+    "@vigil/keel": "workspace:*",
+    "@vigil/qledger-watchtower": "workspace:*",
+    "viem": "2.57.20"
+  }
+}

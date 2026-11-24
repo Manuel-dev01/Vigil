@@ -4,7 +4,7 @@
  * simulation; nothing here opens an EVM window.
  */
 import { StargateClient } from "@cosmjs/stargate";
-import type { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { EthNativeSigner, type UnifiedAccount } from "@qorechain/sdk";
 import { createRdkRegistry } from "@qorechain/rdk";
 import { TESTNET, restGet } from "@vigil/core";
@@ -31,8 +31,12 @@ export interface SendResult {
 export class HybridSender {
   readonly signer: EthNativeSigner;
 
-  constructor(readonly account: UnifiedAccount) {
-    this.signer = new EthNativeSigner(account, { signMode: "hybrid", rest: TESTNET.rest, registry: createRdkRegistry() });
+  /** `registry` defaults to the RDK's; pass a larger one to send other message types (EVM windows, say). */
+  constructor(
+    readonly account: UnifiedAccount,
+    registry: Registry = createRdkRegistry(),
+  ) {
+    this.signer = new EthNativeSigner(account, { signMode: "hybrid", rest: TESTNET.rest, registry });
   }
 
   get address(): string {
