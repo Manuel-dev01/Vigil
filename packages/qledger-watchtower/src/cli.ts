@@ -56,7 +56,8 @@ import { Challenger, OUT_OF_GAS, accountFromMnemonic, rpcTransport } from "./cha
 import { attestationPosts, claimsForBatch, recipientBytes, signClaims } from "./exits.ts";
 import { batchesFromTx, postsFromEvents } from "./fast.ts";
 import { TxFollower, websocketUrl, type TxEvent } from "./follow.ts";
-import { RollupTracker, chainSource, type Judgement, type LiveBatch } from "./tracker.ts";
+import { backoffMs, challengeResultDecision, currentBatchDecision } from "./policy.ts";
+import { RollupTracker, attestableBatches, batchKey, chainSource, type Judgement, type LiveBatch } from "./tracker.ts";
 
 const args = process.argv.slice(2);
 const opt = (flag: string, env: string, d?: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : process.env[env] || d);
@@ -143,7 +144,7 @@ async function balanceUqor(address: string): Promise<bigint> {
 async function maybeAttest(rollupId: string, batch: LiveBatch, withdrawals: NonNullable<Extract<Judgement, { kind: "valid" }>["withdrawals"]>): Promise<void> {
   if (!exitVault || !challenger || !account || withdrawals.length === 0 || rollupId !== exitRollup) return;
   if (batch.status !== "submitted" || batch.submittedTime === undefined) return;
-  const id = `${rollupId}:${batch.batchIndex}:${norm(batch.stateRoot)}`;
+  const id = `${rollupId}:${batchKey(batch)}`;
   if (attested.has(id) || attesting.has(id) || tooLate.has(id)) return;
   attesting.add(id);
   const skip = (reason: string, fields: Record<string, unknown> = {}) => {
@@ -191,7 +192,6 @@ async function maybeAttest(rollupId: string, batch: LiveBatch, withdrawals: NonN
   }
 }
 const attempts = new Map<string, number>();
-const MAX_ATTEMPTS = 3;
 
 const trackers = new Map<string, RollupTracker>();
 function trackerFor(rollupId: string): RollupTracker {
@@ -200,7 +200,7 @@ function trackerFor(rollupId: string): RollupTracker {
     const env = { chainId, rollupId };
     t = new RollupTracker(env, chainSource(rdk.rest, env, ep.rest), new InboxArchive(env, join(dataDir, `${rollupId}.inbox.jsonl`)));
     trackers.set(rollupId, t);
-    log("watch", { rollupId, archived: t.archive.head });
+    log("watch", { rollupId, archived: t.archive.head, ...(t.archive.repaired && { repaired: "dropped a torn last line; it is fetched again" }) });
   }
   return t;
 }
@@ -209,26 +209,47 @@ async function rollupIds(): Promise<string[]> {
   return (await rdk.rest.listRollups()).filter((r) => r.executionVm === "qledger-v1" && r.status !== "stopped").map((r) => r.rollupId);
 }
 
-/** Challenge one invalid batch, at most once at a time and at most MAX_ATTEMPTS times. */
-async function maybeChallenge(rollupId: string, t: RollupTracker, batch: LiveBatch, j: Judgement, via: string, detectedAt: number, factor = 1): Promise<void> {
+const is404 = (e: unknown): boolean => (e as { status?: unknown }).status === 404 || /HTTP 404|not found/i.test((e as Error).message ?? "");
+/** When each batch may be tried again (ms). */
+const retryAt = new Map<string, number>();
+/** The gas a batch's challenge needs, once a simulate has told us. */
+const gasNeeded = new Map<string, number>();
+const backoff = (id: string, attempt: number) => retryAt.set(id, Date.now() + backoffMs(attempt));
+
+/**
+ * Challenge one invalid batch, one attempt at a time. A batch is settled (never tried again) only on
+ * what the chain shows: the challenge was upheld, the batch is no longer `submitted` (rejected,
+ * finalized or replaced), or `checkQledgerFraud` says the chain would refuse the proof. Everything
+ * transient (network errors, CheckTx refusals such as insufficient funds, an unconfirmed send) is
+ * retried with backoff for as long as the batch can still be challenged, so neither a short RPC outage
+ * nor an empty balance (topped up later) gives a fraud away. Out of gas: the real tx is simulated to
+ * learn its gas, instead of doubling a guess and paying for every miss.
+ */
+async function maybeChallenge(rollupId: string, t: RollupTracker, batch: LiveBatch, j: Judgement, via: string, detectedAt: number): Promise<void> {
   if (!challenger || j.kind !== "invalid" || batch.status !== "submitted") return;
-  const id = `${rollupId}:${batch.batchIndex}:${norm(batch.stateRoot)}`;
-  if (challenged.has(id) || inFlight.has(id)) return;
+  const id = `${rollupId}:${batchKey(batch)}`;
+  if (challenged.has(id) || inFlight.has(id) || Date.now() < (retryAt.get(id) ?? 0)) return;
   const attempt = (attempts.get(id) ?? 0) + 1;
-  if (attempt > MAX_ATTEMPTS) {
-    log("challenge-given-up", { rollupId, batch: batch.batchIndex, attempts: MAX_ATTEMPTS });
-    settle(id);
-    return;
-  }
   attempts.set(id, attempt);
   inFlight.add(id);
-  let retryWith: number | undefined;
+  let again = false;
   try {
-    if (challengeDelayMs > 0) {
-      await sleep(challengeDelayMs);
-      const now = await rdk.rest.getBatch(rollupId, batch.batchIndex).catch(() => undefined);
-      if (!now || now.status !== "submitted" || norm(now.stateRoot) !== norm(batch.stateRoot)) {
-        log("challenge-skipped", { rollupId, batch: batch.batchIndex, afterMs: challengeDelayMs, reason: now ? `batch is ${now.status}${norm(now.stateRoot) !== norm(batch.stateRoot) ? " (replaced)" : ""}` : "batch gone" });
+    // The backup waits first; any retry looks again. What does the chain say about this batch now?
+    if (challengeDelayMs > 0 && attempt === 1) await sleep(challengeDelayMs);
+    if (challengeDelayMs > 0 || attempt > 1) {
+      let now;
+      try {
+        now = await rdk.rest.getBatch(rollupId, batch.batchIndex);
+      } catch (e) {
+        if (!is404(e)) {
+          log("challenge-deferred", { rollupId, batch: batch.batchIndex, attempt, reason: `could not read the batch: ${(e as Error).message.slice(0, 160)}` });
+          backoff(id, attempt);
+          return;
+        }
+      }
+      const d = currentBatchDecision(batch, now);
+      if (d.action === "settle") {
+        log("challenge-skipped", { rollupId, batch: batch.batchIndex, attempt, reason: d.reason });
         settle(id);
         return;
       }
@@ -240,28 +261,39 @@ async function maybeChallenge(rollupId: string, t: RollupTracker, batch: LiveBat
       return;
     }
     const entries = batch.inboxEnd - batch.inboxStart;
-    const sent = await challenger.send(rollupId, c, entries, factor);
+    const gas = gasNeeded.get(id);
+    const sent = await challenger.send(rollupId, c, entries, gas ? { gas } : {});
     log("challenge-sent", { rollupId, batch: batch.batchIndex, via, tx: sent.hash, attempt, gas: sent.gas, feeUqor: sent.feeUqor, gasPrice, proofBytes: c.proof.length, msSinceDetected: Date.now() - detectedAt });
     const r = await challenger.outcome(sent.hash);
     if (!r) {
       log("challenge-unconfirmed", { rollupId, batch: batch.batchIndex, tx: sent.hash });
+      backoff(id, attempt);
       return;
     }
     log("challenge-result", { rollupId, batch: batch.batchIndex, tx: sent.hash, code: r.code, height: r.height, gasUsed: String(r.gasUsed), ...(r.code !== 0 && { rawLog: r.rawLog.slice(0, 240) }) });
-    if (r.code === 0) {
+    const outcome = challengeResultDecision(r);
+    if (outcome === "upheld") {
       log("challenge-upheld", { rollupId, batch: batch.batchIndex, tx: sent.hash, height: r.height });
       settle(id);
-    } else if (r.code === OUT_OF_GAS) {
-      retryWith = factor * 2;
-    } else if (/rejected|finalized|not challengeable|already/i.test(r.rawLog)) {
-      settle(id); // someone else's challenge landed first, or the window closed
+    } else if (outcome === "out-of-gas") {
+      const simulated = await challenger.simulateChallenge(rollupId, c).catch(() => undefined);
+      const next = simulated ? Math.ceil(simulated * 1.3) : Math.min(sent.gas * 2, 50_000_000);
+      gasNeeded.set(id, next);
+      log("challenge-gas", { rollupId, batch: batch.batchIndex, ranOutAt: sent.gas, simulated, next });
+      again = true;
+    } else if (outcome === "lost") {
+      log("challenge-skipped", { rollupId, batch: batch.batchIndex, attempt, reason: r.rawLog.slice(0, 160) });
+      settle(id);
+    } else {
+      backoff(id, attempt);
     }
   } catch (e) {
     log("challenge-failed", { rollupId, batch: batch.batchIndex, attempt, code: (e as { code?: number }).code, message: (e as Error).message.slice(0, 240) });
+    backoff(id, attempt);
   } finally {
     inFlight.delete(id);
   }
-  if (retryWith) await maybeChallenge(rollupId, t, batch, j, `${via}+gas-retry`, detectedAt, retryWith);
+  if (again) await maybeChallenge(rollupId, t, batch, j, `${via}+gas`, detectedAt);
 }
 
 let sawInvalid = false;
@@ -269,9 +301,10 @@ async function pass(): Promise<void> {
   const tip = await rdk.getChainTip();
   const pending: Promise<void>[] = [];
   for (const rollupId of await rollupIds()) {
-    const t = trackerFor(rollupId);
+    let t: RollupTracker;
     let tracked;
     try {
+      t = trackerFor(rollupId);
       tracked = await t.sync();
     } catch (e) {
       log("error", { rollupId, message: (e as Error).message });
@@ -286,9 +319,11 @@ async function pass(): Promise<void> {
       log("invalid", { rollupId, batch: batch.batchIndex, status: batch.status, judgement, via: "pass" });
       pending.push(maybeChallenge(rollupId, t, batch, judgement, "pass", Date.now()));
     }
-    // Instant exits come after challenges and never hold up a pass.
+    // Instant exits come after challenges and never hold up a pass. Only batches whose every unfinalized
+    // ancestor is valid too: a rollback would otherwise bring the same withdrawal back as a new exit.
+    const attestable = attestableBatches(tracked);
     for (const { batch, judgement } of tracked) {
-      if (judgement.kind === "valid" && judgement.withdrawals?.length) {
+      if (judgement.kind === "valid" && judgement.withdrawals?.length && attestable.has(batchKey(batch))) {
         const a = maybeAttest(rollupId, batch, judgement.withdrawals);
         if (once) pending.push(a);
       }
@@ -299,7 +334,13 @@ async function pass(): Promise<void> {
 
 /** The fast path: a tx touching a watched rollup was just committed. */
 function onTx(rollupId: string, kind: "batch" | "post", e: TxEvent): void {
-  const t = trackerFor(rollupId);
+  let t: RollupTracker;
+  try {
+    t = trackerFor(rollupId);
+  } catch (err) {
+    log("error", { rollupId, via: "ws", message: (err as Error).message.slice(0, 200) });
+    return;
+  }
   if (kind === "post") {
     const seqs = postsFromEvents(e.events, rollupId);
     const to = seqs.length ? Math.max(...seqs) : 0;

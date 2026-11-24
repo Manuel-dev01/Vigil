@@ -8,7 +8,7 @@
  * chain (`qledgerAccumulate`, starting from the empty accumulator), so a
  * corrupted or edited archive is refused rather than trusted.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { EMPTY_INBOX_ACC, bytesToHex, hexToBytes, qledgerAccumulate, type QledgerEntry } from "@qorechain/rdk";
 import type { RollupEnv } from "./check.ts";
@@ -30,6 +30,8 @@ export const toEntry = (a: ArchivedEntry): QledgerEntry => ({
 
 export class InboxArchive {
   private readonly entries = new Map<number, ArchivedEntry>();
+  /** True if a torn last line was dropped on load. */
+  repaired = false;
 
   constructor(
     private readonly env: RollupEnv,
@@ -41,7 +43,19 @@ export class InboxArchive {
 
   private load(path: string): void {
     const lines = readFileSync(path, "utf8").split("\n").filter((l) => l.trim() !== "");
-    const rows = lines.map((l) => JSON.parse(l) as ArchivedEntry).sort((a, b) => a.sequence - b.sequence);
+    const rows: ArchivedEntry[] = [];
+    for (const [i, l] of lines.entries()) {
+      try {
+        rows.push(JSON.parse(l) as ArchivedEntry);
+      } catch (e) {
+        // A process killed mid-append (or a full disk) leaves a torn last line. Drop it: the entry is
+        // fetched again from the chain. A bad line anywhere else is damage, and is refused.
+        if (i !== lines.length - 1) throw new Error(`${path}: line ${i + 1} is not valid JSON`);
+        writeFileSync(path, lines.slice(0, -1).map((x) => x + "\n").join(""));
+        this.repaired = true;
+      }
+    }
+    rows.sort((a, b) => a.sequence - b.sequence);
     let prev = bytesToHex(EMPTY_INBOX_ACC).toLowerCase();
     let expected = 1;
     for (const r of rows) {
@@ -77,11 +91,12 @@ export class InboxArchive {
       const prev = this.accAt(this.head)!;
       const acc = bytesToHex(qledgerAccumulate({ ...this.env, from: r.sequence - 1, accFrom: prev, entries: [toEntry(r)] })).toLowerCase();
       if (acc !== r.acc.toLowerCase()) throw new Error(`entry ${r.sequence} does not match its inbox accumulator`);
-      this.entries.set(r.sequence, r);
+      // Disk first, then memory, so the two can never disagree after a failed write.
       if (this.path) {
         mkdirSync(dirname(this.path), { recursive: true });
         appendFileSync(this.path, JSON.stringify(r) + "\n");
       }
+      this.entries.set(r.sequence, r);
     }
   }
 

@@ -48,7 +48,33 @@ export interface TrackedBatch {
 }
 
 const norm = (s: string): string => s.toLowerCase().replace(/^0x/, "");
-const key = (b: PublishedBatch): string => `${b.batchIndex}:${norm(b.stateRoot)}:${b.inboxEnd}`;
+
+/**
+ * A published batch's identity: every field it publishes. An index alone is not one (it is reused after
+ * an upheld challenge), and neither is (index, state root): a batch can repeat an honest state root with
+ * a different, fraudulent withdrawals root, and must not inherit the earlier verdict.
+ */
+export const batchKey = (b: PublishedBatch): string =>
+  [b.batchIndex, norm(b.prevStateRoot), `${b.inboxStart}-${b.inboxEnd}`, norm(b.stateRoot), norm(b.withdrawalsRoot), norm(b.dataHash)].join(":");
+const key = batchKey;
+
+/**
+ * The batches it is safe to sign instant exits for: submitted, judged valid, and with every
+ * unfinalized batch before them judged valid too. A valid child of an invalid parent is not enough:
+ * when the parent's challenge is upheld the chain removes every later unfinalized batch, and the same
+ * withdrawal comes back under a new (index, root) that the vault would treat as a new exit.
+ */
+export function attestableBatches(tracked: TrackedBatch[]): Set<string> {
+  const out = new Set<string>();
+  let clean = true;
+  for (const { batch, judgement } of [...tracked].sort((a, b) => a.batch.batchIndex - b.batch.batchIndex)) {
+    if (batch.status === "finalized") continue;
+    const ok = judgement.kind === "valid" && batch.status === "submitted";
+    if (clean && ok) out.add(batchKey(batch));
+    if (!ok) clean = false;
+  }
+  return out;
+}
 
 export class RollupTracker {
   private readonly states = new Map<string, QledgerLedger>();

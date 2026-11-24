@@ -59,6 +59,16 @@ export interface ChallengerOptions {
 export const OUT_OF_GAS = 11;
 /** Cosmos SDK "account sequence mismatch". */
 const WRONG_SEQUENCE = 32;
+/** A broadcast that has not returned after this long is abandoned, so it cannot block the send lane. */
+const BROADCAST_TIMEOUT_MS = 30_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const t = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([p, t]).finally(() => clearTimeout(timer));
+}
 
 /**
  * A challenger that is ready before fraud happens: the account number and
@@ -75,6 +85,7 @@ export class Challenger {
   readonly gasPrice: number;
   /** Sends run one at a time, so a challenge and an inbox post never race for a sequence number. */
   private lane: Promise<unknown> = Promise.resolve();
+  private readonly rest: string | undefined;
 
   constructor(
     account: UnifiedAccount,
@@ -86,6 +97,7 @@ export class Challenger {
     // The RDK registry: the SDK's default one cannot encode MsgPostRollupData (exit attestations).
     this.signer = new EthNativeSigner(account, { registry: createRdkRegistry(), ...(opts.rest && { rest: opts.rest }) });
     this.gasPrice = opts.gasPrice ?? 0.3;
+    this.rest = opts.rest;
     if (opts.signBytesVersion) this.signBytesVersion = opts.signBytesVersion;
   }
 
@@ -110,12 +122,47 @@ export class Challenger {
     return Math.min(Math.ceil((500_000 + 40 * proofBytes + 100_000 * entries) * factor), 50_000_000);
   }
 
-  /** Sign and broadcast one challenge. Resolves once the node has accepted it into its mempool. */
-  async send(rollupId: string, challenge: Challenge, entries: number, factor = 1): Promise<{ hash: string; gas: number; feeUqor: number }> {
+  /**
+   * Sign and broadcast one challenge. Resolves once the node has accepted it into its mempool. The gas
+   * is the calibrated estimate unless `gas` is given (e.g. from `simulateChallenge` after running out).
+   */
+  async send(rollupId: string, challenge: Challenge, entries: number, opts: { factor?: number; gas?: number } = {}): Promise<{ hash: string; gas: number; feeUqor: number }> {
     if (!challenge.wins) throw new Error(`refusing to send a challenge for batch ${challenge.batchIndex} that checkQledgerFraud rejects`);
-    const gas = Challenger.gasFor(challenge.proof.length, entries, factor);
+    const gas = opts.gas ?? Challenger.gasFor(challenge.proof.length, entries, opts.factor ?? 1);
     const msg = challengeBatchMsg({ challenger: this.address, rollupId, batchIndex: challenge.batchIndex, proof: challenge.proof });
     return this.broadcast(msg, gas, `vigil watchtower: challenge ${rollupId} batch ${challenge.batchIndex}`);
+  }
+
+  /**
+   * The gas the chain actually needs for this challenge: the real signed transaction, dry-run with the
+   * node's simulate endpoint (spends nothing). Undefined if the node cannot simulate it. Used after an
+   * out-of-gas failure instead of guessing, because a failed delivery still pays its whole fee.
+   */
+  async simulateChallenge(rollupId: string, challenge: Challenge): Promise<number | undefined> {
+    if (!this.rest) return undefined;
+    if (!this.signBytesVersion) await this.ready();
+    const msg = challengeBatchMsg({ challenger: this.address, rollupId, batchIndex: challenge.batchIndex, proof: challenge.proof });
+    const tx = this.signer.sign({
+      chainId: this.chainId,
+      accountNumber: this.accountNumber,
+      sequence: this.sequence,
+      messages: [msg],
+      fee: { amount: [{ denom: "uqor", amount: "1000" }], gas: "50000000" },
+      memo: "simulate",
+      signBytesVersion: this.signBytesVersion!,
+    }).txRawBytes;
+    const r = await withTimeout(
+      fetch(`${this.rest}/cosmos/tx/v1beta1/simulate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tx_bytes: Buffer.from(tx).toString("base64") }),
+      }),
+      BROADCAST_TIMEOUT_MS,
+      "simulate",
+    );
+    const j = (await r.json()) as { gas_info?: { gas_used?: string } };
+    const used = Number(j.gas_info?.gas_used ?? NaN);
+    return Number.isFinite(used) && used > 0 ? used : undefined;
   }
 
   /** Gas for posting `bytes` of data to a rollup inbox (a 3,783-byte post used 349,859 gas on 23 Nov 2026). */
@@ -144,11 +191,15 @@ export class Challenger {
         }).txRawBytes;
       let hash: string;
       try {
-        hash = await this.transport.broadcastSync(build());
+        hash = await withTimeout(this.transport.broadcastSync(build()), BROADCAST_TIMEOUT_MS, "broadcast");
       } catch (e) {
-        if ((e as { code?: number }).code !== WRONG_SEQUENCE) throw e;
+        if ((e as { code?: number }).code !== WRONG_SEQUENCE) {
+          // The node may or may not have taken it; re-read the sequence before the next send.
+          await this.refresh().catch(() => undefined);
+          throw e;
+        }
         await this.refresh();
-        hash = await this.transport.broadcastSync(build());
+        hash = await withTimeout(this.transport.broadcastSync(build()), BROADCAST_TIMEOUT_MS, "broadcast");
       }
       this.sequence += 1n;
       return { hash, gas, feeUqor };
