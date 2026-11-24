@@ -15,6 +15,9 @@
  *   --interval <s>        EXIT_RELAYER_INTERVAL, default 6
  *   --front-margin <s>    EXIT_FRONT_MARGIN, default 60: leave claims this close to their deadline alone
  *   --lookback <n>        EXIT_LOOKBACK, default 500 inbox entries read back on start
+ *   --archive <file>      EXIT_INBOX_ARCHIVE: keep an inbox archive there (on a volume, say). Without it the
+ *                         relayer keeps entries in memory; either way the repository's committed archive
+ *                         (data/inbox/<rollup>.jsonl) supplies entries the chain has pruned
  *   --window-blocks <n>   EXIT_WINDOW_BLOCKS, default 150 (about 3.5 minutes)
  *   --min-exit <uqor>     EXIT_MIN_UQOR, default 10000: never front a smaller exit (each costs ~0.13 QOR)
  *   --min-balance <uqor>  EXIT_MIN_BALANCE, default 300000: send nothing below this balance
@@ -34,6 +37,7 @@ import { fileURLToPath } from "node:url";
 import { bech32ToHex, createRdkClient, createRdkRegistry } from "@qorechain/rdk";
 import { fetchPqcStatus, isRegisteredPqcKey, qorechainRegistryTypes, type UnifiedAccount } from "@qorechain/sdk";
 import { TESTNET } from "@vigil/core";
+import { openInboxReader } from "@vigil/core/inbox";
 import { loadOperator, loadOperatorFrom } from "@vigil/keel/account";
 import { HybridSender } from "@vigil/keel/chain";
 import { getAddress, type Hex } from "viem";
@@ -128,8 +132,12 @@ const payouts = (opt("--payouts", "EXIT_PAYOUTS", "") ?? "")
   .filter(Boolean)
   .map(toHex20);
 
+const archivePath = opt("--archive", "EXIT_INBOX_ARCHIVE");
+const reader = openInboxReader({ chainId: TESTNET.chainId, rollupId }, { ...(archivePath && { archivePath: resolve(archivePath) }), log });
+
 const relayer = new Relayer(
   rdk.rest,
+  reader,
   account ? vault.withSigner(account.privateKey as Hex) : vault,
   sender,
   quorum,

@@ -22,7 +22,9 @@ contracts/broadcast/*/*/dry-run/
 contracts/broadcast/**/run-latest.json
 
 # Runtime data (DA archive, ledgers, logs): archived separately, not in git
-data/
+data/*
+# ...except the committed inbox archives (public chain data, see scripts/inbox-archive.ts)
+!data/inbox/
 *.sqlite
 *.sqlite-journal
 *.log

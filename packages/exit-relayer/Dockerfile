@@ -9,7 +9,9 @@
 #   EXIT_PAYOUTS           comma list of payouts (qor1… or 0x…) to serve besides those announced in the inbox
 #   EXIT_RELAYER_INTERVAL  seconds between passes (default 6)
 #
-# It keeps no state on disk: on start it reads back the inbox and asks the chain what is already done.
+#   EXIT_INBOX_ARCHIVE     optional: a file on a volume to keep an inbox archive in (default: memory only)
+#
+# It needs no state on disk: on start it reads back the inbox and asks the chain what is already done.
 # One relayer per key: never run two copies with the same RELAYER_MNEMONIC.
 FROM node:24-bookworm-slim
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -26,6 +28,8 @@ COPY packages/keel packages/keel
 COPY packages/qledger-watchtower packages/qledger-watchtower
 COPY packages/exit-relayer packages/exit-relayer
 COPY deployments/diana.json deployments/diana.json
+# The committed inbox archive (public chain data): entries the chain has pruned.
+COPY data/inbox data/inbox
 ENV EXIT_RELAYER_MODE=observe \
     EXIT_RELAYER_INTERVAL=6
 # Node as PID 1 receives SIGTERM directly, so the relayer stops between passes.

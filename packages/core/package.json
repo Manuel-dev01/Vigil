@@ -2,17 +2,19 @@
   "name": "@vigil/core",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared config, accounts, chain clients and evidence logging for Vigil.",
+  "description": "Shared config, network hardening and the rollup inbox reader for Vigil.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./net": "./src/net.ts"
+    "./net": "./src/net.ts",
+    "./inbox": "./src/inbox/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@qorechain/rdk": "0.9.0",
     "undici": "8.12.4"
   }
 }

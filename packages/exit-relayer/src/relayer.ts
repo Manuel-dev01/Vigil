@@ -2,8 +2,10 @@
  * The exit relayer: pays instant exits with nobody running a script.
  *
  * Each pass:
- *  1. Reads new entries of the rollup's inbox (checked against the chain's inbox accumulator) and keeps
- *     the quorum's exit attestations whose signatures verify, plus payout notices and posters.
+ *  1. Reads new entries of the rollup's inbox by sequence (checked against the chain's inbox accumulator,
+ *     see @vigil/core/inbox) and keeps the quorum's exit attestations whose signatures verify, plus payout
+ *     notices and posters. Entries the chain has pruned come from the committed archive when it has them,
+ *     and are skipped otherwise.
  *  2. Maps payouts to exit addresses with the vault's `exitAddressOf`, and tracks every attested
  *     withdrawal that pays the exit address of a payout it knows.
  *  3. Fronts each tracked withdrawal that the quorum has signed, while its batch is unchallenged and
@@ -20,20 +22,20 @@
  * inside the window but pay exits correctly, and nothing at all outside it.
  */
 import {
-  EMPTY_INBOX_ACC,
   QLEDGER_WITHDRAWAL_DENOM,
   bech32ToHex,
   bytesToHex,
   decodeWireBytes,
   executeWithdrawalMsg,
-  fetchQledgerEntries,
   hexToBech32,
+  hexToBytes,
   qledgerWithdrawalProof,
   type BatchView,
   type RestClient,
 } from "@qorechain/rdk";
 import { closeEvmWindowMsg, openEvmWindowMsg } from "@qorechain/sdk";
 import { restGet } from "@vigil/core";
+import type { InboxReader } from "@vigil/core/inbox";
 import type { HybridSender } from "@vigil/keel/chain";
 import type { ExitClaim } from "@vigil/qledger-watchtower";
 import { getAddress, type Hex } from "viem";
@@ -118,6 +120,7 @@ export class Relayer {
 
   constructor(
     private readonly rest: RestClient,
+    private readonly reader: InboxReader,
     private readonly vault: Vault,
     private readonly sender: HybridSender | undefined,
     private readonly quorum: Quorum,
@@ -179,45 +182,26 @@ export class Relayer {
   // ------------------------------------------------------------------ reading
 
   private async readInbox(): Promise<void> {
-    const { rollupId, chainId } = this.opts;
-    const head = Number((await this.rest.getInbox(rollupId)).headSequence);
+    const head = Number((await this.rest.getInbox(this.opts.rollupId)).headSequence);
     if (this.cursor === undefined) {
-      this.cursor = await this.firstKept(Math.max(0, head - this.opts.lookback), head);
+      this.cursor = Math.max(0, head - this.opts.lookback);
       this.log("inbox-start", { from: this.cursor + 1, head });
     }
     while (this.cursor < head) {
       const from = this.cursor;
       const to = Math.min(from + 64, head);
-      const accFrom = from === 0 ? EMPTY_INBOX_ACC : decodeWireBytes((await this.rest.getPostedData(rollupId, from)).inboxAcc);
-      const got = await fetchQledgerEntries(this.rest, { chainId, rollupId, from: BigInt(from), to: BigInt(to), accFrom });
-      const entries: InboxEntry[] = got.map((e, i) => ({ seq: from + 1 + i, poster: e.poster, payload: e.payload }));
+      // Each sequence is read on its own, so an entry the chain has pruned (and the archive lacks) is
+      // skipped without assuming anything about the ones around it: checkpoints outlive their neighbours.
+      const got = await this.reader.readAvailable(from, to);
+      if (got.missing.length) {
+        this.log("inbox-pruned", { from: from + 1, to, missing: got.missing.length, first: got.missing[0], last: got.missing.at(-1), note: "neither the chain nor the archive holds them any more; skipped" });
+      }
+      const entries: InboxEntry[] = got.entries.map((e) => ({ seq: e.sequence, poster: e.poster, payload: hexToBytes(e.payloadHex) }));
       const r = this.book.ingest(entries);
       if (r.attestations || r.notices || r.rejected) this.log("inbox", { from: from + 1, to, ...r });
-      this.cursor = to;
+      this.cursor = got.through;
+      if (got.through < to) break; // the node has not caught up with its own inbox head yet: next pass
     }
-  }
-
-  /** The lowest sequence ≥ `lo` from which entries can still be read (the chain prunes old commitments). */
-  private async firstKept(lo: number, head: number): Promise<number> {
-    if (lo === 0) return 0;
-    const kept = async (s: number): Promise<boolean> => {
-      try {
-        await this.rest.getPostedData(this.opts.rollupId, s);
-        return true;
-      } catch (e) {
-        if (is404(e)) return false;
-        throw e;
-      }
-    };
-    if (await kept(lo)) return lo;
-    let gone = lo;
-    let ok = head;
-    while (ok - gone > 1) {
-      const mid = Math.floor((gone + ok) / 2);
-      if (await kept(mid)) ok = mid;
-      else gone = mid;
-    }
-    return ok;
   }
 
   private async resolvePayouts(): Promise<void> {

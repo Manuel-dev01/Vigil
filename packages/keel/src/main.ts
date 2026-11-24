@@ -2,12 +2,22 @@
  * Keel: the sequencer for a qledger-v1 based rollup whose creator it runs as.
  *
  * Each pass reads the rollup's inbox. When entries are waiting it plans the
- * next batch with the RDK (`planQledgerBatch`: admission rules, entry fetch and
- * check, re-execution), signs the batch's v2 anchor bytes with the creator's
- * ML-DSA-87 key so the chain anchors it in the same transaction, simulates the
- * `MsgSubmitBatch`, then sends it hybrid-signed. The ledger after the batch is
+ * next batch (plan.ts: the RDK's admission rules, the entries read by sequence
+ * and checked against the chain's inbox accumulator, re-execution), signs the
+ * batch's v2 anchor bytes with the creator's ML-DSA-87 key so the chain anchors
+ * it in the same transaction, simulates the `MsgSubmitBatch`, then sends it
+ * hybrid-signed. The ledger after the batch is
  * saved locally; on start it is checked against the chain and any batches it
  * missed are replayed root by root.
+ *
+ * Inbox archive: every entry Keel reads, once checked against the chain, is
+ * appended to `inbox.jsonl` in the data directory (seeded from the repository's
+ * data/inbox/<rollup>.jsonl), so a restart or a rollback rebuild never needs
+ * data the chain has pruned (see @vigil/core/inbox).
+ *
+ * Heartbeat: every 10 minutes, on its own timer, whether passes succeed or not:
+ * the last outcome and failure reason, the balance, and `error` level once no
+ * pass has succeeded for 30 minutes (see liveness.ts).
  *
  * Fraud and rollback (see sync.ts): a batch on chain that does not reproduce
  * blocks Keel, which logs `awaiting_challenge` and submits nothing until the
@@ -39,17 +49,13 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchPqcStatus, isRegisteredPqcKey, pqcSign } from "@qorechain/sdk";
-import {
-  anchorSignBytesForBatch,
-  bytesToHex,
-  createRdkClient,
-  planQledgerBatch,
-  submitBatchMsg,
-  withdrawalsRootError,
-} from "@qorechain/rdk";
+import { anchorSignBytesForBatch, bytesToHex, createRdkClient, submitBatchMsg, withdrawalsRootError } from "@qorechain/rdk";
 import { TESTNET } from "@vigil/core";
+import { openInboxReader } from "@vigil/core/inbox";
 import { argValue, loadOperator, loadOperatorFrom } from "./account.ts";
 import { HybridSender } from "./chain.ts";
+import { Liveness } from "./liveness.ts";
+import { planBatch } from "./plan.ts";
 import { emptyState, loadSnapshot, saveSnapshot, snapshotOf, stateFrom, type LedgerState } from "./snapshot.ts";
 import { syncLedger, type SyncResult } from "./sync.ts";
 import { oldestWaitingSequence, parseStandbyBlocks, standbyDecision } from "./standby.ts";
@@ -77,7 +83,9 @@ const env = { chainId: TESTNET.chainId, rollupId };
 const snapshotPath = resolve(dataDir, "ledger.json");
 const statusPath = resolve(dataDir, "status.json");
 const lockPath = resolve(dataDir, "keel.lock");
+const archivePath = resolve(dataDir, "inbox.jsonl");
 const HEARTBEAT_MS = 10 * 60 * 1000;
+const STUCK_MS = 30 * 60 * 1000;
 const LOW_BALANCE_UQOR = 5_000_000n;
 
 const hex = (b: Uint8Array): string => bytesToHex(b).toLowerCase();
@@ -122,6 +130,7 @@ const account = envPath ? await loadOperator(envPath) : await loadOperatorFrom(p
 const sender = new HybridSender(account);
 const rdk = createRdkClient({ network: "testnet" });
 const rest = rdk.rest;
+const reader = openInboxReader(env, { archivePath, log: (event, fields) => log(event === "inbox_archive_rejected" ? "warn" : "info", event, fields) });
 
 const rollup = await rest.getRollup(rollupId);
 const [params, bond, pqc, windowOpen, balance] = await Promise.all([
@@ -209,9 +218,10 @@ function noteBlocked(b: SyncResult["blocked"]): void {
 }
 
 async function resync(from: LedgerState): Promise<LedgerState> {
-  const r = await syncLedger(rest, env, from, (b) =>
+  const r = await syncLedger(rest, reader, env, from, (b) =>
     log("info", "batch_replayed", { batchIndex: b.batchIndex, inboxEnd: b.inboxEnd, stateRoot: b.stateRoot }),
   );
+  if (r.pruned) log("info", "batches_pruned_on_chain", { ...r.pruned, note: "their entries were executed in one go and checked against the next batch's parent root" });
   if (r.rolledBack) {
     log("warn", "rollback", { fromBatchIndex: r.rolledBack.fromBatchIndex, toBatchIndex: r.state.batchIndex, reason: r.rolledBack.reason });
   }
@@ -231,6 +241,16 @@ try {
   process.exit(2);
 }
 log("info", "state_ready", { batchIndex: state.batchIndex, inboxEnd: state.inboxEnd, stateRoot: hex(state.ledger.root()), blocked });
+
+// Make sure the archive holds every entry up to the state, so a later rebuild never needs the chain's
+// pruned data. With the committed archive as seed this costs one read; afterwards every entry Keel reads
+// extends it.
+try {
+  await reader.read(0, state.inboxEnd);
+  log("info", "inbox_archive_ready", { path: archivePath, entries: reader.archive.head, confirmed: reader.archive.confirmed });
+} catch (err) {
+  log("warn", "inbox_archive_incomplete", { path: archivePath, entries: reader.archive.head, upTo: state.inboxEnd, reason: (err as Error).message });
+}
 
 // ------------------------------------------------------------------ loop
 // The standby says once per waiting entry that it is leaving it to the primary.
@@ -265,7 +285,7 @@ async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned" | "s
     takeover = { waitedBlocks: d.waited, oldestEntry };
     log("warn", "standby_takeover", { ...takeover, standbyBlocks, postedAt: oldest.height, tip });
   }
-  const plan = await planQledgerBatch(rest, { ...env, submitter: sender.address, ledger: state.ledger });
+  const plan = await planBatch(rest, reader, { ...env, submitter: sender.address, ledger: state.ledger });
   const rootErr = withdrawalsRootError(plan.input.withdrawalsRoot);
   if (rootErr) throw new Error(`batch ${plan.input.batchIndex}: ${rootErr}`);
   const anchorSignature = anchoring
@@ -312,21 +332,34 @@ async function pass(): Promise<"idle" | "blocked" | "submitted" | "planned" | "s
   return "submitted";
 }
 
-let lastBeat = 0;
+// The heartbeat runs on its own timer: a Keel whose passes fail or hang is never silent.
+const liveness = new Liveness({ stuckMs: STUCK_MS, lowBalanceUqor: LOW_BALANCE_UQOR });
+async function heartbeat(): Promise<void> {
+  let balance: { balanceUqor?: bigint; balanceError?: string };
+  try {
+    balance = { balanceUqor: await Promise.race([sender.balanceUqor(), sleep(30_000).then(() => Promise.reject(new Error("timed out")))]) };
+  } catch (err) {
+    balance = { balanceError: (err as Error).message };
+  }
+  const b = liveness.beat(balance);
+  log(b.level, "heartbeat", {
+    batchIndex: state.batchIndex,
+    inboxEnd: state.inboxEnd,
+    archived: reader.archive.head,
+    ...b.fields,
+    ...(blocked && { blockedAt: blocked.batchIndex }),
+  });
+}
+const beat = () => void heartbeat().catch((err) => log("error", "heartbeat_failed", { reason: (err as Error).message }));
+setInterval(beat, HEARTBEAT_MS).unref();
+
+let passes = 0;
 while (!stopping) {
   let wait = intervalMs;
+  liveness.passStarted();
   try {
     const r = await pass();
-    if (Date.now() - lastBeat > HEARTBEAT_MS) {
-      const bal = await sender.balanceUqor();
-      log(bal < LOW_BALANCE_UQOR ? "warn" : "info", "heartbeat", {
-        batchIndex: state.batchIndex,
-        inboxEnd: state.inboxEnd,
-        balanceUqor: bal,
-        ...(blocked && { blockedAt: blocked.batchIndex }),
-      });
-      lastBeat = Date.now();
-    }
+    liveness.passSucceeded(r);
     if (r === "submitted") wait = 2000; // more may be waiting (a batch takes at most 64 entries)
     if (r === "blocked") wait = Math.max(intervalMs, 15_000); // the challenge comes from the watchtower; no need to re-fetch the bad batch every few seconds
   } catch (err) {
@@ -334,9 +367,11 @@ while (!stopping) {
       log("error", "fatal", { reason: err.message });
       process.exit(2);
     }
+    liveness.passFailed((err as Error).message);
     log("warn", "pass_failed", { reason: (err as Error).message });
     wait = Math.max(intervalMs, 30_000); // let a sent-but-unconfirmed tx land before planning again
   }
+  if (++passes === 1) beat(); // one right away, then every HEARTBEAT_MS
   if (once) break;
   await sleep(wait);
 }
