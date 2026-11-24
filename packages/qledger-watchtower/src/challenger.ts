@@ -9,7 +9,7 @@
  * does all of that ahead of time and pays a higher gas price.
  */
 import { StargateClient } from "@cosmjs/stargate";
-import { challengeBatchMsg } from "@qorechain/rdk";
+import { challengeBatchMsg, createRdkRegistry, postRollupDataMsg } from "@qorechain/rdk";
 import { EthNativeSigner, deriveUnifiedAccount, type UnifiedAccount } from "@qorechain/sdk";
 import type { Challenge } from "./check.ts";
 
@@ -73,6 +73,8 @@ export class Challenger {
   private sequence = 0n;
   private signBytesVersion?: Awaited<ReturnType<EthNativeSigner["resolveSignBytesVersion"]>>;
   readonly gasPrice: number;
+  /** Sends run one at a time, so a challenge and an inbox post never race for a sequence number. */
+  private lane: Promise<unknown> = Promise.resolve();
 
   constructor(
     account: UnifiedAccount,
@@ -81,7 +83,8 @@ export class Challenger {
     opts: ChallengerOptions & { rest?: string; signBytesVersion?: "v1" | "v2" } = {},
   ) {
     this.address = account.cosmos;
-    this.signer = new EthNativeSigner(account, { ...(opts.rest && { rest: opts.rest }) });
+    // The RDK registry: the SDK's default one cannot encode MsgPostRollupData (exit attestations).
+    this.signer = new EthNativeSigner(account, { registry: createRdkRegistry(), ...(opts.rest && { rest: opts.rest }) });
     this.gasPrice = opts.gasPrice ?? 0.3;
     if (opts.signBytesVersion) this.signBytesVersion = opts.signBytesVersion;
   }
@@ -110,29 +113,48 @@ export class Challenger {
   /** Sign and broadcast one challenge. Resolves once the node has accepted it into its mempool. */
   async send(rollupId: string, challenge: Challenge, entries: number, factor = 1): Promise<{ hash: string; gas: number; feeUqor: number }> {
     if (!challenge.wins) throw new Error(`refusing to send a challenge for batch ${challenge.batchIndex} that checkQledgerFraud rejects`);
-    if (!this.signBytesVersion) await this.ready();
     const gas = Challenger.gasFor(challenge.proof.length, entries, factor);
-    const feeUqor = Math.ceil(gas * this.gasPrice);
-    const build = () =>
-      this.signer.sign({
-        chainId: this.chainId,
-        accountNumber: this.accountNumber,
-        sequence: this.sequence,
-        messages: [challengeBatchMsg({ challenger: this.address, rollupId, batchIndex: challenge.batchIndex, proof: challenge.proof })],
-        fee: { amount: [{ denom: "uqor", amount: String(feeUqor) }], gas: String(gas) },
-        memo: `vigil watchtower: challenge ${rollupId} batch ${challenge.batchIndex}`,
-        signBytesVersion: this.signBytesVersion!,
-      }).txRawBytes;
-    let hash: string;
-    try {
-      hash = await this.transport.broadcastSync(build());
-    } catch (e) {
-      if ((e as { code?: number }).code !== WRONG_SEQUENCE) throw e;
-      await this.refresh();
-      hash = await this.transport.broadcastSync(build());
-    }
-    this.sequence += 1n;
-    return { hash, gas, feeUqor };
+    const msg = challengeBatchMsg({ challenger: this.address, rollupId, batchIndex: challenge.batchIndex, proof: challenge.proof });
+    return this.broadcast(msg, gas, `vigil watchtower: challenge ${rollupId} batch ${challenge.batchIndex}`);
+  }
+
+  /** Gas for posting `bytes` of data to a rollup inbox (a 3,783-byte post used 349,859 gas on 23 Nov 2026). */
+  static gasForPost(bytes: number, factor = 1): number {
+    return Math.ceil((250_000 + 45 * bytes) * factor);
+  }
+
+  /** Post `data` into a rollup's inbox, hybrid-signed. Resolves once the node has accepted it into its mempool. */
+  async post(rollupId: string, data: Uint8Array, memo: string, factor = 1): Promise<{ hash: string; gas: number; feeUqor: number }> {
+    return this.broadcast(postRollupDataMsg({ poster: this.address, rollupId, data }), Challenger.gasForPost(data.length, factor), memo);
+  }
+
+  private broadcast(msg: ReturnType<typeof challengeBatchMsg>, gas: number, memo: string): Promise<{ hash: string; gas: number; feeUqor: number }> {
+    const run = this.lane.then(async () => {
+      if (!this.signBytesVersion) await this.ready();
+      const feeUqor = Math.ceil(gas * this.gasPrice);
+      const build = () =>
+        this.signer.sign({
+          chainId: this.chainId,
+          accountNumber: this.accountNumber,
+          sequence: this.sequence,
+          messages: [msg],
+          fee: { amount: [{ denom: "uqor", amount: String(feeUqor) }], gas: String(gas) },
+          memo,
+          signBytesVersion: this.signBytesVersion!,
+        }).txRawBytes;
+      let hash: string;
+      try {
+        hash = await this.transport.broadcastSync(build());
+      } catch (e) {
+        if ((e as { code?: number }).code !== WRONG_SEQUENCE) throw e;
+        await this.refresh();
+        hash = await this.transport.broadcastSync(build());
+      }
+      this.sequence += 1n;
+      return { hash, gas, feeUqor };
+    });
+    this.lane = run.catch(() => undefined);
+    return run;
   }
 
   /** Wait for a sent challenge to land in a block (undefined if it has not after `timeoutMs`). */
