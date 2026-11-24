@@ -8,9 +8,13 @@ export { TxFollower, websocketUrl, type TxEvent, type FollowerOptions } from "./
 export {
   ATTEST_MAGIC,
   EXIT_DOMAIN,
+  ML_DSA_87_SIG_LEN,
+  PAYOUT_MAGIC,
   claimsForBatch,
   decodeAttestation,
+  decodePayoutNotice,
   encodeAttestation,
+  encodePayoutNotice,
   exitMessage,
   recipientBytes,
   signClaims,

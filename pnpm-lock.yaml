@@ -74,6 +74,33 @@ importers:
         specifier: 8.12.4
         version: 8.12.4
 
+  packages/exit-relayer:
+    dependencies:
+      '@cosmjs/proto-signing':
+        specifier: 0.39.0
+        version: 0.39.0
+      '@cosmjs/stargate':
+        specifier: 0.39.0
+        version: 0.39.0
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.57.20(typescript@7.0.2))
+      '@qorechain/sdk':
+        specifier: 0.14.0
+        version: 0.14.0(viem@2.57.20(typescript@7.0.2))
+      '@vigil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@vigil/keel':
+        specifier: workspace:*
+        version: link:../keel
+      '@vigil/qledger-watchtower':
+        specifier: workspace:*
+        version: link:../qledger-watchtower
+      viem:
+        specifier: 2.57.20
+        version: 2.57.20(typescript@7.0.2)
+
   packages/keel:
     dependencies:
       '@cosmjs/proto-signing':
@@ -174,9 +201,6 @@ packages:
 
   '@bufbuild/protobuf@2.16.0':
     resolution: {integrity: sha512-FWa0sPlqYGJgpTs6OxBRcL/AW4JT0OIO+W1ajerluoTVh8CV0B7XM1qsNCRgnkSCkRCgOICKHRQlY17jrsm0+Q==}
-
-  '@bufbuild/protobuf@2.17.0':
-    resolution: {integrity: sha512-hcPkSz6D7MiTU/5VBBhK+kxaYDoOdQ6yJRFJ3kS8Nydp+VZXfg1vrpABKPNod8bXMufsVCmiUJVIKFzCzta4uw==}
 
   '@cosmjs/amino@0.38.1':
     resolution: {integrity: sha512-WaThDpq2JwUyKuazq08Xa+FHzQ3jh1HcYnGL4xsyfqFwOlAvnl0EDvSSz9WSwz1oopIxFE9Qtf3OUKOlxBZbYA==}
@@ -1286,8 +1310,6 @@ snapshots:
 
   '@bufbuild/protobuf@2.16.0': {}
 
-  '@bufbuild/protobuf@2.17.0': {}
-
   '@cosmjs/amino@0.38.1':
     dependencies:
       '@cosmjs/crypto': 0.38.1
@@ -1707,7 +1729,7 @@ snapshots:
 
   '@qorechain/sdk@0.14.0(viem@2.57.20(typescript@7.0.2))':
     dependencies:
-      '@bufbuild/protobuf': 2.17.0
+      '@bufbuild/protobuf': 2.16.0
       '@cosmjs/amino': 0.39.0
       '@cosmjs/cosmwasm-stargate': 0.39.0
       '@cosmjs/proto-signing': 0.39.0

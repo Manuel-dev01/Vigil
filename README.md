@@ -64,9 +64,9 @@ flowchart LR
 |---|---|---|
 | L2 transactions | ML-DSA-44 (qledger-v1) | `@qorechain/rdk`, `packages/keel` |
 | Batch anchors and settlement receipts | ML-DSA-87, signed by the rollup creator, key read from the chain's PQ registry | `packages/keel`, `apps/web` |
-| Every operator transaction on L1 (sequencers, watchtowers, keep-alive) | Hybrid secp256k1 + ML-DSA-87. None of these keys ever opens an EVM window; only a separate deployer key does, briefly | `packages/keel/src/chain.ts`, `packages/qledger-watchtower/src/challenger.ts` |
+| Every operator transaction on L1 (sequencers, watchtowers, keep-alive, exit relayer) | Hybrid secp256k1 + ML-DSA-87. None of the sequencer, watchtower or keep-alive keys ever opens an EVM window. Two separate keys do, briefly: the deployer, and the exit relayer, whose windows admit only its calls to the vault | `packages/keel/src/chain.ts`, `packages/qledger-watchtower/src/challenger.ts`, `packages/exit-relayer` |
 | Receipts inside the EVM | `pqcKeyStatus` and `pqcVerify` precompiles | `contracts/src/SettlementReceiptVerifier.sol` |
-| Instant exits | Two watchtowers' ML-DSA-87 signatures, checked by the vault through `pqcVerify` | `contracts/src/InstantExitVault.sol`, `packages/qledger-watchtower/src/exits.ts` |
+| Instant exits | Two watchtowers' ML-DSA-87 signatures, checked by the vault through `pqcVerify` | `contracts/src/InstantExitVault.sol`, `packages/qledger-watchtower/src/exits.ts`, `packages/exit-relayer` |
 | Confidential payroll data | ML-KEM-1024 with X25519 (QoreSeal) | `packages/sealed` |
 
 What this does and does not protect against, and what each hosted key could do if stolen, is in the [threat model](THREAT_MODEL.md).
@@ -96,6 +96,7 @@ pnpm --filter @vigil/web dev   # the web app, reading the live chain
 | Watchtower-3 (EU West) | `qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33` |
 | Keep-alive poster | `qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l` |
 | EVM deployer | `qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6` |
+| Exit relayer | `qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn` |
 | Sealed payroll demo: employer-1 | `qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws` |
 | `SettlementReceiptVerifier` (EVM, chain id 9800) | `0xc87c7680b70e21464aac4e2308a9caa5324e4590` |
 | `InstantExitVault` (EVM, chain id 9800) | `0x3a897802b62b052a102f55e021bc4668539c29b5` |
@@ -115,7 +116,7 @@ pnpm --filter @vigil/web dev   # the web app, reading the live chain
 | Withdrawals | One L2 withdrawal (0.25 QOR) committed in batch 2 and executed on L1 with its qledger proof once final; a second claim is refused (EVIDENCE 19 to 21) |
 | Settlement receipts in the browser and in Solidity | The [web app](apps/web) (https://web-production-324cc271.up.railway.app) builds and checks a receipt for any batch against the live chain, in the browser, with no server of ours, and requires the batch to be final. [`SettlementReceiptVerifier`](contracts/src/SettlementReceiptVerifier.sol) at `0xc87c7680b70e21464aac4e2308a9caa5324e4590` (no owner) checks anchors inside the EVM through `pqcKeyStatus` and `pqcVerify`. It has verified and recorded all 14 `vigil-pay-1` anchors on chain: 11 on 19 Nov and 3 on 23 Nov through a window scoped to the contract (EVIDENCE 57 to 64, 79 to 81). What it does and does not prove is in [THREAT_MODEL §13](THREAT_MODEL.md#13-residual-risks); 19 Foundry tests |
 | Receipts that outlive the chain's retention window | The chain deletes a finalized batch's record after 432,000 blocks (about 7 days on testnet); anchors stay. A keep-alive job (`packages/keel/src/pulse.ts`, a Railway cron every two days) posts a 0.01 QOR L2 transfer from its own hybrid-signed key so the rollup keeps producing anchored batches, and keeps a ledger snapshot on a volume so it never has to replay pruned batches. First runs: batches 13 and 14, both anchored (EVIDENCE 73 to 78) |
-| Instant exits | `InstantExitVault` (no owner) pays a withdrawal before its batch is final when watchtower-2 and watchtower-3 have both re-executed the batch and signed the exit with ML-DSA-87. The watchtowers attest automatically (`WATCHTOWER_EXIT_VAULT`) by posting signatures into the inbox; a relayer fronts them. First exit: 0.0995 QOR paid 68 blocks after its batch (EVIDENCE 82 to 96); 19 Foundry tests, 8 watchtower tests; [THREAT_MODEL §14](THREAT_MODEL.md) |
+| Instant exits | `InstantExitVault` (no owner) pays a withdrawal before its batch is final when watchtower-2 and watchtower-3 have both re-executed the batch and signed the exit with ML-DSA-87. The watchtowers attest automatically (`WATCHTOWER_EXIT_VAULT`) by posting signatures into the inbox. First exit: 0.0995 QOR paid 68 blocks after its batch, relayed by hand (EVIDENCE 82 to 96). Since 24 Nov the relayer is automatic (`packages/exit-relayer`, its own key, EVIDENCE 97 and 98): it fronts each attested exit, and after finality executes the withdrawal and sweeps the exit address back to the vault. It opens an EVM window only when it has calls to make, scoped to the vault and capped at those calls' fees, and closes it after. 19 Foundry tests, 9 watchtower tests, 7 relayer tests; [THREAT_MODEL §14](THREAT_MODEL.md) |
 | qledger-v1 watchtower, fraud challenge | Watchtower (`packages/qledger-watchtower`) runs in challenge mode on `vigil-pay-1` from two keys in two Railway regions, watchtower-2 (US West, primary) and watchtower-3 (EU West, 3 s backup), each following new batches over the chain websocket (EVIDENCE 24 to 27, 46 to 47). Its first live pass found 44 of 44 batches valid on four rollups (read-only check). Fraud drill 1 was upheld on chain and the bond slashed, but another team's watcher won the race; ours challenged 4 blocks later (EVIDENCE 39 to 45), which led to the fast path. **Fraud drill 2: our watchtower-2 won**, upheld in the block right after the wrong batch; the 1,000 QOR bond was slashed and 500 QOR paid to our watchtower (EVIDENCE 51 to 56) |
 | ML-KEM-1024 sealed data lane | First sealed payslip posted into `vigil-pay-1` (`packages/sealed`): QoreSeal hybrid envelope, recipients' ML-DSA-87 and ML-KEM-1024 keys registered on chain, opened by its three recipients and by no one else, and covered by a data receipt against batch 5 (EVIDENCE 28 to 38) |
 | Threat model | [v1.3](THREAT_MODEL.md) (21 Nov): adversaries and trust assumptions, both fraud drills, how the hosted operator keys are held and what a theft of each would cost, measured challenge and rollback behaviour, findings and residual risks |
@@ -126,7 +127,8 @@ pnpm --filter @vigil/web dev   # the web app, reading the live chain
 packages/core                shared config and chain helpers
 packages/chain-ws            the chain over its websocket: RPC, REST over abci_query, chain descriptors
 packages/keel                sequencer (with standby mode) and the keep-alive pulse
-packages/qledger-watchtower  replay, validator, fraud proofs, challenger
+packages/qledger-watchtower  replay, validator, fraud proofs, challenger, exit attestations
+packages/exit-relayer        pays instant exits automatically: fronts, executes, sweeps
 packages/sealed              QoreSeal envelopes, KEM registration, payslips, data receipts
 contracts/                   Foundry contracts and tests
 apps/web                     rollup explorer, receipt verifier, payslip opener
