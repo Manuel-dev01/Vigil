@@ -122,9 +122,11 @@ export class Vault {
    * Build one call and size it: gas = 1.3 × the estimate. Estimating needs no EVM window, so the
    * relayer can size a window to exactly the calls it is about to make before it opens one.
    */
-  async prepare(from: Hex, functionName: "front" | "sweep", args: readonly unknown[]): Promise<PreparedCall> {
+  async prepare(from: Hex, functionName: "front" | "sweep", args: readonly unknown[], gasPrice: bigint): Promise<PreparedCall> {
     const data = encodeFunctionData({ abi: VAULT_ABI, functionName, args: args as never });
-    const gas = ((await this.pub.estimateGas({ account: from, to: this.address, data })) * 13n) / 10n;
+    // Estimated at the gas price it will be sent with: without one, this chain runs the estimate with
+    // tx.gasprice = 0, which a hostile payout contract could tell apart from the real call.
+    const gas = ((await this.pub.estimateGas({ account: from, to: this.address, data, gasPrice })) * 13n) / 10n;
     return { functionName, data, gas };
   }
 
