@@ -4,7 +4,7 @@
 
 Snapshots of `@qorechain/rdk` settlement receipts, built with `buildSettlementReceipt` and checked with `verifySettlementReceipt` against the live chain (`scripts/receipts-snapshot.ts`).
 
-The chain prunes finalized batch records after `finalized_batch_retention_blocks` (432,000 blocks on testnet, about 6 days). Once a batch's record is pruned, its receipt can no longer be built from chain state, so we snapshot each receipt while the record exists. `summary.json` in each folder records the height at which every receipt was verified, and the result.
+The chain's parameters allow it to prune finalized batch records after `finalized_batch_retention_blocks` (432,000 blocks on testnet, about 7 days); as of 24 Nov 2026 we have not seen it happen. If a batch's record is pruned, its receipt can no longer be built from chain state, so we snapshot each receipt while the record exists. Posted data is pruned after 648,000 blocks, which we have observed. `summary.json` in each folder records the height at which every receipt was verified, and the result.
 
 Re-verify one yourself, with no key needed:
 
