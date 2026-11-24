@@ -4,9 +4,11 @@ import { RollupView } from "./views/Rollup.tsx";
 
 const VerifyView = lazy(() => import("./views/Verify.tsx").then((m) => ({ default: m.VerifyView })));
 const PayslipView = lazy(() => import("./views/Payslip.tsx").then((m) => ({ default: m.PayslipView })));
+const ExitsView = lazy(() => import("./views/Exits.tsx").then((m) => ({ default: m.ExitsView })));
 
-type Route = "rollup" | "verify" | "payslip";
-const routeOf = (hash: string): Route => (hash.startsWith("#/verify") ? "verify" : hash.startsWith("#/payslip") ? "payslip" : "rollup");
+type Route = "rollup" | "exits" | "verify" | "payslip";
+const routeOf = (hash: string): Route =>
+  hash.startsWith("#/exits") ? "exits" : hash.startsWith("#/verify") ? "verify" : hash.startsWith("#/payslip") ? "payslip" : "rollup";
 
 export function App() {
   const [route, setRoute] = useState<Route>(routeOf(location.hash));
@@ -36,6 +38,7 @@ export function App() {
         </a>
         <nav className="tabs" aria-label="Sections">
           {tab("rollup", "Rollup", "#/")}
+          {tab("exits", "Instant exits", "#/exits")}
           {tab("verify", "Verify a receipt", "#/verify")}
           {tab("payslip", "Open a payslip", "#/payslip")}
         </nav>
@@ -47,6 +50,7 @@ export function App() {
       <main className="page">
         <Suspense fallback={<p className="empty">Loading…</p>}>
           {route === "rollup" && <RollupView />}
+          {route === "exits" && <ExitsView />}
           {route === "verify" && <VerifyView />}
           {route === "payslip" && <PayslipView />}
         </Suspense>
