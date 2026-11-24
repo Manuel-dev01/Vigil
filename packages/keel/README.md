@@ -54,6 +54,18 @@ pnpm --filter @vigil/keel claim -- --env <submitter .env> [--batch N] [--broadca
   - It recomputes them by replaying the rollup, with every root checked.
   - Each proof is the qledger sibling path. `test/withdrawal-proof.test.ts` checks these paths against `vigil-1`'s recorded withdrawals.
 
+## Reading the inbox, and pruning
+
+- **How entries are read.** Keel reads inbox entries through the shared reader in `@vigil/core/inbox`: one entry per sequence, each checked against the chain's accumulator. Posts sent inside another message are read too. There is no limit on how many posts the rollup has had (the RDK's transaction search stops at 5,000).
+- **How a batch is planned.** `src/plan.ts` is the RDK's `planQledgerBatch` step for step, with the same admission rules and the same check that the entries hash to the chain's inbox range commitment before anything executes. Only the reader is different.
+- **Archives.**
+  - Keel and keel-b keep `<KEEL_DATA_DIR>/inbox.jsonl` on their volume. On first start it is seeded from the committed `data/inbox/<rollup>.jsonl`.
+  - Archived entries are used only for sequences the chain has pruned, and only after a commitment the chain still holds confirms them.
+  - Refresh the committed archive at least every ten days: `pnpm --filter @vigil/scripts exec tsx inbox-archive.ts vigil-pay-1`.
+- **Heartbeat.** It is logged every 10 minutes whether passes succeed or not. It carries the last outcome and error, the balance and how many entries are archived, and is logged at `error` with `stuck` after 30 minutes without a good pass.
+- **Keep-alive exit codes** (`pulse.ts`): 0 done, 1 failed or refused, 2 skipped (a batch awaits a challenge, or entries are still waiting), 3 posted but not batched in time. A cron run that could not do its job shows red.
+- **`claim.ts` and `l2-send.ts`** start from the newest valid snapshot in `--data`, `KEEL_DATA_DIR`, `PULSE_DATA_DIR` or `data/keel/<rollup>`, and otherwise rebuild through the archive.
+
 ## Hosting
 
 `packages/keel/Dockerfile` builds Keel from the repo root. We run `vigil-pay-1`'s Keel from it on Railway: one instance, a volume at `/data` for the snapshot, and the creator key set as secret variables (`PRIVATE_KEY` and `QORE_PQC_RECOVERY_CODE`, read from the process environment when `--env` is not given). The image sets `KEEL_LOCK=0`, since a container has no other Keel to race. Only one Keel may hold a key, so the local copy stays stopped while the hosted one runs. `KEEL_DRY_RUN=1` pauses sending without stopping it.

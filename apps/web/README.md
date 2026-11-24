@@ -25,3 +25,11 @@ pnpm --filter @vigil/web build
 node apps/web/deploy/package-site.mjs          # refuses a modified tree
 railway up apps/web/deploy/out --path-as-root --service <web>
 ```
+
+**Trust.** The page reads one public node (`rpc-testnet.qore.host`) and its EVM endpoint, without proofs. These checks run in the browser:
+- the ML-DSA-87 signatures of anchors and watchtower attestations, against key hashes pinned in `src/config.ts`;
+- the ML-DSA-44 signatures of L2 transactions;
+- the inbox accumulator and data receipts;
+- exit messages, and exit addresses (computed from the pinned ExitAddress code).
+
+`pqcVerify` runs as a second, labelled check. If the creator's or a watchtower's ML-DSA-87 key is ever rotated, update `PINNED_KEYS` in `src/config.ts`.
