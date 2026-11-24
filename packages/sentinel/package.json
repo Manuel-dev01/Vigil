@@ -1,0 +1,17 @@
+{
+  "name": "@vigil/sentinel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Watches Vigil from the outside and alerts a human on Telegram: EVM windows on keys that must never open one, low balances, a stuck sequencer, disputes, an unrepaid vault, the web app down. Holds no key.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@qorechain/rdk": "0.9.0",
+    "@vigil/core": "workspace:*",
+    "viem": "2.57.20"
+  }
+}
