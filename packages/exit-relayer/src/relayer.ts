@@ -325,8 +325,9 @@ export class Relayer {
       }
       const ws = batchWithdrawals(attested);
       if (!withdrawalsMatch(chainId, rollupId, ws, decodeWireBytes(b.withdrawalsRoot), b.withdrawalsRootReduced)) {
-        t.dropped = "the attested withdrawal list does not reproduce the batch's withdrawals root";
-        this.log("exit-dropped", { ...fields, reason: t.dropped });
+        // Incomplete so far (claims arrive one per post, and a member signs no claim for a withdrawal
+        // that cannot be to an exit address). Keep waiting; anyone else may still execute it.
+        this.once(`incomplete:${k}:${ws.length}`, "execute-waiting", { ...fields, reason: "the attested withdrawal list does not reproduce the batch's withdrawals root yet", attested: ws.length });
         continue;
       }
       const pos = ws.findIndex((w) => w.index === BigInt(t.claim.withdrawalIndex));

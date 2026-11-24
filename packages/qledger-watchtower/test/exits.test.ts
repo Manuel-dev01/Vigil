@@ -5,13 +5,15 @@
  * accepts these signatures is scripts/exit/instant-exit.ts simulate.
  */
 import { createHash } from "node:crypto";
-import { bytesToHex, hexToBech32 } from "@qorechain/rdk";
+import { QLEDGER_MAX_POST_BYTES, bytesToHex, hexToBech32 } from "@qorechain/rdk";
 import { generatePqcKeypair } from "@qorechain/sdk";
 import { describe, expect, it } from "vitest";
 import {
   ATTEST_MAGIC,
   EXIT_DOMAIN,
+  MAX_CLAIMS_PER_POST,
   PAYOUT_MAGIC,
+  attestationPosts,
   claimsForBatch,
   decodeAttestation,
   decodePayoutNotice,
@@ -158,5 +160,37 @@ describe("claims for a batch", () => {
       deadline: 1_795_460_000 + 3600 - 600,
     });
     expect(recipientBytes(recipient)).toBe("44".repeat(20));
+  });
+});
+
+describe("attestation posts", () => {
+  it("each fit the chain's qledger post limit, one claim per post", () => {
+    expect(MAX_CLAIMS_PER_POST).toBe(1);
+    const cs = [0, 1, 2].map((i) => ({ ...claim, withdrawalIndex: i }));
+    const posts = attestationPosts({ vault: target.vault, member: "33".repeat(20), claims: signClaims(target, member.secretKey, cs) });
+    expect(posts).toHaveLength(3);
+    for (const [i, p] of posts.entries()) {
+      expect(p.length).toBeLessThanOrEqual(QLEDGER_MAX_POST_BYTES);
+      const back = decodeAttestation(p)!;
+      expect(back.claims.map((c) => c.claim.withdrawalIndex)).toEqual([i]);
+    }
+  });
+
+  it("skip a withdrawal whose recipient is not 20 bytes, and keep the rest of the batch", () => {
+    const twenty = hexToBech32("0x" + "44".repeat(20), "qor");
+    const thirtyTwo = hexToBech32("0x" + "55".repeat(32), "qor");
+    const one = hexToBech32("0x66", "qor");
+    const out = claimsForBatch(
+      { batchIndex: 9, stateRoot: "ab".repeat(32), submittedTime: 1_795_460_000 },
+      [
+        { index: 0n, recipient: thirtyTwo, amount: 1n },
+        { index: 1n, recipient: twenty, amount: 5n },
+        { index: 2n, recipient: one, amount: 1n },
+      ],
+      3600,
+      600,
+    );
+    expect(out.map((c) => c.withdrawalIndex)).toEqual([1]);
+    expect(() => recipientBytes(thirtyTwo)).toThrow(/20-byte/);
   });
 });
