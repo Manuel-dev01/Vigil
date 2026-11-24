@@ -19,6 +19,7 @@ import { pqcSign, pqcVerify } from "@qorechain/sdk";
 
 export const EXIT_DOMAIN = "vigil/instant-exit/v1/exit";
 export const ATTEST_MAGIC = "vigil/instant-exit/v1/attest";
+export const PAYOUT_MAGIC = "vigil/instant-exit/v1/payout";
 export const ML_DSA_87_SIG_LEN = 4627;
 
 export interface ExitTarget {
@@ -176,6 +177,30 @@ export function decodeAttestation(bytes: Uint8Array): Attestation | undefined {
     o += CLAIM_LEN;
   }
   return { vault, member, claims };
+}
+
+/**
+ * A payout notice: tells relayers which payout an exit address belongs to. A claim names only the
+ * withdrawal's recipient, `exitAddressOf(payout)`, and that address cannot be turned back into `payout`,
+ * so a relayer has to be told it (or have it configured). The notice is an inbox entry of its own, a
+ * no-op for qledger-v1, and can go in the same transaction as the L2 withdrawal:
+ *   PAYOUT_MAGIC | vault (20) | payout (20)
+ * It grants nothing. The vault pays a payout only if its exit address is the recipient the quorum
+ * signed, so a wrong or hostile notice just never matches a claim.
+ */
+export function encodePayoutNotice(vault: string, payout: string): Uint8Array {
+  return concat([enc.encode(PAYOUT_MAGIC), fixedHex(vault, 20, "vault"), fixedHex(payout, 20, "payout")]);
+}
+
+/** Parse a payout notice; undefined if the entry is anything else. Addresses come back as 0x + 40 hex. */
+export function decodePayoutNotice(bytes: Uint8Array): { vault: string; payout: string } | undefined {
+  const magic = enc.encode(PAYOUT_MAGIC);
+  if (bytes.length !== magic.length + 40) return undefined;
+  for (let i = 0; i < magic.length; i++) if (bytes[i] !== magic[i]) return undefined;
+  return {
+    vault: `0x${bytesToHex(bytes.subarray(magic.length, magic.length + 20))}`,
+    payout: `0x${bytesToHex(bytes.subarray(magic.length + 20))}`,
+  };
 }
 
 /**
