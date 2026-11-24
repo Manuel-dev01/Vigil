@@ -7,8 +7,8 @@
  * the chain's latest batch root, and any batches it is missing are replayed
  * and checked root by root (see sync.ts).
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { QledgerLedger, bytesToHex, hexToBytes } from "@qorechain/rdk";
 
 export interface LedgerSnapshot {
@@ -81,4 +81,49 @@ export function saveSnapshot(path: string, snap: LedgerSnapshot): void {
   const tmp = `${path}.tmp`;
   writeFileSync(tmp, JSON.stringify(snap, null, 2) + "\n");
   renameSync(tmp, path);
+}
+
+/**
+ * The newest usable snapshot among `paths` (the one after the highest batch;
+ * a later save breaks a tie), or undefined. Missing files are skipped; a file
+ * that does not parse or whose accounts do not hash to its root is skipped and
+ * reported through `onSkip`. `belowBatch` keeps only snapshots before that
+ * batch (a tool that needs to re-execute it).
+ */
+export function newestSnapshot(
+  paths: string[],
+  env: { chainId: string; rollupId: string },
+  opts: { belowBatch?: number; onSkip?: (path: string, reason: string) => void } = {},
+): { path: string; state: LedgerState; savedAt: string } | undefined {
+  let best: { path: string; state: LedgerState; savedAt: string } | undefined;
+  for (const path of [...new Set(paths)]) {
+    if (!existsSync(path)) continue;
+    try {
+      const snap = loadSnapshot(path);
+      if (!snap) continue;
+      const state = stateFrom(snap, env);
+      if (opts.belowBatch !== undefined && state.batchIndex >= opts.belowBatch) continue;
+      if (!best || state.batchIndex > best.state.batchIndex || (state.batchIndex === best.state.batchIndex && snap.savedAt > best.savedAt)) {
+        best = { path, state, savedAt: snap.savedAt };
+      }
+    } catch (err) {
+      opts.onSkip?.(path, (err as Error).message);
+    }
+  }
+  return best;
+}
+
+/**
+ * Where a local tool looks for a ledger snapshot of `rollupId`: the given
+ * directories (a Keel data directory, or a pulse data directory that holds one
+ * per rollup), KEEL_DATA_DIR and PULSE_DATA_DIR from the environment, and the
+ * repository's data/keel/<rollup>.
+ */
+export function snapshotPaths(rollupId: string, repoRoot: string, dirs: (string | undefined)[] = []): string[] {
+  const out: string[] = [];
+  for (const d of [...dirs, process.env["KEEL_DATA_DIR"], process.env["PULSE_DATA_DIR"]]) {
+    if (d) out.push(resolve(d, "ledger.json"), resolve(d, rollupId, "ledger.json"));
+  }
+  out.push(resolve(repoRoot, "data/keel", rollupId, "ledger.json"));
+  return out;
 }

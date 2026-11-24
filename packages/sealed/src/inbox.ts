@@ -1,16 +1,16 @@
 /** Reading a rollup's inbox: posts with their payloads, payments, and the batch that settles each. */
 import {
-  EMPTY_INBOX_ACC,
   QLEDGER_KIND_TRANSFER,
   bytesToHex,
   decodeQledgerTx,
-  fetchQledgerEntries,
+  hexToBytes,
   postedDataHash,
   qledgerAccountId,
   verifyQledgerTx,
   type BatchView,
   type RestClient,
 } from "@qorechain/rdk";
+import { openInboxReader, type InboxReader } from "@vigil/core/inbox";
 
 const hex = (b: Uint8Array): string => bytesToHex(b).toLowerCase();
 
@@ -23,19 +23,24 @@ export interface InboxPost {
   dataHash: string;
 }
 
-/** Every post after `from`, with its payload, checked against the chain's accumulator. */
-export async function readInbox(rest: RestClient, env: { chainId: string; rollupId: string }, from = 0): Promise<InboxPost[]> {
+/**
+ * Every post after `from`, with its payload, checked against the chain's
+ * accumulator (read by sequence; entries the chain has pruned come from the
+ * committed archive, data/inbox/<rollup>.jsonl, see @vigil/core/inbox).
+ */
+export async function readInbox(
+  rest: RestClient,
+  env: { chainId: string; rollupId: string },
+  from = 0,
+  reader: InboxReader = openInboxReader(env),
+): Promise<InboxPost[]> {
   const inbox = await rest.getInbox(env.rollupId);
   if (inbox.headSequence <= from) return [];
-  const accFrom = from === 0 ? EMPTY_INBOX_ACC : (await rest.getPostedData(env.rollupId, from)).inboxAcc;
-  const entries = await fetchQledgerEntries(rest, { ...env, from, to: inbox.headSequence, accFrom });
-  return entries.map((e, i) => ({
-    sequence: from + 1 + i,
-    height: Number(e.height),
-    poster: e.poster,
-    payload: e.payload,
-    dataHash: hex(postedDataHash(e.payload)),
-  }));
+  const entries = await reader.read(from, inbox.headSequence);
+  return entries.map((e) => {
+    const payload = hexToBytes(e.payloadHex);
+    return { sequence: e.sequence, height: e.height, poster: e.poster, payload, dataHash: hex(postedDataHash(payload)) };
+  });
 }
 
 /** The transfer a post carries, if it is a validly signed qledger transfer. */

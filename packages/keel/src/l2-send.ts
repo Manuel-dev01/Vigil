@@ -5,10 +5,13 @@
  *
  *   tsx src/l2-send.ts --env <poster .env> --key <l2 key file> --amount <QOR>
  *                      (--to-key <l2 key file> | --to <account id hex> | --withdraw-to <qor1…>)
- *                      [--rollup vigil-pay-1] [--broadcast]
+ *                      [--rollup vigil-pay-1] [--data <dir>] [--broadcast]
  *
  * The nonce and balance come from the chain: the state after the latest batch
  * (replayed and checked, see sync.ts) plus every inbox entry not yet batched.
+ * The replay starts from the newest local snapshot (--data, KEEL_DATA_DIR,
+ * PULSE_DATA_DIR, data/keel/<rollup>) or from the first batch; entries the
+ * chain has pruned come from the committed archive (data/inbox/<rollup>.jsonl).
  * A transaction the rollup would skip (wrong nonce, short balance, bad
  * recipient) is refused before it costs a post fee.
  */
@@ -30,10 +33,11 @@ import {
   verifyQledgerTx,
 } from "@qorechain/rdk";
 import { TESTNET } from "@vigil/core";
+import { openInboxReader } from "@vigil/core/inbox";
 import { argValue, loadOperator } from "./account.ts";
 import { HybridSender } from "./chain.ts";
 import { loadL2Key } from "./l2-key.ts";
-import { emptyState, loadSnapshot, stateFrom } from "./snapshot.ts";
+import { emptyState, newestSnapshot, snapshotPaths } from "./snapshot.ts";
 import { syncLedger, withPending } from "./sync.ts";
 
 const argv = process.argv.slice(2);
@@ -68,14 +72,17 @@ if (to && to.length !== 32) throw new Error("the destination account id must be 
 
 const rest = createRdkClient({ network: "testnet" }).rest;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const snap = loadSnapshot(resolve(repoRoot, "data/keel", rollupId, "ledger.json"));
-const synced = await syncLedger(rest, env, snap ? stateFrom(snap, env) : emptyState());
+const snap = newestSnapshot(snapshotPaths(rollupId, repoRoot, [argValue(argv, "--data")]), env, {
+  onSkip: (path, why) => console.warn(`note: skipped snapshot ${path}: ${why}`),
+});
+const reader = openInboxReader(env, { log: (event, fields) => console.warn(`note: ${event}`, JSON.stringify(fields)) });
+const synced = await syncLedger(rest, reader, env, snap?.state ?? emptyState());
 if (synced.blocked) {
   console.error(`refused: ${synced.blocked.reason}. Wait for the watchtower's challenge to roll it back; a transaction built now could be rolled back with it.`);
   process.exit(1);
 }
 const { state } = synced;
-const { ledger, pendingEntries } = await withPending(rest, env, state);
+const { ledger, pendingEntries } = await withPending(rest, reader, env, state);
 const sender = ledger.get(from.accountId);
 
 const tx = signQledgerTx({
@@ -98,6 +105,7 @@ const after = trial.get(from.accountId);
 const applied = after.nonce === sender.nonce + 1n;
 
 console.log(`rollup      ${rollupId} (batched to batch ${state.batchIndex}, ${pendingEntries} entr${pendingEntries === 1 ? "y" : "ies"} waiting)`);
+console.log(`replayed    from ${snap ? `${snap.path} (after batch ${snap.state.batchIndex})` : "the first batch"}`);
 console.log(`from        ${hex(from.accountId)} (balance ${fmt(sender.balance)}, nonce ${sender.nonce})`);
 console.log(to ? `transfer    ${fmt(amount)} to ${hex(to)}` : `withdraw    ${fmt(amount)} to ${withdrawTo}`);
 console.log(`payload     ${payload.length} bytes, ML-DSA-44 signed`);

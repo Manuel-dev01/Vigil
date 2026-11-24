@@ -3,14 +3,22 @@
  * submit them; the funds always go to the recipient each withdrawal names.
  * Simulates by default; only --broadcast sends.
  *
- *   tsx src/claim.ts --env <submitter .env> [--rollup vigil-pay-1] [--batch N] [--broadcast]
+ *   tsx src/claim.ts --env <submitter .env> [--rollup vigil-pay-1] [--batch N] [--data <dir>] [--broadcast]
  *
- * Withdrawals are recomputed by replaying the rollup from its first batch
- * (every root checked against the chain, see sync.ts), and each proof is the
- * qledger sibling path (`qledgerWithdrawalProof`). A withdrawal the chain has
- * already executed fails simulation and is skipped.
+ * Withdrawals are recomputed by replaying the rollup (every root checked
+ * against the chain, see sync.ts), and each proof is the qledger sibling path
+ * (`qledgerWithdrawalProof`). A withdrawal the chain has already executed fails
+ * simulation and is skipped.
+ *
+ * The replay starts from the first batch, or with --batch N from the newest
+ * local snapshot before batch N (--data, KEEL_DATA_DIR, PULSE_DATA_DIR,
+ * data/keel/<rollup>). Inbox entries the chain has pruned come from the
+ * repository's committed archive (data/inbox/<rollup>.jsonl), checked against
+ * the chain's commitments.
  */
 import "./net.ts";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { fetchPqcStatus, isRegisteredPqcKey } from "@qorechain/sdk";
 import {
   QLEDGER_WITHDRAWAL_DENOM,
@@ -20,9 +28,10 @@ import {
   type QledgerWithdrawal,
 } from "@qorechain/rdk";
 import { TESTNET } from "@vigil/core";
+import { openInboxReader } from "@vigil/core/inbox";
 import { argValue, loadOperator } from "./account.ts";
 import { HybridSender } from "./chain.ts";
-import { emptyState } from "./snapshot.ts";
+import { emptyState, newestSnapshot, snapshotPaths } from "./snapshot.ts";
 import { syncLedger } from "./sync.ts";
 
 const argv = process.argv.slice(2);
@@ -31,20 +40,33 @@ const rollupId = argValue(argv, "--rollup") ?? "vigil-pay-1";
 const only = argValue(argv, "--batch");
 const broadcast = argv.includes("--broadcast");
 if (!envPath) {
-  console.error("usage: claim.ts --env <submitter .env> [--rollup id] [--batch N] [--broadcast]");
+  console.error("usage: claim.ts --env <submitter .env> [--rollup id] [--batch N] [--data <dir>] [--broadcast]");
   process.exit(1);
 }
+if (only !== undefined && !/^\d+$/.test(only)) throw new Error(`--batch must be a batch index, got ${only}`);
 const env = { chainId: TESTNET.chainId, rollupId };
 const fmt = (u: bigint) => `${(Number(u) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 6 })} QOR`;
 
 const rest = createRdkClient({ network: "testnet" }).rest;
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const reader = openInboxReader(env, { log: (event, fields) => console.warn(`note: ${event}`, JSON.stringify(fields)) });
+// Withdrawals are only seen for batches re-executed here, so a snapshot is used only when it is before --batch.
+const snap =
+  only === undefined
+    ? undefined
+    : newestSnapshot(snapshotPaths(rollupId, repoRoot, [argValue(argv, "--data")]), env, {
+        belowBatch: Number(only),
+        onSkip: (path, why) => console.warn(`note: skipped snapshot ${path}: ${why}`),
+      });
+console.log(snap ? `replaying from ${snap.path} (after batch ${snap.state.batchIndex})` : "replaying from the first batch");
 const withBatches: { batchIndex: number; status: string; finalizedAt: number; withdrawals: QledgerWithdrawal[] }[] = [];
-const synced = await syncLedger(rest, env, emptyState(), (b, r) => {
+const synced = await syncLedger(rest, reader, env, snap?.state ?? emptyState(), (b, r) => {
   if (r.withdrawals.length) withBatches.push({ batchIndex: b.batchIndex, status: b.status, finalizedAt: b.finalizedAt, withdrawals: r.withdrawals });
 });
 // Withdrawals are only taken from batches that reproduce. One that does not is
 // fraud: its withdrawals are never claimed here, and nothing after it is read.
 if (synced.blocked) console.warn(`note: ${synced.blocked.reason}; batches from ${synced.blocked.batchIndex} on are skipped`);
+if (synced.pruned) console.warn(`note: the chain has pruned the records of batches ${synced.pruned.fromBatchIndex}..${synced.pruned.toBatchIndex}; their withdrawals can no longer be executed`);
 const targets = withBatches.filter((b) => only === undefined || b.batchIndex === Number(only));
 if (!targets.length) {
   console.log(only === undefined ? "no batch commits a withdrawal" : `batch ${only} commits no withdrawal`);
