@@ -27,12 +27,16 @@ export interface ClaimRecord {
   entries: Map<number, number>;
 }
 
-/** A batch's withdrawals in order, as one member's complete attestation lists them. */
+/**
+ * A batch's withdrawals in order, as one member's claims list them. A member's claims for a batch may
+ * arrive in several posts (one claim per post fits the chain's post limit), so this is the longest list
+ * any one member has given so far. It is complete only if it reproduces the batch's withdrawals root.
+ */
 export interface AttestedBatch {
   batchIndex: number;
   stateRoot: string;
   withdrawals: { index: number; amountUqor: bigint; recipient: string }[];
-  /** the inbox entry the list came from */
+  /** the inbox entry of the latest claim in the list */
   entry: number;
 }
 
@@ -62,6 +66,8 @@ export const withdrawalKey = (c: Pick<ExitClaim, "batchIndex" | "stateRoot" | "w
 export class ExitBook {
   readonly claims = new Map<string, ClaimRecord>();
   readonly batches = new Map<string, AttestedBatch>();
+  /** batch key → member → withdrawal index → withdrawal, from that member's valid claims */
+  private readonly lists = new Map<string, Map<number, Map<number, { index: number; amountUqor: bigint; recipient: string; entry: number }>>>();
   /** Payout addresses (40 hex, lower case) seen but not yet handed to the caller. */
   readonly candidates = new Set<string>();
   private readonly vault: string;
@@ -121,21 +127,23 @@ export class ExitBook {
         }
         this.claims.set(k, rec);
       }
-      // A member attests a whole batch at once, every withdrawal in order. Keep the first such list
-      // per batch; it is checked against the chain's withdrawals root before any use.
-      if (valid.length > 0 && valid.length === a.claims.length) {
-        const first = valid[0]!.claim;
-        const bk = batchKey(first.batchIndex, first.stateRoot);
-        const sameBatch = valid.every((s) => batchKey(s.claim.batchIndex, s.claim.stateRoot) === bk);
-        const ascending = valid.every((s, i) => i === 0 || s.claim.withdrawalIndex === valid[i - 1]!.claim.withdrawalIndex + 1);
-        if (sameBatch && ascending && !this.batches.has(bk)) {
-          this.batches.set(bk, {
-            batchIndex: first.batchIndex,
-            stateRoot: norm(first.stateRoot),
-            withdrawals: valid.map((s) => ({ index: s.claim.withdrawalIndex, amountUqor: s.claim.amountUqor, recipient: norm(s.claim.recipient) })),
-            entry: e.seq,
-          });
-        }
+      for (const sc of valid) {
+        const c = sc.claim;
+        const bk = batchKey(c.batchIndex, c.stateRoot);
+        const byMember = this.lists.get(bk) ?? new Map();
+        const list = byMember.get(m) ?? new Map();
+        if (!list.has(c.withdrawalIndex)) list.set(c.withdrawalIndex, { index: c.withdrawalIndex, amountUqor: c.amountUqor, recipient: norm(c.recipient), entry: e.seq });
+        byMember.set(m, list);
+        this.lists.set(bk, byMember);
+        // The longest list any one member has given, in withdrawal order.
+        const best = [...byMember.values()].reduce((a, b) => (b.size > a.size ? b : a));
+        const ws = [...best.values()].sort((x, y) => x.index - y.index);
+        this.batches.set(bk, {
+          batchIndex: c.batchIndex,
+          stateRoot: norm(c.stateRoot),
+          withdrawals: ws.map(({ index, amountUqor, recipient }) => ({ index, amountUqor, recipient })),
+          entry: Math.max(...ws.map((w) => w.entry)),
+        });
       }
     }
     return report;
@@ -166,6 +174,7 @@ export class ExitBook {
   forget(batchIndex: number, stateRoot: string): void {
     const bk = batchKey(batchIndex, stateRoot);
     this.batches.delete(bk);
+    this.lists.delete(bk);
     for (const [k, rec] of this.claims) if (batchKey(rec.claim.batchIndex, rec.claim.stateRoot) === bk) this.claims.delete(k);
   }
 }

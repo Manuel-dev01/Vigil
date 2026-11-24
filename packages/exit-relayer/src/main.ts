@@ -16,6 +16,9 @@
  *   --front-margin <s>    EXIT_FRONT_MARGIN, default 60: leave claims this close to their deadline alone
  *   --lookback <n>        EXIT_LOOKBACK, default 500 inbox entries read back on start
  *   --window-blocks <n>   EXIT_WINDOW_BLOCKS, default 150 (about 3.5 minutes)
+ *   --min-exit <uqor>     EXIT_MIN_UQOR, default 10000: never front a smaller exit (each costs ~0.13 QOR)
+ *   --min-balance <uqor>  EXIT_MIN_BALANCE, default 300000: send nothing below this balance
+ *   --windows-per-hour <n> EXIT_WINDOWS_PER_HOUR, default 6
  *   --env <file>          a .env with the relayer's key (local runs). Hosted, the key is the secret
  *                         variable RELAYER_MNEMONIC instead.
  *   --once                one pass, then exit
@@ -42,7 +45,20 @@ const opt = (flag: string, env: string, d?: string): string | undefined => (args
 const once = args.includes("--once");
 const mode = opt("--mode", "EXIT_RELAYER_MODE", "observe");
 if (mode !== "relay" && mode !== "observe") throw new Error(`--mode must be relay or observe, not ${mode}`);
-const intervalMs = Number(opt("--interval", "EXIT_RELAYER_INTERVAL", "6")) * 1000;
+/** A whole number of at least `min`, or exit with a clear message (a typo must not become NaN). */
+function int(flag: string, env: string, d: string, min: number): number {
+  const raw = opt(flag, env, d)!;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < min) throw new Error(`${flag} (${env}) must be a whole number >= ${min}, not "${raw}"`);
+  return n;
+}
+const intervalMs = int("--interval", "EXIT_RELAYER_INTERVAL", "6", 1) * 1000;
+const frontMarginSec = int("--front-margin", "EXIT_FRONT_MARGIN", "60", 0);
+const lookback = int("--lookback", "EXIT_LOOKBACK", "500", 1);
+const windowBlocks = int("--window-blocks", "EXIT_WINDOW_BLOCKS", "150", 20);
+const minExitUqor = BigInt(int("--min-exit", "EXIT_MIN_UQOR", "10000", 1));
+const minBalanceUqor = BigInt(int("--min-balance", "EXIT_MIN_BALANCE", "300000", 0));
+const windowsPerHour = int("--windows-per-hour", "EXIT_WINDOWS_PER_HOUR", "6", 1);
 
 const log = (event: string, fields: Record<string, unknown> = {}): void => {
   console.log(JSON.stringify({ t: new Date().toISOString(), event, ...fields }, (_k, v) => (typeof v === "bigint" ? v.toString() : v)));
@@ -77,11 +93,13 @@ if (vaultChain !== TESTNET.chainId) throw new Error(`the vault serves ${vaultCha
 const rollupId = opt("--rollup", "EXIT_ROLLUP", vaultRollup)!;
 if (rollupId !== vaultRollup) throw new Error(`the vault serves rollup ${vaultRollup}, not ${rollupId}`);
 const keys = await Promise.all(members.map((m) => vault.read<Hex>("keyOf", [m])));
+// A member without a usable key can't sign claims the vault accepts, so its claims are ignored. That is
+// no reason to stop: executing and sweeping need no quorum. (Crashing would loop under restart=ALWAYS.)
 keys.forEach((k, i) => {
-  if ((k.length - 2) / 2 !== 2592) throw new Error(`quorum member ${members[i]} has no usable ML-DSA-87 key on chain`);
+  if ((k.length - 2) / 2 !== 2592) log("member-key-unusable", { member: members[i], note: "its claims are ignored until it has an ML-DSA-87 key again" });
 });
 const rollup = await rdk.rest.getRollup(rollupId);
-const quorum: Quorum = { members, keys: keys.map((k) => k.slice(2)), threshold: Number(threshold), feeBps: Number(feeBps) };
+const quorum: Quorum = { members, keys: keys.map((k) => ((k.length - 2) / 2 === 2592 ? k.slice(2) : "")), threshold: Number(threshold), feeBps: Number(feeBps) };
 
 // ------------------------------------------------------------------ the key
 let account: UnifiedAccount | undefined;
@@ -120,10 +138,13 @@ const relayer = new Relayer(
     evmChainId: TESTNET.evmChainId,
     rollupId,
     mode,
-    frontMarginSec: Number(opt("--front-margin", "EXIT_FRONT_MARGIN", "60")),
-    lookback: Number(opt("--lookback", "EXIT_LOOKBACK", "500")),
-    windowBlocks: Number(opt("--window-blocks", "EXIT_WINDOW_BLOCKS", "150")),
+    frontMarginSec,
+    lookback,
+    windowBlocks,
     challengeWindowSec: Number(rollup.challengeWindowSec ?? 3600),
+    minExitUqor,
+    minBalanceUqor,
+    windowsPerHour,
   },
   log,
   payouts,

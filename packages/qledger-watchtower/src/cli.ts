@@ -36,6 +36,13 @@
  *   --evm-chain-id <n>      WATCHTOWER_EVM_CHAIN_ID, default 9800
  *   --exit-rollup <id>      WATCHTOWER_EXIT_ROLLUP, default vigil-pay-1: the one rollup
  *                           the vault serves; no other rollup's inbox is ever posted to
+ *   --exit-max-claims <n>   WATCHTOWER_EXIT_MAX_CLAIMS, default 4: a batch with more exit-eligible
+ *                           withdrawals is not attested (its exits are paid at finality instead)
+ *   --exit-posts-per-day <n> WATCHTOWER_EXIT_POSTS_PER_DAY, default 12: attestation posts in any 24 h
+ *   --exit-reserve <uqor>   WATCHTOWER_EXIT_RESERVE, default 5000000: never attest when the balance
+ *                           is below this, so attesting can never spend the challenge budget
+ *   Each claim is its own post (the chain refuses qledger posts over 6,144 bytes, after taking the
+ *   fee), and a batch whose posts fail 3 times is given up.
  *
  * Exit code with --once: 0 all valid, 2 an invalid batch was found.
  * Logs are JSON lines on stdout. Secrets are read from the environment only and never logged.
@@ -46,7 +53,7 @@ import { join, resolve } from "node:path";
 import { createRdkClient } from "@qorechain/rdk";
 import { InboxArchive } from "./archive.ts";
 import { Challenger, OUT_OF_GAS, accountFromMnemonic, rpcTransport } from "./challenger.ts";
-import { claimsForBatch, encodeAttestation, recipientBytes, signClaims } from "./exits.ts";
+import { attestationPosts, claimsForBatch, recipientBytes, signClaims } from "./exits.ts";
 import { batchesFromTx, postsFromEvents } from "./fast.ts";
 import { TxFollower, websocketUrl, type TxEvent } from "./follow.ts";
 import { RollupTracker, chainSource, type Judgement, type LiveBatch } from "./tracker.ts";
@@ -65,10 +72,15 @@ const exitVault = opt("--attest-exits", "WATCHTOWER_EXIT_VAULT");
 const exitMarginSec = Number(opt("--exit-margin", "WATCHTOWER_EXIT_MARGIN", "600"));
 const evmChainId = Number(opt("--evm-chain-id", "WATCHTOWER_EVM_CHAIN_ID", "9800"));
 const exitRollup = opt("--exit-rollup", "WATCHTOWER_EXIT_ROLLUP", "vigil-pay-1")!;
+const exitMaxClaims = Number(opt("--exit-max-claims", "WATCHTOWER_EXIT_MAX_CLAIMS", "4"));
+const exitPostsPerDay = Number(opt("--exit-posts-per-day", "WATCHTOWER_EXIT_POSTS_PER_DAY", "12"));
+const exitReserveUqor = BigInt(opt("--exit-reserve", "WATCHTOWER_EXIT_RESERVE", "5000000")!);
 if (!["observe", "challenge"].includes(mode)) throw new Error(`unknown --mode ${mode}`);
 if (exitVault && !/^0x[0-9a-fA-F]{40}$/.test(exitVault)) throw new Error("--attest-exits needs a 0x vault address");
 if (exitVault && mode !== "challenge") throw new Error("--attest-exits needs --mode challenge (it signs and posts with WATCHTOWER_MNEMONIC)");
 if (!(exitMarginSec >= 60)) throw new Error("--exit-margin must be at least 60 seconds");
+if (!(Number.isInteger(exitMaxClaims) && exitMaxClaims >= 1)) throw new Error("--exit-max-claims must be a positive integer");
+if (!(Number.isInteger(exitPostsPerDay) && exitPostsPerDay >= 1)) throw new Error("--exit-posts-per-day must be a positive integer");
 if (!["ws", "poll"].includes(follow)) throw new Error(`unknown --follow ${follow}`);
 if (follow === "ws" && rollupArg === "all") throw new Error("--follow ws needs named rollups (--rollup a,b); use --follow poll with --rollup all");
 if (!(gasPrice >= 0.1 && gasPrice <= 10)) throw new Error(`--gas-price ${gasPrice} is outside 0.1..10 uqor per gas`);
@@ -105,14 +117,45 @@ const attested = new Set<string>(existsSync(attestedPath) ? (JSON.parse(readFile
 const attesting = new Set<string>();
 const tooLate = new Set<string>();
 const challengeWindows = new Map<string, number>();
+const attestFailures = new Map<string, number>();
+const MAX_ATTEST_FAILURES = 3;
+// When each attestation post was sent (ms), for the daily budget. Kept on the volume across restarts.
+const postTimesPath = join(dataDir, "exit-post-times.json");
+let postTimes: number[] = existsSync(postTimesPath) ? (JSON.parse(readFileSync(postTimesPath, "utf8")) as number[]) : [];
+const postsInLastDay = () => {
+  postTimes = postTimes.filter((t) => t > Date.now() - 86_400_000);
+  return postTimes.length;
+};
 
-/** Sign and post exit claims for a valid, unfinalized batch with withdrawals. Never throws. */
+async function balanceUqor(address: string): Promise<bigint> {
+  const r = await fetch(`${ep.rest}/cosmos/bank/v1beta1/balances/${address}/by_denom?denom=uqor`);
+  if (!r.ok) throw new Error(`balance query HTTP ${r.status}`);
+  return BigInt(((await r.json()) as { balance?: { amount?: string } }).balance?.amount ?? "0");
+}
+
+/**
+ * Sign and post exit claims for a valid, unfinalized batch with withdrawals. Never throws.
+ * Bounded so that nobody can make it spend the watchtower's challenge budget: one claim per post (the
+ * chain refuses larger qledger posts after taking the fee), at most --exit-max-claims claims per batch,
+ * --exit-posts-per-day posts per 24 h, never below --exit-reserve, and a batch is given up after
+ * MAX_ATTEST_FAILURES failed posts.
+ */
 async function maybeAttest(rollupId: string, batch: LiveBatch, withdrawals: NonNullable<Extract<Judgement, { kind: "valid" }>["withdrawals"]>): Promise<void> {
   if (!exitVault || !challenger || !account || withdrawals.length === 0 || rollupId !== exitRollup) return;
   if (batch.status !== "submitted" || batch.submittedTime === undefined) return;
   const id = `${rollupId}:${batch.batchIndex}:${norm(batch.stateRoot)}`;
   if (attested.has(id) || attesting.has(id) || tooLate.has(id)) return;
   attesting.add(id);
+  const skip = (reason: string, fields: Record<string, unknown> = {}) => {
+    tooLate.add(id);
+    log("exit-attest-skipped", { rollupId, batch: batch.batchIndex, reason, ...fields });
+  };
+  const failed = (fields: Record<string, unknown>) => {
+    const n = (attestFailures.get(id) ?? 0) + 1;
+    attestFailures.set(id, n);
+    log("exit-attest-failed", { rollupId, batch: batch.batchIndex, failures: n, ...fields });
+    if (n >= MAX_ATTEST_FAILURES) skip(`gave up after ${n} failures`);
+  };
   try {
     let windowSec = challengeWindows.get(rollupId);
     if (windowSec === undefined) {
@@ -120,24 +163,29 @@ async function maybeAttest(rollupId: string, batch: LiveBatch, withdrawals: NonN
       challengeWindows.set(rollupId, windowSec);
     }
     const claims = claimsForBatch({ batchIndex: batch.batchIndex, stateRoot: batch.stateRoot, submittedTime: batch.submittedTime }, withdrawals, windowSec, exitMarginSec);
-    if (claims[0]!.deadline <= Math.floor(Date.now() / 1000) + 60) {
-      tooLate.add(id);
-      log("exit-attest-skipped", { rollupId, batch: batch.batchIndex, reason: "too close to final", deadline: claims[0]!.deadline });
-      return;
-    }
+    if (claims.length === 0) return skip("no withdrawal to a 20-byte address");
+    if (claims.length > exitMaxClaims) return skip("more exit-eligible withdrawals than --exit-max-claims", { claims: claims.length, max: exitMaxClaims });
+    if (claims[0]!.deadline <= Math.floor(Date.now() / 1000) + 60) return skip("too close to final", { deadline: claims[0]!.deadline });
     const target = { evmChainId, vault: exitVault, chainId, rollupId };
-    const payload = encodeAttestation({ vault: exitVault, member: recipientBytes(account.cosmos), claims: signClaims(target, account.pqc.secretKey, claims) });
-    const sent = await challenger.post(rollupId, payload, `vigil watchtower: exit attestation ${rollupId} batch ${batch.batchIndex}`);
-    const r = await challenger.outcome(sent.hash);
-    if (r?.code === 0) {
-      attested.add(id);
+    const posts = attestationPosts({ vault: exitVault, member: recipientBytes(account.cosmos), claims: signClaims(target, account.pqc.secretKey, claims) });
+    const todo = posts.map((p, i) => ({ p, key: `${id}:${i}/${posts.length}` })).filter((x) => !attested.has(x.key));
+    if (postsInLastDay() + todo.length > exitPostsPerDay) return skip("daily attestation budget spent", { postsInLastDay: postsInLastDay(), budget: exitPostsPerDay });
+    const balance = await balanceUqor(account.cosmos);
+    if (balance < exitReserveUqor) return skip("balance below the challenge reserve", { balanceUqor: balance.toString(), reserveUqor: exitReserveUqor.toString() });
+    for (const { p, key } of todo) {
+      const sent = await challenger.post(rollupId, p, `vigil watchtower: exit attestation ${rollupId} batch ${batch.batchIndex}`);
+      postTimes.push(Date.now());
+      writeFileSync(postTimesPath, JSON.stringify(postTimes));
+      const r = await challenger.outcome(sent.hash);
+      if (r?.code !== 0) return failed({ tx: sent.hash, code: r?.code, rawLog: r?.rawLog?.slice(0, 200) });
+      attested.add(key);
       writeFileSync(attestedPath, JSON.stringify([...attested], null, 2));
-      log("exit-attested", { rollupId, batch: batch.batchIndex, withdrawals: claims.length, deadline: claims[0]!.deadline, tx: sent.hash, height: r.height, bytes: payload.length, feeUqor: sent.feeUqor });
-    } else {
-      log("exit-attest-failed", { rollupId, batch: batch.batchIndex, tx: sent.hash, code: r?.code, rawLog: r?.rawLog?.slice(0, 200) });
+      log("exit-attested", { rollupId, batch: batch.batchIndex, post: key.slice(id.length + 1), withdrawals: claims.length, deadline: claims[0]!.deadline, tx: sent.hash, height: r.height, bytes: p.length, feeUqor: sent.feeUqor });
     }
+    attested.add(id);
+    writeFileSync(attestedPath, JSON.stringify([...attested], null, 2));
   } catch (e) {
-    log("exit-attest-failed", { rollupId, batch: batch.batchIndex, message: (e as Error).message.slice(0, 240) });
+    failed({ message: (e as Error).message.slice(0, 240) });
   } finally {
     attesting.delete(id);
   }

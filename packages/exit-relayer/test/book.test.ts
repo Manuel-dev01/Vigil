@@ -58,10 +58,12 @@ describe("attestations", () => {
     bytes[70 + 84 + 100]! ^= 1;
     const r = book.ingest([entry(bytes)]);
     expect(r).toMatchObject({ attestations: 1, claims: 1, rejected: 1 });
-    // a partly valid attestation does not give the batch's withdrawal list
-    expect(book.batches.size).toBe(0);
+    // only the valid claim counts towards member 0's withdrawal list
+    expect(book.batches.get(batchKey(21, root))!.withdrawals.map((w) => w.index)).toEqual([8]);
     book.ingest([entry(attest(m1.secretKey, members[1]!))]);
     expect(book.ready(2).map((x) => x.claim.withdrawalIndex)).toEqual([8]);
+    // member 1's complete list is now the longest
+    expect(book.batches.get(batchKey(21, root))!.withdrawals.map((w) => w.index)).toEqual([7, 8]);
   });
 
   it("with different deadlines are different claims, but the same withdrawal", () => {
@@ -107,6 +109,19 @@ describe("a batch's withdrawal list", () => {
     expect(withdrawalsMatch("qorechain-diana", "vigil-pay-2", ws, stored, false)).toBe(false);
     expect(withdrawalsMatch("qorechain-diana", "vigil-pay-1", [{ ...ws[0]!, amount: 100_001n }, ws[1]!], stored, false)).toBe(false);
     expect(withdrawalsMatch("qorechain-diana", "vigil-pay-1", ws.slice(0, 1), stored, false)).toBe(false);
+  });
+
+  it("is assembled from one-claim posts, as the watchtower now sends them", () => {
+    const book = fresh();
+    const [c7, c8] = claims;
+    book.ingest([entry(attest(m0.secretKey, members[0]!, [c8!])), entry(attest(m0.secretKey, members[0]!, [c7!]))]);
+    const ws = batchWithdrawals(book.batches.get(batchKey(21, root))!);
+    expect(ws.map((w) => w.index)).toEqual([7n, 8n]);
+    expect(withdrawalsMatch("qorechain-diana", "vigil-pay-1", ws, qledgerWithdrawalsRoot("qorechain-diana", "vigil-pay-1", ws), false)).toBe(true);
+    // one post alone is an incomplete list: it does not reproduce the full batch's root
+    const one = fresh();
+    one.ingest([entry(attest(m0.secretKey, members[0]!, [c7!]))]);
+    expect(withdrawalsMatch("qorechain-diana", "vigil-pay-1", batchWithdrawals(one.batches.get(batchKey(21, root))!), qledgerWithdrawalsRoot("qorechain-diana", "vigil-pay-1", ws), false)).toBe(false);
   });
 
   it("is forgotten with the batch", () => {

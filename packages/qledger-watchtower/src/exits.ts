@@ -14,7 +14,7 @@
  * `recipient` is the withdrawal's recipient as the batch records it. Only a withdrawal to
  * `exitAddressOf(payout)` of that vault can be fronted, so signing every withdrawal of a valid batch is safe.
  */
-import { bech32ToHex, bytesToHex, hexToBytes } from "@qorechain/rdk";
+import { QLEDGER_MAX_POST_BYTES, bech32ToHex, bytesToHex, hexToBytes } from "@qorechain/rdk";
 import { pqcSign, pqcVerify } from "@qorechain/sdk";
 
 export const EXIT_DOMAIN = "vigil/instant-exit/v1/exit";
@@ -82,9 +82,20 @@ function concat(parts: Uint8Array[]): Uint8Array {
   return out;
 }
 
-/** The 20-byte recipient (40 hex) of a canonical qor1 address. */
+/** The 20-byte recipient (40 hex) of a canonical qor1 address. Throws for anything else. */
 export function recipientBytes(qor1: string): string {
-  return norm(bech32ToHex(qor1));
+  const h = norm(bech32ToHex(qor1));
+  if (h.length !== 40) throw new Error(`recipient ${qor1} is not a 20-byte address`);
+  return h;
+}
+
+/** Like `recipientBytes`, but undefined for a recipient that cannot be an exit address. */
+function exitRecipient(qor1: string): string | undefined {
+  try {
+    return recipientBytes(qor1);
+  } catch {
+    return undefined;
+  }
 }
 
 /** The bytes a quorum member signs for `c`; equal to InstantExitVault.exitMessage. */
@@ -148,6 +159,25 @@ export function encodeAttestation(a: Attestation): Uint8Array {
 }
 
 const CLAIM_LEN = 8 + 32 + 8 + 8 + 20 + 8 + ML_DSA_87_SIG_LEN;
+const ATTEST_HEAD_LEN = ATTEST_MAGIC.length + 20 + 20 + 2;
+
+/**
+ * The most claims one inbox post can carry. The chain refuses any qledger-v1 post over
+ * `QLEDGER_MAX_POST_BYTES` (6,144) so that every fraud proof fits one transaction, and it refuses it
+ * while executing the message, after the fee is paid. One claim is 4,781 bytes, so this is 1.
+ */
+export const MAX_CLAIMS_PER_POST = Math.floor((QLEDGER_MAX_POST_BYTES - ATTEST_HEAD_LEN) / CLAIM_LEN);
+
+/** One member's signed claims as inbox posts, each within the chain's post limit. */
+export function attestationPosts(a: Attestation): Uint8Array[] {
+  const posts: Uint8Array[] = [];
+  for (let i = 0; i < a.claims.length; i += MAX_CLAIMS_PER_POST) {
+    const p = encodeAttestation({ ...a, claims: a.claims.slice(i, i + MAX_CLAIMS_PER_POST) });
+    if (p.length > QLEDGER_MAX_POST_BYTES) throw new Error(`attestation post of ${p.length} bytes exceeds the chain's ${QLEDGER_MAX_POST_BYTES}`);
+    posts.push(p);
+  }
+  return posts;
+}
 
 /** Parse an inbox payload; undefined if it is not an exit attestation (most entries are not). */
 export function decodeAttestation(bytes: Uint8Array): Attestation | undefined {
@@ -206,7 +236,9 @@ export function decodePayoutNotice(bytes: Uint8Array): { vault: string; payout: 
 /**
  * The claims for a valid batch's withdrawals. `deadline` is when the batch could first be final
  * (submitted time plus the challenge window) less `marginSec`, so the vault stops fronting before the
- * withdrawal can be paid on L1.
+ * withdrawal can be paid on L1. A withdrawal whose recipient is not a 20-byte address can never be to
+ * an exit address (a CREATE2 address), so it gets no claim, and one such withdrawal no longer stops
+ * the rest of the batch from being attested.
  */
 export function claimsForBatch(
   batch: { batchIndex: number; stateRoot: string; submittedTime: number },
@@ -215,12 +247,11 @@ export function claimsForBatch(
   marginSec: number,
 ): ExitClaim[] {
   const deadline = batch.submittedTime + challengeWindowSec - marginSec;
-  return withdrawals.map((w) => ({
-    batchIndex: batch.batchIndex,
-    stateRoot: norm(batch.stateRoot),
-    withdrawalIndex: Number(w.index),
-    amountUqor: w.amount,
-    recipient: recipientBytes(w.recipient),
-    deadline,
-  }));
+  const out: ExitClaim[] = [];
+  for (const w of withdrawals) {
+    const recipient = exitRecipient(w.recipient);
+    if (recipient === undefined) continue;
+    out.push({ batchIndex: batch.batchIndex, stateRoot: norm(batch.stateRoot), withdrawalIndex: Number(w.index), amountUqor: w.amount, recipient, deadline });
+  }
+  return out;
 }

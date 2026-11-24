@@ -22,6 +22,7 @@
 import {
   EMPTY_INBOX_ACC,
   QLEDGER_WITHDRAWAL_DENOM,
+  bech32ToHex,
   bytesToHex,
   decodeWireBytes,
   executeWithdrawalMsg,
@@ -53,6 +54,12 @@ export interface RelayerOptions {
   windowBlocks: number;
   /** The rollup's challenge window, for logs (how early an exit was paid). */
   challengeWindowSec: number;
+  /** Never front an exit smaller than this (uqor): each costs the relayer ~0.13 QOR in fees. */
+  minExitUqor: bigint;
+  /** Send nothing while the relayer's own balance is below this (uqor). */
+  minBalanceUqor: bigint;
+  /** At most this many EVM windows in any hour. */
+  windowsPerHour: number;
 }
 
 export interface Quorum {
@@ -75,6 +82,9 @@ interface Tracked {
   executed?: boolean;
   swept?: boolean;
   dropped?: string;
+  /** Passes on which the exit address read empty while nothing was owed. */
+  zeroSeen?: number;
+  sweepFailures?: number;
 }
 
 interface Planned {
@@ -102,6 +112,9 @@ export class Relayer {
   private readonly resolved = new Set<string>();
   private readonly tracked = new Map<string, Tracked>();
   private readonly said = new Set<string>();
+  /** Payouts from the operator's configuration; only these may be contracts. */
+  private readonly configured: Set<string>;
+  private windowTimes: number[] = [];
 
   constructor(
     private readonly rest: RestClient,
@@ -113,7 +126,8 @@ export class Relayer {
     payouts: string[] = [],
   ) {
     this.book = new ExitBook({ evmChainId: opts.evmChainId, vault: vault.address, chainId: opts.chainId, rollupId: opts.rollupId }, quorum.members, quorum.keys);
-    for (const p of payouts) this.book.candidates.add(norm(p));
+    this.configured = new Set(payouts.map(norm));
+    for (const p of this.configured) this.book.candidates.add(p);
   }
 
   /** What the relayer is tracking, for a status line. */
@@ -130,8 +144,15 @@ export class Relayer {
   }
 
   async pass(): Promise<void> {
-    await this.readInbox();
-    await this.resolvePayouts();
+    // A window must never outlive the calls it was opened for (say, after a crash mid-pass).
+    await this.closeStrayWindow().catch((e) => this.once(`stray:${errText(e)}`, "window-check-failed", { message: errText(e) }));
+    // A failed read must not stop what is already tracked from being executed and swept.
+    try {
+      await this.readInbox();
+      await this.resolvePayouts();
+    } catch (e) {
+      this.once(`inbox:${errText(e)}`, "inbox-read-failed", { message: errText(e), note: "still executing and sweeping what is tracked" });
+    }
     this.track();
     const batches = new Map<number, BatchView | null>();
     const batchOf = async (i: number): Promise<BatchView | null> => {
@@ -145,12 +166,13 @@ export class Relayer {
       }
       return batches.get(i) ?? null;
     };
+    // One gas price for the whole pass: calls are estimated at it, sent at it, and the window's cap counts it.
+    const gasPrice = await this.vault.pub.getGasPrice();
     const calls: Planned[] = [];
-    await this.planFronts(batchOf, calls);
+    await this.planFronts(batchOf, calls, gasPrice);
     await this.execute(batchOf);
-    await this.planSweeps(calls);
-    await this.send(calls);
-    if (calls.length === 0) await this.closeStrayWindow();
+    await this.planSweeps(calls, gasPrice);
+    await this.send(calls, gasPrice);
     this.forgetSettled();
   }
 
@@ -200,16 +222,33 @@ export class Relayer {
 
   private async resolvePayouts(): Promise<void> {
     for (const c of [...this.book.candidates]) {
-      this.book.candidates.delete(c);
-      if (this.resolved.has(c)) continue;
-      const ea = await this.vault.read<Hex>("exitAddressOf", [getAddress(`0x${c}`)]);
+      if (this.resolved.has(c) || !/^[0-9a-f]{40}$/.test(c)) {
+        this.book.candidates.delete(c);
+        continue;
+      }
+      const addr = getAddress(`0x${c}`);
+      // A contract payout can pass every free check and still revert in the real call (it can read
+      // tx.gasprice, say), which would cost a window every pass. Only configured payouts may be contracts.
+      if (!this.configured.has(c)) {
+        const code = await this.vault.pub.getCode({ address: addr });
+        if (code && code !== "0x") {
+          this.resolved.add(c);
+          this.book.candidates.delete(c);
+          this.log("payout-refused", { payout: addr, reason: "a contract; only configured payouts may be contracts" });
+          continue;
+        }
+      }
+      const ea = await this.vault.read<Hex>("exitAddressOf", [addr]);
       this.exitToPayout.set(norm(ea), c);
       this.resolved.add(c);
+      this.book.candidates.delete(c);
     }
   }
 
+  /** Track every attested withdrawal that any claim says pays the exit address of a known payout. */
   private track(): void {
-    for (const c of this.book.withdrawals()) {
+    for (const rec of this.book.claims.values()) {
+      const c = rec.claim;
       const k = withdrawalKey(c);
       if (this.tracked.has(k)) continue;
       const payout = this.exitToPayout.get(norm(c.recipient));
@@ -222,14 +261,23 @@ export class Relayer {
 
   // ------------------------------------------------------------------ fronting
 
-  private async planFronts(batchOf: (i: number) => Promise<BatchView | null>, calls: Planned[]): Promise<void> {
+  private async planFronts(batchOf: (i: number) => Promise<BatchView | null>, calls: Planned[], gasPrice: bigint): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     let liquidity: bigint | undefined;
     for (const r of this.book.ready(this.quorum.threshold)) {
       const k = withdrawalKey(r.claim);
       const t = this.tracked.get(k);
       if (!t || t.front || t.dropped || calls.some((c) => c.tracked.includes(t))) continue;
+      // The payout comes from the claim the quorum signed, not from whichever claim was seen first.
+      const payout = this.exitToPayout.get(norm(r.claim.recipient));
+      if (!payout) continue;
+      if (!t.executed) t.payout = payout;
       const fields = this.describe(t);
+      if (r.claim.amountUqor < this.opts.minExitUqor) {
+        t.front = "below the minimum exit amount";
+        this.log("front-skipped", { ...fields, reason: t.front, minExitUqor: this.opts.minExitUqor.toString() });
+        continue;
+      }
       if (r.claim.deadline <= now + this.opts.frontMarginSec) {
         t.front = r.claim.deadline <= now ? "claim expired" : "too close to its deadline";
         this.log("front-skipped", { ...fields, reason: t.front, deadline: r.claim.deadline });
@@ -250,7 +298,7 @@ export class Relayer {
         this.log("front-skipped", { ...fields, reason: `batch is ${b.status}` });
         continue;
       }
-      const args = [exitArg(r.claim, t.payout), r.signers.map(BigInt), r.sigs.map((s) => `0x${bytesToHex(s)}` as Hex)] as const;
+      const args = [exitArg(r.claim, payout), r.signers.map(BigInt), r.sigs.map((s) => `0x${bytesToHex(s)}` as Hex)] as const;
       const v = await this.vault.outcome<Hex>("verifyExit", args);
       if (!v.ok) {
         if (v.reason.startsWith("AlreadyFronted")) {
@@ -277,7 +325,7 @@ export class Relayer {
         continue;
       }
       try {
-        const call = await this.vault.prepare(this.sender.account.evm as Hex, "front", args);
+        const call = await this.vault.prepare(this.sender.account.evm as Hex, "front", args, gasPrice);
         liquidity -= pay;
         calls.push({
           call,
@@ -301,39 +349,60 @@ export class Relayer {
   // ---------------------------------------------------------------- executing
 
   private async execute(batchOf: (i: number) => Promise<BatchView | null>): Promise<void> {
-    const { chainId, rollupId } = this.opts;
     for (const [k, t] of this.tracked) {
       if (t.executed || t.dropped) continue;
+      try {
+        await this.executeOne(k, t, batchOf);
+      } catch (e) {
+        this.once(`exec-error:${k}:${errText(e)}`, "execute-failed", { ...this.describe(t), message: errText(e) });
+      }
+    }
+  }
+
+  private async executeOne(k: string, t: Tracked, batchOf: (i: number) => Promise<BatchView | null>): Promise<void> {
+    const { chainId, rollupId } = this.opts;
+    {
       const fields = this.describe(t);
       const b = await batchOf(t.claim.batchIndex);
-      if (!b) continue;
+      if (!b) return;
       if (rootOf(b) !== t.claim.stateRoot) {
         t.dropped = "the batch at this index now has a different state root";
         this.log("exit-dropped", { ...fields, reason: t.dropped });
-        continue;
+        return;
       }
       if (b.status === "rejected") {
         t.dropped = "batch rejected";
         this.log("exit-dropped", { ...fields, reason: t.dropped });
-        continue;
+        return;
       }
-      if (b.status !== "finalized") continue;
+      if (b.status !== "finalized") return;
       const attested = this.book.batches.get(batchKey(t.claim.batchIndex, t.claim.stateRoot));
       if (!attested) {
         this.once(`nolist:${k}`, "execute-waiting", { ...fields, reason: "no complete attested withdrawal list for this batch" });
-        continue;
+        return;
       }
       const ws = batchWithdrawals(attested);
       if (!withdrawalsMatch(chainId, rollupId, ws, decodeWireBytes(b.withdrawalsRoot), b.withdrawalsRootReduced)) {
-        t.dropped = "the attested withdrawal list does not reproduce the batch's withdrawals root";
-        this.log("exit-dropped", { ...fields, reason: t.dropped });
-        continue;
+        // Incomplete so far (claims arrive one per post, and a member signs no claim for a withdrawal
+        // that cannot be to an exit address). Keep waiting; anyone else may still execute it.
+        this.once(`incomplete:${k}:${ws.length}`, "execute-waiting", { ...fields, reason: "the attested withdrawal list does not reproduce the batch's withdrawals root yet", attested: ws.length });
+        return;
       }
       const pos = ws.findIndex((w) => w.index === BigInt(t.claim.withdrawalIndex));
       const w = ws[pos];
+      // The root-checked list says where the money really goes; sweep for that payout.
+      if (w) {
+        const truePayout = this.exitToPayout.get(norm(bech32ToHex(w.recipient)));
+        if (!truePayout) {
+          t.dropped = "the batch pays this withdrawal to an address that is not a known exit address";
+          this.log("exit-dropped", { ...fields, reason: t.dropped });
+          return;
+        }
+        t.payout = truePayout;
+      }
       if (!w || !this.sender) {
         if (!this.sender) this.once(`would-exec:${k}`, "would-execute", fields);
-        continue;
+        return;
       }
       const msg = executeWithdrawalMsg({
         submitter: this.sender.address,
@@ -353,11 +422,11 @@ export class Relayer {
         } else {
           this.once(`execfail:${k}:${sim.error}`, "execute-refused", { ...fields, reason: (sim.error ?? "").slice(0, 300) });
         }
-        continue;
+        return;
       }
       if (this.opts.mode !== "relay") {
         this.once(`would-exec:${k}`, "would-execute", { ...fields, gas: sim.gasUsed });
-        continue;
+        return;
       }
       const res = await this.sender.send([msg], sim.gasUsed);
       t.executed = true;
@@ -367,7 +436,7 @@ export class Relayer {
 
   // ----------------------------------------------------------------- sweeping
 
-  private async planSweeps(calls: Planned[]): Promise<void> {
+  private async planSweeps(calls: Planned[], gasPrice: bigint): Promise<void> {
     const byPayout = new Map<string, Tracked[]>();
     for (const t of this.tracked.values()) {
       if (!t.executed || t.swept || t.dropped) continue;
@@ -378,8 +447,23 @@ export class Relayer {
       const held = await this.vault.balance(exitAddress);
       const fields = { payout: getAddress(`0x${payout}`), exitAddress: hexToBech32(exitAddress, "qor"), heldWei: held.toString(), withdrawals: ts.map((t) => `${t.claim.batchIndex}/${t.claim.withdrawalIndex}`) };
       if (held === 0n) {
-        for (const t of ts) t.swept = true;
-        this.log("sweep-skipped", { ...fields, reason: "the exit address is empty (already swept)" });
+        // An empty read right after an execution may just be a lagging node: count it as swept only
+        // when nothing is owed and it has read empty on 3 passes.
+        const owedNow = await this.vault.read<bigint>("owed", [getAddress(`0x${payout}`)]);
+        if (owedNow > 0n) {
+          this.once(`sweep-wait:${payout}`, "sweep-waiting", { ...fields, reason: "the exit address reads empty but the payout still owes the vault", owedWei: owedNow.toString() });
+          continue;
+        }
+        let seen = 0;
+        for (const t of ts) seen = t.zeroSeen = (t.zeroSeen ?? 0) + 1;
+        if (seen >= 3) {
+          for (const t of ts) t.swept = true;
+          this.log("sweep-skipped", { ...fields, reason: "the exit address is empty and nothing is owed (already swept)" });
+        }
+        continue;
+      }
+      if (ts.some((t) => (t.sweepFailures ?? 0) >= 2)) {
+        this.once(`sweep-given-up:${payout}`, "sweep-given-up", { ...fields, reason: "sweep() reverted twice; anyone may still call it" });
         continue;
       }
       if (!this.sender) {
@@ -388,7 +472,7 @@ export class Relayer {
       }
       try {
         const owedWei = await this.vault.read<bigint>("owed", [getAddress(`0x${payout}`)]);
-        const call = await this.vault.prepare(this.sender.account.evm as Hex, "sweep", [getAddress(`0x${payout}`)]);
+        const call = await this.vault.prepare(this.sender.account.evm as Hex, "sweep", [getAddress(`0x${payout}`)], gasPrice);
         calls.push({ call, tracked: ts, fields: { ...fields, owedWei: owedWei.toString() } });
       } catch (e) {
         this.once(`sweepfail:${payout}`, "sweep-refused", { ...fields, reason: revertReason(e) });
@@ -398,20 +482,30 @@ export class Relayer {
 
   // ------------------------------------------------------------------ sending
 
-  private async send(calls: Planned[]): Promise<void> {
+  private async send(calls: Planned[], gasPrice: bigint): Promise<void> {
     if (calls.length === 0) return;
     if (this.opts.mode !== "relay" || !this.sender) {
       for (const c of calls) this.once(`would-${c.call.functionName}:${JSON.stringify(c.fields)}`, `would-${c.call.functionName}`, c.fields);
       return;
     }
-    const gasPrice = await this.vault.pub.getGasPrice();
+    const balance = await this.sender.balanceUqor();
+    if (balance < this.opts.minBalanceUqor) {
+      this.once(`low-balance:${Math.floor(Date.now() / 3_600_000)}`, "send-skipped", { reason: "balance below the floor", balanceUqor: balance.toString(), floorUqor: this.opts.minBalanceUqor.toString() });
+      return;
+    }
+    this.windowTimes = this.windowTimes.filter((x) => x > Date.now() - 3_600_000);
+    if (this.windowTimes.length >= this.opts.windowsPerHour) {
+      this.once(`window-budget:${Math.floor(Date.now() / 3_600_000)}`, "send-skipped", { reason: "hourly window budget spent", windowsPerHour: this.opts.windowsPerHour });
+      return;
+    }
+    this.windowTimes.push(Date.now());
     // Each transaction's fee is converted to uqor rounding up, so allow 1 uqor per call on top.
     const cap = feeCapUqor(
       calls.map((c) => c.call),
       gasPrice,
     ) + BigInt(calls.length);
-    await this.openWindow(calls.length, cap);
     try {
+      await this.openWindow(calls.length, cap);
       await this.vault.sendAll(
         calls.map((c) => c.call),
         gasPrice,
@@ -420,17 +514,22 @@ export class Relayer {
           const ok = receipt.status === "success";
           const fields = { ...c.fields, tx: receipt.transactionHash, block: receipt.blockNumber.toString(), gasUsed: receipt.gasUsed.toString() };
           if (call.functionName === "front") {
-            if (ok) c.tracked[0]!.front = "fronted";
+            // A front that reverts after every free check passed is never retried: that is how an
+            // outsider would make the relayer pay for a window every pass.
+            c.tracked[0]!.front = ok ? "fronted" : "front reverted";
             const finalAt = Number(c.fields["finalAt"] ?? 0);
             this.log(ok ? "fronted" : "front-failed", { ...fields, secondsBeforeFinal: finalAt ? finalAt - Math.floor(Date.now() / 1000) : undefined });
           } else {
-            if (ok) for (const t of c.tracked) t.swept = true;
+            for (const t of c.tracked) {
+              if (ok) t.swept = true;
+              else t.sweepFailures = (t.sweepFailures ?? 0) + 1;
+            }
             this.log(ok ? "swept" : "sweep-failed", fields);
           }
         },
       );
     } finally {
-      await this.closeWindow("calls sent");
+      await this.closeWindow("calls sent").catch((e) => this.log("window-close-failed", { message: errText(e) }));
     }
   }
 
@@ -513,3 +612,4 @@ export class Relayer {
 }
 
 const rootOf = (b: BatchView): string => bytesToHex(decodeWireBytes(b.stateRoot)).toLowerCase();
+const errText = (e: unknown): string => ((e as Error)?.message ?? String(e)).split("\n")[0]!.slice(0, 200);
