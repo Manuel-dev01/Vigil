@@ -37,17 +37,21 @@ export interface EvmCheck {
 }
 
 let nextId = 0;
-async function ethCall(to: Hex, data: Hex): Promise<Hex> {
+/** One JSON-RPC request to the EVM endpoint (read-only methods only: eth_call, eth_getLogs, …). */
+export async function evmRpc<T>(method: string, params: unknown[]): Promise<T> {
   const res = await fetch(EVM_RPC, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++nextId, method: "eth_call", params: [{ to, data }, "latest"] }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++nextId, method, params }),
   });
   if (!res.ok) throw new Error(`EVM RPC answered HTTP ${res.status}`);
-  const j = (await res.json()) as { result?: Hex; error?: { message: string } };
-  if (j.error || !j.result) throw new Error(`eth_call: ${j.error?.message ?? "no result"}`);
+  const j = (await res.json()) as { result?: T; error?: { message: string } };
+  if (j.error || j.result === undefined) throw new Error(`${method}: ${j.error?.message ?? "no result"}`);
   return j.result;
 }
+
+/** A free eth_call at the latest block. */
+export const ethCall = (to: Hex, data: Hex): Promise<Hex> => evmRpc<Hex>("eth_call", [{ to, data }, "latest"]);
 
 const hex = (s: string | undefined): Hex => `0x${(s ?? "").replace(/^0x/, "")}`;
 

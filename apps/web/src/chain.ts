@@ -28,6 +28,9 @@ export const KNOWN: Record<string, string> = {
   qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2: "evil submitter, fraud drill 2",
   qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk: "evil submitter, fraud drill 1",
   qor1ua2dl0nuf3qxr5yfhr3x9ah5cdh9vw7qczvdj5: "another team's watcher",
+  qor182yhsq4k9vzj5yp02hszr0zxdpfec2d4nhyfj6: "Vigil InstantExitVault",
+  qor10w42gcuvzr0mvnt2ukfu9uqe0qh8wulrv2gk6k: "OoJae's QoreX address",
+  qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy: "exit address of OoJae's QoreX",
 };
 
 type Listener = (s: RpcState) => void;
