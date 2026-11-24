@@ -23,6 +23,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@noble/post-quantum':
+        specifier: 0.6.1
+        version: 0.6.1
       '@qorechain/qoreseal':
         specifier: 0.1.0
         version: 0.1.0

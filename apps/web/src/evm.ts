@@ -3,14 +3,15 @@
  * EVM lane. It rebuilds the anchor message, reads the creator's ML-DSA-87 key with the
  * pqcKeyStatus precompile and verifies the signature with pqcVerify. The page asks it with a free
  * eth_call (the EVM JSON-RPC endpoint allows calls from any origin) and reads its public record of
- * attested anchors.
+ * attested anchors. The endpoint is run by the same operator as the node and its answers are not
+ * proven, so this is a second opinion, not an independent one.
  */
 import type { SettlementReceipt } from "@qorechain/rdk";
 import { decodeFunctionResult, encodeFunctionData, parseAbi, type Hex } from "viem";
 import deployments from "../../../deployments/diana.json";
-import { CHAIN_ID, ROLLUP } from "./chain.ts";
+import { CHAIN_ID, EVM_RPC, ROLLUP } from "./config.ts";
 
-export const EVM_RPC = "https://evm-testnet.qore.host";
+export { EVM_RPC } from "./config.ts";
 
 interface VerifierDeployment {
   address: Hex;
@@ -55,9 +56,9 @@ export const ethCall = (to: Hex, data: Hex): Promise<Hex> => evmRpc<Hex>("eth_ca
 
 const hex = (s: string | undefined): Hex => `0x${(s ?? "").replace(/^0x/, "")}`;
 
-/** Whether the deployed contract covers this receipt's rollup and chain. */
-export const evmCovers = (r: SettlementReceipt): boolean =>
-  !!RECEIPT_VERIFIER && r.rollupId === ROLLUP && RECEIPT_VERIFIER.rollupId === ROLLUP && (r.chainId ?? CHAIN_ID) === RECEIPT_VERIFIER.chainId;
+/** Whether the deployed contract covers this receipt's rollup and chain. Never throws. */
+export const evmCovers = (r: SettlementReceipt | null | undefined): boolean =>
+  !!RECEIPT_VERIFIER && !!r && typeof r === "object" && r.rollupId === ROLLUP && RECEIPT_VERIFIER.rollupId === ROLLUP && (r.chainId ?? CHAIN_ID) === RECEIPT_VERIFIER.chainId;
 
 export async function checkInEvm(r: SettlementReceipt): Promise<EvmCheck> {
   if (!RECEIPT_VERIFIER) throw new Error("no SettlementReceiptVerifier deployment");

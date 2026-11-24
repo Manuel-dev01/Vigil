@@ -5,10 +5,29 @@
 
 :{$PORT:8080} {
 	root * /srv
-	encode zstd gzip
+
+	# The chain's descriptor snapshot has no standard type, so Caddy would send it with none, and
+	# encode would skip it. Name it protobuf and compress it with the rest.
+	@binpb path *.binpb
+	header @binpb Content-Type application/x-protobuf
+
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type text/*
+			header Content-Type application/javascript*
+			header Content-Type application/json*
+			header Content-Type application/x-protobuf*
+			header Content-Type application/wasm*
+			header Content-Type image/svg+xml*
+		}
+	}
 	file_server
 
 	header {
+		# Railway terminates TLS in front of Caddy; browsers see this header over HTTPS only.
+		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 		X-Frame-Options DENY
