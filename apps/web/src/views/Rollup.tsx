@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AnchorView, BatchView, InboxView, RollupView as Rollup } from "@qorechain/rdk";
-import { KNOWN, ROLLUP, chain, qor, short, shortAddr, txUrl } from "../chain.ts";
+import { chain } from "../chain.ts";
+import { KNOWN, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
 import { listen, type Head, type LiveItem } from "../live.ts";
+import { Ext, ExplorerHint, useRefresh } from "../ui.tsx";
+
+const REFRESH_MS = 30_000;
 
 interface Fraud {
   height: number;
   tx: string;
   time: string;
   batchIndex: number;
+  /** The batch the chain now keeps at this index, when it was submitted after the fraud proof (the index was reused). */
+  reusedBy?: { block: number; status: string };
   challenger: string;
   submitter: string;
   slashed: string;
@@ -70,11 +76,16 @@ async function load(): Promise<State> {
       });
     }
   }
+  // A rejected batch's index is reused: the next batch submitted takes the same number.
+  for (const f of frauds) {
+    const now = batches.find((b) => b.batchIndex === f.batchIndex);
+    if (now && now.submittedAt > f.height) f.reusedBy = { block: now.submittedAt, status: now.status };
+  }
   // An anchor belongs to the batch whose index is its layer height (several batches can share a root).
   const anchored = new Set(anchors.map((a) => `${a.layerHeight}:${a.stateRoot.toLowerCase()}`));
   const kept = new Set(batches.map((b) => b.batchIndex));
   const latestIndex = Math.max(-1, ...batches.map((b) => b.batchIndex));
-  // The chain deletes finalized batch records after a retention window; their anchors stay.
+  // The chain may delete finalized batch records after a retention window; their anchors stay.
   const gone = anchors.filter((a) => !kept.has(a.layerHeight) && a.layerHeight < latestIndex);
   const rows: Row[] = [
     ...batches.map((b) => ({
@@ -119,7 +130,7 @@ function finalizesIn(b: BatchView, windowSec: number | undefined, now: number): 
 }
 
 function FeedItem({ item }: { item: LiveItem }) {
-  const when = new Date(item.at).toLocaleTimeString();
+  const when = utcTime(item.at);
   if (item.kind === "post")
     return (
       <li>
@@ -127,7 +138,7 @@ function FeedItem({ item }: { item: LiveItem }) {
           Inbox entry <strong>#{item.sequence}</strong> posted ({item.size} B) by <Name addr={item.poster} />
         </span>
         <span className="when">
-          {when} · block {item.height.toLocaleString()} · <a href={txUrl(item.tx)}>tx</a>
+          {when} · block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
         </span>
       </li>
     );
@@ -136,10 +147,16 @@ function FeedItem({ item }: { item: LiveItem }) {
       <li>
         <span>
           Batch <strong>#{item.batchIndex}</strong> settled to inbox {item.inboxEnd}, root <code>{short(item.stateRoot, 6)}</code>{" "}
-          {item.pqcVerified ? <span className="chip ok">ML-DSA-87 anchor verified</span> : <span className="chip warn">not anchored</span>}
+          {item.pqcVerified ? (
+            <span className="chip ok" title="The node's event says the chain verified the batch's ML-DSA-87 anchor. Verify its receipt to check the signature in this browser.">
+              chain reports anchor verified
+            </span>
+          ) : (
+            <span className="chip warn">not anchored</span>
+          )}
         </span>
         <span className="when">
-          {when} · block {item.height.toLocaleString()} · <a href={txUrl(item.tx)}>tx</a>
+          {when} · block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
         </span>
       </li>
     );
@@ -149,30 +166,20 @@ function FeedItem({ item }: { item: LiveItem }) {
         <span className="chip bad">Fraud caught</span> batch <strong>#{item.batchIndex}</strong> rejected; challenger <Name addr={item.challenger} /> paid {qor(item.reward)}
       </span>
       <span className="when">
-        {when} · block {item.height.toLocaleString()} · <a href={txUrl(item.tx)}>tx</a>
+        {when} · block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
       </span>
     </li>
   );
 }
 
 export function RollupView() {
-  const [state, setState] = useState<State>();
-  const [error, setError] = useState<string>();
+  // Read every 30 s while the tab is visible, after a reconnect and on each live post or batch; one load at a time.
+  const { data: state, error, refreshing, refresh } = useRefresh(load, REFRESH_MS);
   const [head, setHead] = useState<Head>();
   const [items, setItems] = useState<LiveItem[]>([]);
   const [now, setNow] = useState(Date.now());
 
-  const refresh = useCallback(() => {
-    load()
-      .then((s) => {
-        setState(s);
-        setError(undefined);
-      })
-      .catch((e: unknown) => setError(String(e instanceof Error ? e.message : e)));
-  }, []);
-
   useEffect(() => {
-    refresh();
     const l = listen({
       onHead: setHead,
       onItem: (i) => {
@@ -189,7 +196,7 @@ export function RollupView() {
     };
   }, [refresh]);
 
-  if (error && !state) return <p className="err">Could not read the chain: {error}</p>;
+  if (error && !state) return <p className="err">Could not read the chain: {error}. It is asked again every {REFRESH_MS / 1000} s.</p>;
   if (!state) return <p className="empty">Reading {ROLLUP} from the chain…</p>;
   const { rollup, inbox, batches, rows, pruned, latestIndex, bond, frauds } = state;
   const pending = batches.filter((b) => b.status === "submitted").length;
@@ -202,6 +209,8 @@ export function RollupView() {
         signature (a bonded standby sequencer takes over, unanchored, if it stops), payslips are sealed with ML-KEM-1024, and independent watchtowers re-execute every batch and challenge fraud on chain.
       </p>
 
+      {error && <p className="err">The last refresh failed ({error}); showing what was read at {utcTime(state.loadedAt)}.</p>}
+
       <div className="grid">
         <div className="stat">
           <div className="k">Status</div>
@@ -213,7 +222,7 @@ export function RollupView() {
         <div className="stat">
           <div className="k">Chain height</div>
           <div className="v">{head ? head.height.toLocaleString() : "…"}</div>
-          <div className="s">{head ? `live, ${new Date(head.time).toLocaleTimeString()}` : "waiting for the next block"}</div>
+          <div className="s">{head ? `live, block time ${utcTime(Date.parse(head.time))}` : "waiting for the next block"}</div>
         </div>
         <div className="stat">
           <div className="k">Batches</div>
@@ -244,7 +253,11 @@ export function RollupView() {
         <div>
           <section className="panel">
             <h2>
-              Batches <small>challenge window {rollup.challengeWindowSec ? `${Math.round(rollup.challengeWindowSec / 60)} min` : "n/a"}</small>
+              Batches{" "}
+              <small>
+                challenge window {rollup.challengeWindowSec ? `${Math.round(rollup.challengeWindowSec / 60)} min` : "n/a"} ·{" "}
+                {refreshing ? "refreshing…" : `read ${utcTime(state.loadedAt)}`}
+              </small>
             </h2>
             <div className="table-wrap">
               <table>
@@ -282,7 +295,7 @@ export function RollupView() {
                         {anchored ? (
                           <a href={`#/verify?batch=${batchIndex}`}>Verify receipt</a>
                         ) : (
-                          <span className="note" title="Only batches from the creator's sequencer carry an ML-DSA-87 anchor. This one came from the standby or another bonded submitter, so it has no settlement receipt.">
+                          <span className="note" title="Only batches from the creator's sequencer carry an ML-DSA-87 anchor. This one came from the standby or another bonded submitter, so it has no settlement receipt, and never will.">
                             no receipt
                           </span>
                         )}
@@ -301,19 +314,32 @@ export function RollupView() {
             {frauds.length === 0 ? (
               <p className="empty">No fraud challenge has been upheld on this rollup.</p>
             ) : (
-              <ul className="feed">
-                {frauds.map((f) => (
-                  <li key={f.tx}>
-                    <span>
-                      Batch <strong>#{f.batchIndex}</strong> by <Name addr={f.submitter} /> was proven wrong. {qor(f.slashed)} bond slashed; {qor(f.reward)} paid to{" "}
-                      <Name addr={f.challenger} />.
-                    </span>
-                    <span className="when">
-                      {f.time ? new Date(f.time).toUTCString() : ""} · block {f.height.toLocaleString()} · <a href={txUrl(f.tx)}>challenge tx</a>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <p className="note">
+                  When a fraud proof rejects a batch, the chain drops it and the next batch submitted takes the same index, so a rejected batch's number can
+                  appear in the table above as a different, later batch.
+                </p>
+                <ul className="feed">
+                  {frauds.map((f) => (
+                    <li key={f.tx}>
+                      <span>
+                        Batch <strong>#{f.batchIndex}</strong> by <Name addr={f.submitter} /> was proven wrong. {qor(f.slashed)} bond slashed; {qor(f.reward)} paid to{" "}
+                        <Name addr={f.challenger} />.
+                        {f.reusedBy && (
+                          <>
+                            {" "}
+                            Its index was then reused: the batch #{f.batchIndex} above was submitted later, at block {f.reusedBy.block.toLocaleString()}, and is{" "}
+                            {f.reusedBy.status}.
+                          </>
+                        )}
+                      </span>
+                      <span className="when">
+                        {f.time ? utcStamp(Date.parse(f.time)) : ""} · block {f.height.toLocaleString()} · <Ext href={txUrl(f.tx)}>challenge tx</Ext>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </section>
         </div>
@@ -321,7 +347,7 @@ export function RollupView() {
         <aside>
           <section className="panel">
             <h2>
-              Live <small>new posts, batches and fraud, as they happen</small>
+              Live <small>new posts, batches and fraud, as they happen (UTC)</small>
             </h2>
             {items.length === 0 ? (
               <p className="empty">Listening to the chain. Nothing new since this page opened.</p>
@@ -354,6 +380,7 @@ export function RollupView() {
                 Two of ours (US West and EU West) plus anyone else's. Any bonded account can challenge, and the chain pays the first correct challenger.
               </dd>
             </dl>
+            <ExplorerHint />
           </section>
         </aside>
       </div>

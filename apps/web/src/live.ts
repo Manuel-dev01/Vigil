@@ -1,10 +1,11 @@
 /**
  * The page's live view of the chain: one set of websocket subscriptions,
  * opened once and shared by every component (a node allows only a few
- * subscriptions per client).
+ * subscriptions per client). A subscription the node refuses, or loses on a
+ * reconnect, is kept and asked for again by the client (see @vigil/chain-ws).
  */
-import type { RpcEvent } from "@vigil/chain-ws";
-import { ROLLUP, rpc } from "./chain.ts";
+import { ROLLUP } from "./config.ts";
+import { rpc, type RpcEvent } from "./rpc.ts";
 
 export type LiveItem =
   | { kind: "post"; at: number; height: number; tx: string; sequence: number; poster: string; size: number }
@@ -23,7 +24,10 @@ let head: Head | undefined;
 let started = false;
 
 const first = (ev: RpcEvent, key: string): string => ev.events?.[key]?.[0] ?? "";
-const num = (s: string): number => Number(s || 0);
+const num = (s: string): number => {
+  const n = Number(s || 0);
+  return Number.isSafeInteger(n) && n >= 0 ? n : 0;
+};
 
 function emit(item: LiveItem): void {
   recent.unshift(item);
@@ -31,7 +35,8 @@ function emit(item: LiveItem): void {
   for (const s of sinks) s.onItem?.(item);
 }
 
-function start(): void {
+/** Open the shared subscriptions (once). The client keeps renewing any that fail. */
+export function startLive(): void {
   if (started) return;
   started = true;
   const tx = (type: string) => `tm.event='Tx' AND ${type}.rollup_id='${ROLLUP}'`;
@@ -81,7 +86,7 @@ function start(): void {
 
 /** Listen to the live feed. Returns the items seen so far (newest first) and an unsubscribe function. */
 export function listen(sink: Sink): { recent: LiveItem[]; head: Head | undefined; stop(): void } {
-  start();
+  startLive();
   sinks.add(sink);
   return { recent: [...recent], head, stop: () => sinks.delete(sink) };
 }

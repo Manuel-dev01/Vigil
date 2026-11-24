@@ -1,21 +1,34 @@
 import { useEffect, useState } from "react";
-import type { BatchView } from "@qorechain/rdk";
+import { EMPTY_INBOX_ACC, bytesToHex, qledgerAccumulate, type BatchView, type RdkClient } from "@qorechain/rdk";
 import { fromHex, sealKeysFromSeed, type SealKeyPair } from "@qorechain/qoreseal";
-import { buildDataReceipt, checkDataReceiptOnChain, verifyDataReceipt } from "@vigil/sealed/data-receipt";
+import { checkDataReceiptOnChain, dataReceiptFrom, verifyDataReceipt } from "@vigil/sealed/data-receipt";
 import { batchHolding, readInbox, transferOf, type InboxPost } from "@vigil/sealed/inbox";
 import { isSealedEnvelope, openPayslip, type Payslip } from "@vigil/sealed/payslip";
-import { CHAIN_ID, KNOWN, REPO, ROLLUP, chain, qor, short, shortAddr } from "../chain.ts";
+import { chain, isNotFound } from "../chain.ts";
+import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, qor, short, shortAddr, utcStamp } from "../config.ts";
+import { Ext } from "../ui.tsx";
 
 const env = { chainId: CHAIN_ID, rollupId: ROLLUP };
 
+type Settlement =
+  /** A batch record holds the entry and its data receipt verifies against it. */
+  | { kind: "receipt"; batch: BatchView; valid: boolean; onChain: boolean; finalized: boolean; detail: string }
+  /** The inbox says the entry was consumed, but no batch record holding it is left (pruned). */
+  | { kind: "record pruned"; consumed: number }
+  /** Not consumed by any batch yet. */
+  | { kind: "not batched" }
+  | { kind: "checking" };
+
 interface Sealed {
   post: InboxPost;
-  batch?: BatchView;
-  receipt?: { valid: boolean; onChain: boolean; finalized: boolean; detail: string };
+  settled: Settlement;
+  /** The chain no longer keeps this entry's posted-data record (it does so for 648,000 blocks). */
+  postedDataPruned?: boolean;
 }
 
 interface Opened {
   sequence: number;
+  poster: string;
   payslip: Payslip;
   /** The public transfer the payslip explains, and whether it matches. */
   payment?: { sequence: number; matches: boolean };
@@ -29,6 +42,72 @@ function parseKeyFile(text: string): { address: string; keys: SealKeyPair } {
 }
 
 const Name = ({ addr }: { addr: string }) => <span title={addr}>{KNOWN[addr] ? <strong>{KNOWN[addr]}</strong> : <code>{shortAddr(addr)}</code>}</span>;
+const errText = (e: unknown): string => String(e instanceof Error ? e.message : e);
+const hex = (b: Uint8Array): string => bytesToHex(b).toLowerCase();
+
+/**
+ * A data receipt for `post`, built from the inbox entries the page read (each from the transaction that
+ * posted it, all together checked against the chain's inbox accumulator), so it does not need the chain's
+ * posted-data records, which are pruned after 648,000 blocks. Then checked offline and against the batch.
+ */
+async function settlementOf(rdk: RdkClient, posts: InboxPost[], post: InboxPost, batch: BatchView): Promise<Settlement> {
+  try {
+    const before = posts.filter((p) => p.sequence <= batch.inboxStart);
+    if (before.length !== batch.inboxStart) throw new Error(`the page read ${before.length} of the ${batch.inboxStart} entries before this batch`);
+    const accFrom = hex(qledgerAccumulate({ ...env, from: 0, accFrom: EMPTY_INBOX_ACC, entries: before.map((p) => ({ height: BigInt(p.height), poster: p.poster, payload: p.payload })) }));
+    const range = posts.filter((p) => p.sequence > batch.inboxStart && p.sequence <= batch.inboxEnd);
+    const receipt = dataReceiptFrom({
+      ...env,
+      sequence: post.sequence,
+      batch: { batchIndex: batch.batchIndex, inboxStart: batch.inboxStart, inboxEnd: batch.inboxEnd, dataHash: batch.dataHash, stateRoot: batch.stateRoot, status: batch.status },
+      accFrom,
+      posts: range.map((p) => ({ sequence: p.sequence, height: p.height, poster: p.poster, dataHash: p.dataHash })),
+    });
+    const local = verifyDataReceipt(receipt, post.payload);
+    const live = await checkDataReceiptOnChain(rdk.rest, receipt);
+    return { kind: "receipt", batch, valid: local.valid, ...live };
+  } catch (e) {
+    return { kind: "receipt", batch, valid: false, onChain: false, finalized: false, detail: errText(e) };
+  }
+}
+
+function SettledCell({ s }: { s: Sealed }) {
+  const st = s.settled;
+  const pruneNote = s.postedDataPruned ? (
+    <span className="note" title="The chain keeps each entry's posted-data record for 648,000 blocks. The receipt here is rebuilt from the transaction that posted the entry instead.">
+      {" "}
+      · posted-data record pruned
+    </span>
+  ) : null;
+  if (st.kind === "checking") return <span className="note">checking…</span>;
+  if (st.kind === "not batched") return <span className="chip warn">not yet batched</span>;
+  if (st.kind === "record pruned")
+    return (
+      <>
+        <span className="chip pruned" title={`The inbox shows entries up to ${st.consumed} consumed by batches, so this one was batched; the chain no longer keeps that batch's record, so its data receipt cannot be checked against it.`}>
+          batched · batch record pruned
+        </span>
+        {pruneNote}
+      </>
+    );
+  if (st.valid && st.onChain)
+    return (
+      <>
+        <span className={`chip ${st.finalized ? "ok" : "warn"}`} title={st.detail}>
+          batch {st.batch.batchIndex}, {st.finalized ? "final" : st.batch.status}
+        </span>
+        {pruneNote}
+      </>
+    );
+  return (
+    <>
+      <span className="chip bad" title={st.detail}>
+        in batch {st.batch.batchIndex} · receipt fails
+      </span>
+      {pruneNote}
+    </>
+  );
+}
 
 export function PayslipView() {
   const [posts, setPosts] = useState<InboxPost[]>();
@@ -39,33 +118,43 @@ export function PayslipView() {
   const [keyError, setKeyError] = useState<string>();
 
   useEffect(() => {
+    let alive = true;
     void (async () => {
       try {
         const { rdk } = await chain();
-        const [all, batches] = await Promise.all([readInbox(rdk.rest, env), rdk.rest.listBatches(ROLLUP)]);
+        const [all, batches, inbox] = await Promise.all([readInbox(rdk.rest, env), rdk.rest.listBatches(ROLLUP), rdk.rest.getInbox(ROLLUP)]);
+        if (!alive) return;
         setPosts(all);
-        const env_ = all.filter((p) => isSealedEnvelope(p.payload));
-        const rows: Sealed[] = env_.map((post) => ({ post, batch: batchHolding(batches, post.sequence) }));
+        const consumed = Number(inbox.consumedSequence);
+        const rows: Sealed[] = all
+          .filter((p) => isSealedEnvelope(p.payload))
+          .map((post) => {
+            const b = batchHolding(batches, post.sequence);
+            return { post, settled: b ? { kind: "checking" } : post.sequence <= consumed ? { kind: "record pruned", consumed } : { kind: "not batched" } };
+          });
         setSealed(rows);
         // A data receipt for each envelope: the chain committed to it inside a settled batch.
         const checked = await Promise.all(
-          rows.map(async (row) => {
-            if (!row.batch) return row;
-            try {
-              const r = await buildDataReceipt(rdk.rest, env, row.post.sequence);
-              const local = verifyDataReceipt(r, row.post.payload);
-              const live = await checkDataReceiptOnChain(rdk.rest, r);
-              return { ...row, receipt: { valid: local.valid, ...live } };
-            } catch (e) {
-              return { ...row, receipt: { valid: false, onChain: false, finalized: false, detail: String(e instanceof Error ? e.message : e) } };
-            }
+          rows.map(async (row): Promise<Sealed> => {
+            const b = batchHolding(batches, row.post.sequence);
+            const [settled, postedDataPruned] = await Promise.all([
+              b ? settlementOf(rdk, all, row.post, b) : Promise.resolve(row.settled),
+              rdk.rest.getPostedData(ROLLUP, row.post.sequence).then(
+                () => false,
+                (e: unknown) => isNotFound(e),
+              ),
+            ]);
+            return { ...row, settled, postedDataPruned };
           }),
         );
-        setSealed(checked);
+        if (alive) setSealed(checked);
       } catch (e) {
-        setError(String(e instanceof Error ? e.message : e));
+        if (alive) setError(errText(e));
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   async function onKeyFile(file: File | undefined) {
@@ -88,6 +177,7 @@ export function PayslipView() {
         const t = paymentPost ? transferOf(paymentPost.payload, env) : undefined;
         out.push({
           sequence: s.post.sequence,
+          poster: s.post.poster,
           payslip,
           ...(paymentPost && {
             payment: {
@@ -97,9 +187,10 @@ export function PayslipView() {
           }),
         });
       }
-      setOpened(out);
+      // Newest first.
+      setOpened(out.sort((a, b) => b.sequence - a.sequence));
     } catch (e) {
-      setKeyError(String(e instanceof Error ? e.message : e));
+      setKeyError(errText(e));
     }
   }
 
@@ -108,7 +199,8 @@ export function PayslipView() {
       <h1>Open a sealed payslip</h1>
       <p className="lede">
         Payslips travel inside the rollup's public inbox, sealed with QoreSeal (ML-KEM-1024 together with X25519) to the employee, the employer and an
-        auditor. Anyone can check that a payslip was posted and settled. Only its recipients can read it, today or after a quantum computer exists.
+        auditor. Anyone can check that a payslip was posted and settled. Only its recipients can read it, today and after a quantum computer exists, while
+        ML-KEM-1024 holds. The payment itself is a public transfer signed with ML-DSA-44; the payslip that explains it is encrypted but not signed.
       </p>
 
       <div className="cols">
@@ -144,19 +236,7 @@ export function PayslipView() {
                           <code title={s.post.dataHash}>{short(s.post.dataHash, 6)}</code>
                         </td>
                         <td>
-                          {!s.batch ? (
-                            <span className="chip warn">not yet batched</span>
-                          ) : !s.receipt ? (
-                            <span className="note">checking…</span>
-                          ) : s.receipt.valid && s.receipt.onChain ? (
-                            <span className={`chip ${s.receipt.finalized ? "ok" : "warn"}`} title={s.receipt.detail}>
-                              batch {s.batch.batchIndex}, {s.receipt.finalized ? "final" : s.batch.status}
-                            </span>
-                          ) : (
-                            <span className="chip bad" title={s.receipt.detail}>
-                              receipt fails
-                            </span>
-                          )}
+                          <SettledCell s={s} />
                         </td>
                       </tr>
                     ))}
@@ -165,8 +245,9 @@ export function PayslipView() {
               </div>
             )}
             <p className="note" style={{ marginTop: 10 }}>
-              "Settled" is a data receipt checked here: the batch's data commitment, re-folded from every entry in its range, includes this exact
-              envelope, and the chain's batch record says the same.
+              "Settled" is a data receipt checked here: the batch's data commitment, re-folded from every entry in its range, includes this exact envelope,
+              and the batch record {NODE_HOST} reports says the same. The entries are read from the transactions that posted them and checked together
+              against the chain's inbox accumulator, so the receipt still works after the chain prunes an entry's posted-data record (648,000 blocks).
             </p>
           </section>
         </div>
@@ -179,62 +260,95 @@ export function PayslipView() {
               anywhere, and it is forgotten when you leave.
             </p>
             <input type="file" accept=".env,.txt,text/plain" disabled={!posts} onChange={(e) => void onKeyFile(e.target.files?.[0])} aria-label="Seal key file" />
-            {keyError && <p className="err" style={{ marginTop: 10 }}>{keyError}</p>}
+            {keyError && (
+              <p className="err" style={{ marginTop: 10 }}>
+                {keyError}
+              </p>
+            )}
             {holder && opened && opened.length === 0 && <p className="empty">No envelope here is sealed to {shortAddr(holder)}.</p>}
-            {opened?.map((o) => (
-              <div className="payslip" key={o.sequence}>
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <strong>Payslip {o.payslip.period}</strong>
-                  <span className="chip info">entry {o.sequence}</span>
-                </div>
-                <dl className="kv">
-                  <dt>Employer</dt>
-                  <dd>
-                    <Name addr={o.payslip.employer} />
-                  </dd>
-                  <dt>Employee</dt>
-                  <dd>
-                    <Name addr={o.payslip.employee} />
-                  </dd>
-                  <dt>Issued</dt>
-                  <dd>{new Date(o.payslip.issuedAt).toUTCString()}</dd>
-                </dl>
-                <table style={{ marginTop: 10 }}>
-                  <tbody>
-                    {o.payslip.lines.map((l, i) => (
-                      <tr key={i}>
-                        <td>{l.label}</td>
-                        <td className="num">{qor(l.amountUqor.replace(/^-/, ""))}{l.amountUqor.startsWith("-") ? " (deducted)" : ""}</td>
+            {opened && opened.length > 1 && <p className="note">{opened.length} payslips, newest first.</p>}
+            {opened?.map((o) => {
+              const employerIsPoster = o.payslip.employer === o.poster;
+              return (
+                <div className="payslip" key={o.sequence}>
+                  <div className="row" style={{ justifyContent: "space-between" }}>
+                    <strong>Payslip {o.payslip.period}</strong>
+                    <span className="chip info">entry {o.sequence}</span>
+                  </div>
+                  <dl className="kv">
+                    <dt>Employer</dt>
+                    <dd>
+                      {employerIsPoster ? (
+                        <>
+                          <Name addr={o.payslip.employer} />{" "}
+                          <span className="chip ok" title="The payslip's employer field names the account the chain says posted the envelope.">
+                            is the poster
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <code title={o.payslip.employer}>{shortAddr(o.payslip.employer)}</code>{" "}
+                          <span className="chip bad">not the poster</span>
+                        </>
+                      )}
+                    </dd>
+                    <dt>Employee</dt>
+                    <dd>
+                      <Name addr={o.payslip.employee} />
+                    </dd>
+                    <dt>Issued</dt>
+                    <dd>{Number.isFinite(Date.parse(o.payslip.issuedAt)) ? utcStamp(Date.parse(o.payslip.issuedAt)) : o.payslip.issuedAt}</dd>
+                  </dl>
+                  {!employerIsPoster && (
+                    <p className="err" style={{ marginTop: 10 }}>
+                      This payslip says it is from <code>{o.payslip.employer}</code>, but the envelope was posted by <Name addr={o.poster} />. The employer field
+                      is written inside the sealed payslip and is not signed; only the poster is vouched for by the chain. Do not trust who it claims to be from.
+                    </p>
+                  )}
+                  <table style={{ marginTop: 10 }}>
+                    <tbody>
+                      {o.payslip.lines.map((l, i) => (
+                        <tr key={i}>
+                          <td>{l.label}</td>
+                          <td className="num">
+                            {qor(l.amountUqor.replace(/^-/, ""))}
+                            {l.amountUqor.startsWith("-") ? " (deducted)" : ""}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td>
+                          <strong>Paid</strong>
+                        </td>
+                        <td className="num">
+                          <strong>{qor(o.payslip.payment.amountUqor)}</strong>
+                        </td>
                       </tr>
-                    ))}
-                    <tr>
-                      <td>
-                        <strong>Paid</strong>
-                      </td>
-                      <td className="num">
-                        <strong>{qor(o.payslip.payment.amountUqor)}</strong>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                {o.payment ? (
-                  <p className={o.payment.matches ? "verdict ok" : "verdict bad"}>
-                    {o.payment.matches
-                      ? `Matches public transfer #${o.payment.sequence}: same accounts, same amount, signed with ML-DSA-44.`
-                      : `Does not match transfer #${o.payment.sequence}.`}
+                    </tbody>
+                  </table>
+                  {o.payment ? (
+                    <p className={o.payment.matches ? "verdict ok" : "verdict bad"}>
+                      {o.payment.matches
+                        ? `Matches public transfer #${o.payment.sequence}: same accounts, same amount, and that transfer's ML-DSA-44 signature verifies.`
+                        : `Does not match transfer #${o.payment.sequence}.`}
+                    </p>
+                  ) : (
+                    <p className="note">The transfer it explains is not in the inbox.</p>
+                  )}
+                  <p className="note" style={{ marginTop: 6 }}>
+                    The transfer is signed with ML-DSA-44. The payslip, its lines and its employer field are encrypted but not signed: they say what the sender
+                    wrote. Only the poster of the envelope is vouched for by the chain.
                   </p>
-                ) : (
-                  <p className="note">The transfer it explains is not in the inbox.</p>
-                )}
-                {o.payslip.note && <p className="note">{o.payslip.note}</p>}
-              </div>
-            ))}
+                  {o.payslip.note && <p className="note">{o.payslip.note}</p>}
+                </div>
+              );
+            })}
           </section>
           <section className="panel">
             <h2>What stays public</h2>
             <p className="note">
               QoreSeal hides the content. The envelope's size, the time it was posted, the poster's address and the public transfer it explains stay
-              visible. See the <a href={`${REPO}/blob/main/THREAT_MODEL.md`}>threat model</a>, section 13.
+              visible. See the <Ext href={`${REPO}/blob/main/THREAT_MODEL.md`}>threat model</Ext>, section 13.
             </p>
           </section>
         </aside>

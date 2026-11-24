@@ -2,14 +2,16 @@
  * Instant exits on vigil-pay-1, read from the chain at runtime.
  *
  * The InstantExitVault (contracts/src/InstantExitVault.sol) lives on QoreChain's EVM lane; it is read
- * with free eth_calls and its history with eth_getLogs. The watchtowers' attestations are inbox entries
- * of the rollup, read back over the node's websocket and checked against the chain's inbox accumulator.
- * Every attestation signature is checked by the chain's own pqcVerify precompile (a free eth_call)
- * against the key the vault itself reads for that member through pqcKeyStatus.
+ * with free eth_calls and its history with eth_getLogs, both from evm-testnet.qore.host. The watchtowers'
+ * attestations are inbox entries of the rollup, read back over the node's websocket and checked against
+ * the chain's inbox accumulator. Neither endpoint proves its answers.
  *
- * The exit message and attestation layouts are copied from packages/qledger-watchtower/src/exits.ts,
- * which the page cannot import (it pulls in the full SDK). For every fronted exit the page compares its
- * copy of the message with the vault's own exitMessage(), byte for byte.
+ * What runs in the browser: each attestation is accepted only if the chain says its member posted it and
+ * its ML-DSA-87 signature verifies here (attest.ts), against the member's key, whose SHA-256 is pinned in
+ * the page (config.ts). The chain's pqcVerify precompile is asked too, with an eth_call, as a second check
+ * and to show what the vault itself would decide. The exit message is compared byte for byte with the
+ * vault's exitMessage(), exit addresses are derived here from the pinned ExitAddress code, and the
+ * vault's repayments are attributed to exits first in, first out (settle.ts).
  */
 import {
   EMPTY_INBOX_ACC,
@@ -34,137 +36,19 @@ import {
 } from "@qorechain/rdk";
 import { decodeEventLog, decodeFunctionResult, encodeAbiParameters, encodeFunctionData, getAddress, keccak256, parseAbi, toHex, type Abi, type Hex } from "viem";
 import deployments from "../../../deployments/diana.json";
-import { CHAIN_ID, KNOWN, ROLLUP, chain, rpc } from "./chain.ts";
+import { ML_DSA_87_PUBKEY_LEN, bytesOf, exitMessage, groupByExit, screenAttestations, type AcceptedClaim, type ExitClaim, type ExitTarget, type Rejection } from "./attest.ts";
+import { chain, isNotFound } from "./chain.ts";
+import { CHAIN_ID, KNOWN, ROLLUP } from "./config.ts";
 import { ethCall, evmRpc } from "./evm.ts";
+import { matchExecuted } from "./executed.ts";
+import { exitAddressOf, parseHexAddress } from "./exit-address.ts";
+import { keyPin, type KeyPin } from "./keys.ts";
+import { explainMissingBatch, type MissingBatch } from "./pruned.ts";
+import { rpc } from "./rpc.ts";
+import { attributeRepayments, type Repayment } from "./settle.ts";
 
-// ------------------------------------------------------------ the watchtower's formats (pure)
-
-export const EXIT_DOMAIN = "vigil/instant-exit/v1/exit";
-export const ATTEST_MAGIC = "vigil/instant-exit/v1/attest";
-export const ML_DSA_87_SIG_LEN = 4627;
-export const ML_DSA_87_PUBKEY_LEN = 2592;
-
-export interface ExitTarget {
-  /** EVM chain id (9800 on qorechain-diana). */
-  evmChainId: number;
-  /** The InstantExitVault address, 0x-prefixed. */
-  vault: string;
-  chainId: string;
-  rollupId: string;
-}
-
-export interface ExitClaim {
-  batchIndex: number;
-  /** The batch's state root, 64 hex. */
-  stateRoot: string;
-  withdrawalIndex: number;
-  amountUqor: bigint;
-  /** The withdrawal's recipient, 20 bytes as 40 hex (no 0x). */
-  recipient: string;
-  /** Unix seconds after which the vault refuses to front it. */
-  deadline: number;
-}
-
-export interface SignedClaim {
-  claim: ExitClaim;
-  signature: Uint8Array;
-}
-
-export interface Attestation {
-  /** 0x-prefixed. */
-  vault: string;
-  /** The signing member's 20-byte address, 40 hex (no 0x). */
-  member: string;
-  claims: SignedClaim[];
-}
-
-const enc = new TextEncoder();
-const norm = (h: string): string => h.toLowerCase().replace(/^0x/, "");
-
-function u64(n: number | bigint): Uint8Array {
-  const v = BigInt(n);
-  if (v < 0n || v > 0xffff_ffff_ffff_ffffn) throw new Error(`u64 out of range: ${v}`);
-  const b = new Uint8Array(8);
-  new DataView(b.buffer).setBigUint64(0, v);
-  return b;
-}
-
-function fixedHex(h: string, bytes: number, what: string): Uint8Array {
-  const s = norm(h);
-  if (!new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(s)) throw new Error(`${what} must be ${bytes} bytes of hex`);
-  return hexToBytes(s);
-}
-
-function concat(parts: Uint8Array[]): Uint8Array {
-  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
-  let o = 0;
-  for (const p of parts) {
-    out.set(p, o);
-    o += p.length;
-  }
-  return out;
-}
-
-/**
- * The bytes a quorum member signs for `c`; equal to InstantExitVault.exitMessage:
- *   "vigil/instant-exit/v1/exit" | u64be evmChainId | vault (20) | u64be len | chainId | u64be len | rollupId
- *   | u64be batchIndex | stateRoot (32) | u64be withdrawalIndex | u64be amountUqor | recipient (20) | u64be deadline
- */
-export function exitMessage(t: ExitTarget, c: ExitClaim): Uint8Array {
-  const chainId = enc.encode(t.chainId);
-  const rollup = enc.encode(t.rollupId);
-  return concat([
-    enc.encode(EXIT_DOMAIN),
-    u64(t.evmChainId),
-    fixedHex(t.vault, 20, "vault"),
-    u64(chainId.length),
-    chainId,
-    u64(rollup.length),
-    rollup,
-    u64(c.batchIndex),
-    fixedHex(c.stateRoot, 32, "stateRoot"),
-    u64(c.withdrawalIndex),
-    u64(c.amountUqor),
-    fixedHex(c.recipient, 20, "recipient"),
-    u64(c.deadline),
-  ]);
-}
-
-const CLAIM_LEN = 8 + 32 + 8 + 8 + 20 + 8 + ML_DSA_87_SIG_LEN;
-
-/**
- * Parse an inbox payload; undefined if it is not an exit attestation (most entries are not):
- *   ATTEST_MAGIC | vault (20) | member (20) | u16be n | n × (u64 batchIndex | stateRoot 32 | u64 withdrawalIndex
- *   | u64 amountUqor | recipient 20 | u64 deadline | signature 4627)
- */
-export function decodeAttestation(bytes: Uint8Array): Attestation | undefined {
-  const magic = enc.encode(ATTEST_MAGIC);
-  const head = magic.length + 20 + 20 + 2;
-  if (bytes.length < head + CLAIM_LEN) return undefined;
-  for (let i = 0; i < magic.length; i++) if (bytes[i] !== magic[i]) return undefined;
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let o = magic.length;
-  const vault = `0x${bytesToHex(bytes.subarray(o, o + 20))}`;
-  o += 20;
-  const member = bytesToHex(bytes.subarray(o, o + 20));
-  o += 20;
-  const n = dv.getUint16(o);
-  o += 2;
-  if (bytes.length !== head + n * CLAIM_LEN) return undefined;
-  const claims: SignedClaim[] = [];
-  for (let k = 0; k < n; k++) {
-    const batchIndex = Number(dv.getBigUint64(o));
-    const stateRoot = bytesToHex(bytes.subarray(o + 8, o + 40));
-    const withdrawalIndex = Number(dv.getBigUint64(o + 40));
-    const amountUqor = dv.getBigUint64(o + 48);
-    const recipient = bytesToHex(bytes.subarray(o + 56, o + 76));
-    const deadline = Number(dv.getBigUint64(o + 76));
-    const signature = bytes.slice(o + 84, o + 84 + ML_DSA_87_SIG_LEN);
-    claims.push({ claim: { batchIndex, stateRoot, withdrawalIndex, amountUqor, recipient, deadline }, signature });
-    o += CLAIM_LEN;
-  }
-  return { vault, member, claims };
-}
+export { ML_DSA_87_PUBKEY_LEN, exitMessage } from "./attest.ts";
+export type { ExitClaim, ExitTarget } from "./attest.ts";
 
 // ------------------------------------------------------------ the vault on the EVM lane
 
@@ -181,8 +65,11 @@ export const PQC_VERIFY: Hex = "0x0000000000000000000000000000000000000a01";
 /** The EVM endpoint refuses eth_getLogs whose [from, to] block distance is over 10,000. */
 export const LOG_SPAN = 10_000;
 const LOG_CONCURRENCY = 6;
+const LOG_ATTEMPTS = 3;
 /** 1 uqor (the rollup's withdrawal unit) is 10^12 wei of the same balance on the EVM side. */
 export const WEI_PER_UQOR = 1_000_000_000_000n;
+/** How many exits the page builds in full at first; "show more" raises it. */
+export const EXITS_PAGE = 20;
 
 const vaultAbi = parseAbi([
   "struct Exit { uint64 batchIndex; bytes32 stateRoot; uint64 withdrawalIndex; uint64 amountUqor; address payout; uint64 deadline; }",
@@ -213,6 +100,8 @@ async function read<T>(to: Hex, functionName: string, args: readonly unknown[] =
 
 export const toQor1 = (hex: string): string => hexToBech32(hex, "qor");
 const lower = (h: string): string => h.toLowerCase();
+const errText = (e: unknown): string => String(e instanceof Error ? e.message : e);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** A known name for an account, given as qor1 or 0x. */
 export function nameOf(addr: string | undefined): string | undefined {
@@ -254,6 +143,8 @@ export interface Member {
   key: Hex | undefined;
   /** Key length in bytes (2592 = registered, ML-DSA-87, possession proven); 0 = not usable. */
   keyBytes: number;
+  /** The key against the SHA-256 pinned in this page, once read. */
+  pin: KeyPin | undefined;
 }
 
 /** Liquidity in (a bank send or an EVM transfer to the vault) or out (an LP withdrawal; `wei` negative, `from` is the recipient). */
@@ -308,15 +199,24 @@ export interface AttestationView {
   memberIndex: number;
   entry: InboxEntry;
   claim: ExitClaim;
-  /** Whether this member signed the same claim (amount, recipient, deadline) as the one shown. */
+  /** Whether this is the claim shown for the exit (amount, recipient, deadline all equal). */
   sameClaim: boolean;
-  check: SigCheck;
+  /** ML-DSA-87 checked in this browser: true, or undefined when the member's key could not be read. */
+  local: true | undefined;
+  /** The chain's pqcVerify precompile, asked with an eth_call. */
+  pqc: SigCheck;
 }
 
 export interface BatchInfo {
   index: number;
-  /** The chain's status, or "pruned" when the record is gone (finalized records are deleted after ~7 days). */
+  /**
+   * The chain's status; "pruned" when the record is gone and pruning explains it; "missing" when it is
+   * gone and pruning does not explain it; "replaced" when the chain's batch at this index has another
+   * root (the attested batch was rejected and its index reused).
+   */
   status: string;
+  final: boolean;
+  missing: MissingBatch | undefined;
   /** The chain's state root for the batch (from the record, or from its anchor when pruned), 64 hex. */
   root: string | undefined;
   sameRoot: boolean | undefined;
@@ -384,23 +284,56 @@ export interface ExitView {
   withdrawal: WithdrawalView | undefined;
   batch: BatchInfo | undefined;
   attestations: AttestationView[];
+  /** Members whose signature on the shown claim verified here (and pqcVerify did not refute). */
   validSigners: number;
   /** The page's exit message against the vault's exitMessage() for the fronted payout. */
   messageCheck: { same: boolean; bytes: number } | { error: string } | undefined;
   fronted: FrontedView | undefined;
-  settlements: SettledView[];
-  /** A Settled event after the front left the payout owing nothing. */
-  repaid: boolean;
+  /** This exit's share of the payout's repayments, first in first out. */
+  repayment: Repayment<SettledView> | undefined;
   owedNow: bigint | undefined;
   executed: ExecutedView | undefined;
+  /** Set when this exit could not be read; the rest of the page is unaffected. */
+  error?: string;
+}
+
+export interface Checks {
+  /** Local ML-DSA-87 on accepted claims: verified, and kept unverified because the key could not be read. */
+  local: { verified: number; unchecked: number };
+  /** pqcVerify answers for those claims. */
+  pqc: { valid: number; invalid: number; unanswered: number };
+  /** Member and LP keys against the pinned SHA-256. */
+  keys: { match: number; mismatch: number; unread: number };
+}
+
+export interface LogScan {
+  from: number;
+  to: number;
+  /** eth_getLogs requests this refresh (and since the page opened). */
+  requests: number;
+  totalRequests: number;
+  /** Block ranges that failed after retries; asked again next refresh. */
+  gaps: [number, number][];
 }
 
 export interface ExitsState {
   vault: VaultState;
   exits: ExitView[];
-  inbox: { head: number; read: number; accumulatorOk: boolean | undefined; attestations: number };
+  /** All exits found (cards beyond `exits` are built on "show more"). */
+  totalExits: number;
+  inbox: {
+    head: number;
+    read: number;
+    accumulatorOk: boolean | undefined;
+    /** New entries read this refresh (0 when nothing changed). */
+    fetched: number;
+    /** Attestation posts accepted, and the ones rejected by reason. */
+    accepted: number;
+    rejected: { reason: Rejection; count: number; example: string }[];
+  };
+  checks: Checks;
   challengeWindowSec: number | undefined;
-  logs: { from: number; to: number; requests: number };
+  logs: LogScan;
   loadedAt: number;
 }
 
@@ -414,34 +347,54 @@ interface RawLog {
   logIndex: Hex;
 }
 
-/** Logs already read: the vault's history only grows, so each refresh scans only the new blocks. */
-const logScan = { next: 0, logs: new Map<string, RawLog>() };
+/** Logs already read, and the first block not yet read without a gap: each refresh reads only new blocks. */
+const logScan = { next: 0, logs: new Map<string, RawLog>(), totalRequests: 0 };
 
-async function vaultLogs(vault: Hex, deployBlock: number): Promise<{ logs: RawLog[]; to: number }> {
-  const latest = Number(await evmRpc<Hex>("eth_blockNumber", []));
+async function getLogs(vault: Hex, a: number, b: number): Promise<{ logs: RawLog[] | undefined; requests: number }> {
+  let requests = 0;
+  for (let attempt = 0; attempt < LOG_ATTEMPTS; attempt++) {
+    if (attempt) await sleep(500 * 3 ** (attempt - 1));
+    requests++;
+    try {
+      return { logs: await evmRpc<RawLog[]>("eth_getLogs", [{ address: vault, fromBlock: toHex(a), toBlock: toHex(b) }]), requests };
+    } catch {
+      // retried below; a range that keeps failing is reported as a gap, not as a failed page
+    }
+  }
+  return { logs: undefined, requests };
+}
+
+async function vaultLogs(vault: Hex, deployBlock: number): Promise<{ logs: RawLog[]; scan: LogScan }> {
+  const latest = Number(await twice(() => evmRpc<Hex>("eth_blockNumber", [])));
   const from = Math.max(logScan.next, deployBlock);
   const ranges: [number, number][] = [];
   for (let a = from; a <= latest; a += LOG_SPAN + 1) ranges.push([a, Math.min(a + LOG_SPAN, latest)]);
-  const out: RawLog[][] = [];
+  const ok: boolean[] = [];
   let i = 0;
+  let requests = 0;
   const worker = async (): Promise<void> => {
     while (i < ranges.length) {
       const k = i++;
       const [a, b] = ranges[k]!;
-      out[k] = await twice(() => evmRpc<RawLog[]>("eth_getLogs", [{ address: vault, fromBlock: toHex(a), toBlock: toHex(b) }]));
+      const r = await getLogs(vault, a, b);
+      requests += r.requests;
+      ok[k] = !!r.logs;
+      for (const l of r.logs ?? []) logScan.logs.set(`${l.transactionHash}:${l.logIndex}`, l);
     }
   };
   await Promise.all(Array.from({ length: Math.min(LOG_CONCURRENCY, ranges.length) }, worker));
-  for (const chunk of out) for (const l of chunk ?? []) logScan.logs.set(`${l.transactionHash}:${l.logIndex}`, l);
-  // Rescan the last few blocks next time, in case the endpoint had not indexed them yet.
-  logScan.next = Math.max(from, latest - 4);
+  logScan.totalRequests += requests;
+  const gaps = ranges.filter((_, k) => !ok[k]);
+  // The cursor stops at the first gap; otherwise it re-reads the last few blocks next time, in case the
+  // endpoint had not indexed them yet.
+  logScan.next = gaps.length ? gaps[0]![0] : Math.max(from, latest - 4);
   const logs = [...logScan.logs.values()].sort((x, y) => Number(x.blockNumber) - Number(y.blockNumber) || Number(x.logIndex) - Number(y.logIndex));
-  return { logs, to: latest };
+  return { logs, scan: { from: deployBlock, to: latest, requests, totalRequests: logScan.totalRequests, gaps } };
 }
 
 const blockTimes = new Map<number, Promise<number>>();
 const evmBlockTime = (n: number): Promise<number> =>
-  cached(blockTimes, n, async () => Number((await evmRpc<{ timestamp: Hex }>("eth_getBlockByNumber", [toHex(n), false])).timestamp));
+  cached(blockTimes, n, async () => Number((await twice(() => evmRpc<{ timestamp: Hex }>("eth_getBlockByNumber", [toHex(n), false]))).timestamp));
 
 const senders = new Map<string, Promise<Hex | undefined>>();
 const txSender = (hash: Hex): Promise<Hex | undefined> =>
@@ -463,6 +416,8 @@ function pqcVerify(pubkey: Hex, signature: Uint8Array, message: Uint8Array): Pro
 }
 
 const messageChecks = new Map<string, Promise<Hex>>();
+/** Local ML-DSA-87 verdicts, by key and signed bytes (see screenAttestations). */
+const localVerdicts = new Map<string, boolean>();
 
 // ------------------------------------------------------------ chain reads over the websocket
 
@@ -479,24 +434,27 @@ const attrs = (ev: { attributes?: { key: string; value: string }[] }): Record<st
   Object.fromEntries((ev.attributes ?? []).map((a) => [a.key, a.value]));
 const search = async (rdk: RdkClient, q: string): Promise<TxResponse[]> => ((await rdk.rest.searchTxs(q)) as TxResponse[]).filter((t) => (t.code ?? 0) === 0);
 const unix = (iso: string | undefined): number => (iso ? Math.floor(Date.parse(iso) / 1000) : 0);
-const uqor = (s: string | undefined): bigint => BigInt((s ?? "0").replace(/uqor$/, "") || "0");
+const uqor = (s: string | undefined): bigint => {
+  const t = (s ?? "0").replace(/uqor$/, "") || "0";
+  return /^\d+$/.test(t) ? BigInt(t) : 0n;
+};
+const seqOf = (s: string | undefined): number => {
+  const n = Number(s ?? 0);
+  return Number.isSafeInteger(n) ? n : 0;
+};
 
-/**
- * Every inbox entry of the rollup, from the transactions that posted them, and whether together they
- * reproduce the chain's inbox accumulator at the head (so none is missing, changed or out of order).
- */
-async function readInbox(rdk: RdkClient): Promise<{ entries: InboxEntry[]; head: number; accumulatorOk: boolean | undefined }> {
-  const inbox = await rdk.rest.getInbox(ROLLUP);
-  const head = Number(inbox.headSequence);
-  const [posts, deposits] = await Promise.all([search(rdk, `rdk_data_posted.rollup_id='${ROLLUP}'`), search(rdk, `rdk_rollup_deposit.rollup_id='${ROLLUP}'`)]);
+/** Inbox entries in (have, head], from the transactions that posted them, at or after `sinceHeight`. */
+async function inboxEntries(rdk: RdkClient, have: number, head: number, sinceHeight: number): Promise<InboxEntry[]> {
+  const since = sinceHeight > 0 ? ` AND tx.height>=${sinceHeight}` : "";
+  const [posts, deposits] = await Promise.all([search(rdk, `rdk_data_posted.rollup_id='${ROLLUP}'${since}`), search(rdk, `rdk_rollup_deposit.rollup_id='${ROLLUP}'${since}`)]);
   const bySeq = new Map<number, InboxEntry>();
   for (const t of posts) {
     const msgs = (t.tx?.body?.messages ?? []).filter((m) => m["@type"] === "/qorechain.rdk.v1.MsgPostRollupData");
     for (const ev of t.events ?? []) {
       if (ev.type !== "rdk_data_posted") continue;
       const a = attrs(ev);
-      const seq = Number(a["sequence"] ?? 0);
-      if (a["rollup_id"] !== ROLLUP || seq < 1 || seq > head) continue;
+      const seq = seqOf(a["sequence"]);
+      if (a["rollup_id"] !== ROLLUP || seq <= have || seq > head) continue;
       const m = msgs.find((x) => String(x["poster"]) === a["poster"] && bytesToHex(postedDataHash(base64ToBytes(String(x["data"] ?? "")))) === lower(a["data_hash"] ?? ""));
       if (!m) continue;
       bySeq.set(seq, { sequence: seq, height: Number(t.height ?? 0), time: unix(t.timestamp), tx: t.txhash ?? "", poster: a["poster"] ?? "", payload: base64ToBytes(String(m["data"])) });
@@ -506,30 +464,59 @@ async function readInbox(rdk: RdkClient): Promise<{ entries: InboxEntry[]; head:
     for (const ev of t.events ?? []) {
       if (ev.type !== "rdk_rollup_deposit") continue;
       const a = attrs(ev);
-      const seq = Number(a["sequence"] ?? 0);
-      if (a["rollup_id"] !== ROLLUP || seq < 1 || seq > head) continue;
-      bySeq.set(seq, {
-        sequence: seq,
-        height: Number(t.height ?? 0),
-        time: unix(t.timestamp),
-        tx: t.txhash ?? "",
-        poster: QLEDGER_DEPOSIT_POSTER_PREFIX + (a["depositor"] ?? ""),
-        payload: encodeQledgerDeposit(hexToBytes(a["account"] ?? ""), uqor(a["amount"])),
-      });
+      const seq = seqOf(a["sequence"]);
+      if (a["rollup_id"] !== ROLLUP || seq <= have || seq > head) continue;
+      try {
+        bySeq.set(seq, {
+          sequence: seq,
+          height: Number(t.height ?? 0),
+          time: unix(t.timestamp),
+          tx: t.txhash ?? "",
+          poster: QLEDGER_DEPOSIT_POSTER_PREFIX + (a["depositor"] ?? ""),
+          payload: encodeQledgerDeposit(hexToBytes(a["account"] ?? ""), uqor(a["amount"])),
+        });
+      } catch {
+        // a deposit event the page cannot re-encode; the accumulator check then reports the gap
+      }
     }
   }
-  const entries = [...bySeq.values()].sort((x, y) => x.sequence - y.sequence);
-  let accumulatorOk: boolean | undefined;
-  if (entries.length === head && head > 0) {
-    const acc = qledgerAccumulate({ chainId: CHAIN_ID, rollupId: ROLLUP, from: 0, accFrom: EMPTY_INBOX_ACC, entries });
-    accumulatorOk = bytesToHex(acc) === bytesToHex(decodeWireBytes(inbox.headAcc));
-  }
-  return { entries, head, accumulatorOk };
+  return [...bySeq.values()].sort((x, y) => x.sequence - y.sequence);
 }
 
+/** Entries read so far, checked against the chain's accumulator; each refresh reads only newer ones. */
+let inboxCache: { entries: InboxEntry[]; acc: Uint8Array; lastHeight: number } | undefined;
+
+/**
+ * Every inbox entry of the rollup, and whether together they reproduce the chain's inbox accumulator at
+ * the head (so none is missing, changed or out of order). After the first read, only entries past the
+ * last one read are fetched, and the accumulator is folded on from where it was.
+ */
+async function readInbox(rdk: RdkClient): Promise<{ entries: InboxEntry[]; head: number; accumulatorOk: boolean | undefined; fetched: number }> {
+  const inbox = await rdk.rest.getInbox(ROLLUP);
+  const head = Number(inbox.headSequence);
+  const headAcc = lower(bytesToHex(decodeWireBytes(inbox.headAcc)));
+  let c = inboxCache;
+  if (c && c.entries.length > head) c = inboxCache = undefined; // the chain reports fewer entries than were read: start over
+  const have = c?.entries.length ?? 0;
+  if (c && head === have) return { entries: c.entries, head, accumulatorOk: lower(bytesToHex(c.acc)) === headAcc, fetched: 0 };
+  const fresh = await inboxEntries(rdk, have, head, c?.lastHeight ?? 0);
+  const entries = [...(c?.entries ?? []), ...fresh];
+  const contiguous = entries.length === head && entries.every((e, i) => e.sequence === i + 1);
+  let accumulatorOk: boolean | undefined;
+  if (contiguous && head > 0) {
+    const acc = qledgerAccumulate({ chainId: CHAIN_ID, rollupId: ROLLUP, from: have, accFrom: c?.acc ?? EMPTY_INBOX_ACC, entries: fresh });
+    accumulatorOk = lower(bytesToHex(acc)) === headAcc;
+    // Keep only what the chain's accumulator vouches for; anything else is read from scratch next time.
+    inboxCache = accumulatorOk ? { entries, acc, lastHeight: Math.max(...entries.map((e) => e.height)) } : undefined;
+  }
+  return { entries, head, accumulatorOk, fetched: fresh.length };
+}
+
+type Executed = ExecutedView & { batchIndex: number; withdrawalIndex: number };
+
 /** Withdrawals the chain has paid on L1 (MsgExecuteWithdrawal), from the rdk_withdrawal_executed event. */
-async function executedWithdrawals(rdk: RdkClient): Promise<(ExecutedView & { batchIndex: number; withdrawalIndex: number })[]> {
-  const out: (ExecutedView & { batchIndex: number; withdrawalIndex: number })[] = [];
+async function executedWithdrawals(rdk: RdkClient): Promise<Executed[]> {
+  const out: Executed[] = [];
   for (const t of await search(rdk, `rdk_withdrawal_executed.rollup_id='${ROLLUP}'`)) {
     for (const ev of t.events ?? []) {
       if (ev.type !== "rdk_withdrawal_executed") continue;
@@ -539,8 +526,8 @@ async function executedWithdrawals(rdk: RdkClient): Promise<(ExecutedView & { ba
         (m) => m["@type"] === "/qorechain.rdk.v1.MsgExecuteWithdrawal" && String(m["batch_index"]) === a["batch_index"] && String(m["withdrawal_index"]) === a["withdrawal_index"],
       );
       out.push({
-        batchIndex: Number(a["batch_index"]),
-        withdrawalIndex: Number(a["withdrawal_index"]),
+        batchIndex: seqOf(a["batch_index"]),
+        withdrawalIndex: seqOf(a["withdrawal_index"]),
         tx: t.txhash ?? "",
         height: Number(t.height ?? 0),
         time: unix(t.timestamp),
@@ -560,7 +547,7 @@ async function bankFunding(rdk: RdkClient, vaultQor1: string): Promise<Funding[]
     for (const m of t.tx?.body?.messages ?? []) {
       if (m["@type"] !== "/cosmos.bank.v1beta1.MsgSend" || m["to_address"] !== vaultQor1) continue;
       const coins = (m["amount"] as { denom: string; amount: string }[] | undefined) ?? [];
-      const u = coins.filter((c) => c.denom === "uqor").reduce((n, c) => n + BigInt(c.amount), 0n);
+      const u = coins.filter((c) => c.denom === "uqor").reduce((n, c) => n + uqor(c.amount), 0n);
       if (u > 0n) out.push({ tx: t.txhash ?? "", height: Number(t.height ?? 0), time: unix(t.timestamp), from: String(m["from_address"]), wei: u * WEI_PER_UQOR, via: "bank send" });
     }
   }
@@ -580,26 +567,29 @@ const batchTx = (rdk: RdkClient, i: number, height: number): Promise<string | un
     return undefined;
   });
 
-async function batchInfo(rdk: RdkClient, i: number, claimRoot: string | undefined, windowSec: number | undefined, anchors: Promise<AnchorView[]>): Promise<BatchInfo> {
+async function batchInfo(rdk: RdkClient, i: number, claimRoot: string | undefined, windowSec: number | undefined, anchors: Promise<AnchorView[]>, creator: string): Promise<BatchInfo> {
   let record: BatchView | undefined;
   try {
     record = await rdk.rest.getBatch(ROLLUP, i);
   } catch (e) {
-    // The chain deletes a finalized batch's record after its retention window (about 7 days): a 404 means pruned.
-    if ((e as { status?: unknown }).status !== 404) throw e;
+    if (!isNotFound(e)) throw e;
   }
   const own = (await anchors).filter((a) => a.layerHeight === i);
   if (record) {
-    const root = bytesToHex(decodeWireBytes(record.stateRoot));
+    const root = lower(bytesToHex(decodeWireBytes(record.stateRoot)));
+    const sameRoot = claimRoot ? root === claimRoot : undefined;
     const [tx, finalizedTime] = await Promise.all([
       batchTx(rdk, i, record.submittedAt).catch(() => undefined),
       record.finalizedAt ? blockTimeL1(record.finalizedAt).catch(() => undefined) : undefined,
     ]);
+    const status = sameRoot === false ? "replaced" : record.status;
     return {
       index: i,
-      status: record.status,
+      status,
+      final: status === "finalized",
+      missing: undefined,
       root,
-      sameRoot: claimRoot ? root === claimRoot : undefined,
+      sameRoot,
       submittedHeight: record.submittedAt,
       submittedTime: record.submittedTime || undefined,
       finalFrom: record.submittedTime && windowSec ? record.submittedTime + windowSec : undefined,
@@ -611,12 +601,16 @@ async function batchInfo(rdk: RdkClient, i: number, claimRoot: string | undefine
       anchored: own.some((a) => lower(a.stateRoot) === root),
     };
   }
-  // Pruned: its anchor (same transaction as the submission) still carries the root, block and time.
+  // No record. Its own anchor (same transaction as the submission) still carries the root, block and time;
+  // whether pruning explains the gap, and so whether the batch is final, is checked as for a receipt.
   const a = own.find((x) => !claimRoot || lower(x.stateRoot) === claimRoot) ?? own[0];
+  const missing = await explainMissingBatch(rdk, ROLLUP, i, a, creator);
   const root = a ? lower(a.stateRoot) : undefined;
   return {
     index: i,
-    status: "pruned",
+    status: missing.pruned ? "pruned" : "missing",
+    final: missing.final,
+    missing,
     root,
     sameRoot: root && claimRoot ? root === claimRoot : undefined,
     submittedHeight: a?.mainChainHeight,
@@ -663,14 +657,16 @@ function vaultConfig(v: Hex): Promise<VaultConfig> {
 }
 
 async function member(v: Hex, address: Hex): Promise<Member> {
-  const key = await read<Hex>(v, "keyOf", [address]).catch(() => undefined);
-  return { address: getAddress(address), qor1: toQor1(address), key, keyBytes: key ? (key.length - 2) / 2 : 0 };
+  const key = await twice(() => read<Hex>(v, "keyOf", [address])).catch(() => undefined);
+  const qor1 = toQor1(address);
+  const keyBytes = key ? (key.length - 2) / 2 : 0;
+  return { address: getAddress(address), qor1, key, keyBytes, pin: key && keyBytes === ML_DSA_87_PUBKEY_LEN ? keyPin(qor1, key) : undefined };
 }
 
 const exitIdOf = (batchIndex: number, stateRoot: string, withdrawalIndex: number): Hex =>
   keccak256(encodeAbiParameters([{ type: "uint64" }, { type: "bytes32" }, { type: "uint64" }], [BigInt(batchIndex), `0x${stateRoot}`, BigInt(withdrawalIndex)]));
 
-export async function loadExits(): Promise<ExitsState> {
+export async function loadExits(limit = EXITS_PAGE): Promise<ExitsState> {
   const d = VAULT_DEPLOYMENT;
   if (!d) throw new Error("deployments/diana.json has no InstantExitVault");
   const v = getAddress(d.address);
@@ -684,7 +680,7 @@ export async function loadExits(): Promise<ExitsState> {
     rollupP,
     readInbox(rdk),
     vaultLogs(v, Number(d.block)),
-    executedWithdrawals(rdk),
+    executedWithdrawals(rdk).catch(() => [] as Executed[]),
     bankFunding(rdk, vaultQor1).catch(() => [] as Funding[]),
     read<bigint>(v, "available"),
     read<bigint>(v, "totalOwed"),
@@ -696,7 +692,7 @@ export async function loadExits(): Promise<ExitsState> {
   // ---- the vault's events
   const evm = async (l: RawLog): Promise<EvmEvent> => {
     const block = Number(l.blockNumber);
-    const [time, from] = await Promise.all([evmBlockTime(block), txSender(l.transactionHash).catch(() => undefined)]);
+    const [time, from] = await Promise.all([evmBlockTime(block).catch(() => 0), txSender(l.transactionHash).catch(() => undefined)]);
     return { tx: l.transactionHash, block, logIndex: Number(l.logIndex), time, from };
   };
   const fronts: FrontedView[] = [];
@@ -731,117 +727,172 @@ export async function loadExits(): Promise<ExitsState> {
   fronts.sort(order);
   settles.sort(order);
   funding.sort((x, y) => x.height - y.height);
+  const repayments = attributeRepayments(
+    fronts.map((f) => ({ id: lower(f.exitId), payout: f.payout, block: f.block, logIndex: f.logIndex, owed: f.paid + f.fee })),
+    settles,
+  );
 
-  // ---- attestations in the inbox, grouped by exit (batch, state root, withdrawal index)
-  const groups = new Map<string, { claim: ExitClaim; atts: { memberIndex: number; entry: InboxEntry; s: SignedClaim }[] }>();
-  let attestations = 0;
-  for (const entry of inbox.entries) {
-    const a = decodeAttestation(entry.payload);
-    if (!a || lower(a.vault) !== lower(v)) continue;
-    const memberIndex = members.findIndex((m) => norm(m.address) === a.member);
-    if (memberIndex < 0) continue;
-    attestations++;
-    for (const s of a.claims) {
-      const k = `${s.claim.batchIndex}:${s.claim.stateRoot}:${s.claim.withdrawalIndex}`;
-      const g = groups.get(k) ?? { claim: s.claim, atts: [] };
-      if (!g.atts.some((x) => x.memberIndex === memberIndex)) g.atts.push({ memberIndex, entry, s });
-      groups.set(k, g);
-    }
-  }
-  const byId = new Map<Hex, { claim: ExitClaim | undefined; atts: { memberIndex: number; entry: InboxEntry; s: SignedClaim }[]; batchIndex: number; withdrawalIndex: number }>();
+  // ---- attestations: screened (poster, member, local ML-DSA-87), then grouped by exit and full claim.
+  // A key that differs from the one pinned in the page is not used: its signatures stay unverified (and flagged).
+  const quorumKeys = members.map((m) => {
+    const usable = !!m.key && m.keyBytes === ML_DSA_87_PUBKEY_LEN && m.pin?.status !== "mismatch";
+    return { address: lower(m.address).replace(/^0x/, ""), qor1: m.qor1, key: usable && m.key ? bytesOf(m.key) : undefined, ...(usable && m.pin ? { keyId: m.pin.sha256 } : {}) };
+  });
+  const screened = screenAttestations(inbox.entries, target, quorumKeys, localVerdicts);
+  const groups = groupByExit(screened.accepted);
+
+  type Candidate = { id: Hex; batchIndex: number; withdrawalIndex: number; headline?: AcceptedClaim<InboxEntry>[]; others: AcceptedClaim<InboxEntry>[]; claim?: ExitClaim };
+  const candidates = new Map<string, Candidate>();
   for (const g of groups.values()) {
-    byId.set(exitIdOf(g.claim.batchIndex, g.claim.stateRoot, g.claim.withdrawalIndex), { ...g, batchIndex: g.claim.batchIndex, withdrawalIndex: g.claim.withdrawalIndex });
+    const c = g.headline.claim;
+    let id: Hex;
+    try {
+      id = exitIdOf(c.batchIndex, c.stateRoot, c.withdrawalIndex);
+    } catch {
+      continue; // unreachable for screened claims; never let one exit break the page
+    }
+    candidates.set(lower(id), { id, batchIndex: c.batchIndex, withdrawalIndex: c.withdrawalIndex, headline: g.headline.atts, others: g.others.flatMap((o) => o.atts), claim: c });
   }
-  for (const f of fronts) if (!byId.has(f.exitId)) byId.set(f.exitId, { claim: undefined, atts: [], batchIndex: f.batchIndex, withdrawalIndex: f.withdrawalIndex });
+  for (const f of fronts) {
+    if (!candidates.has(lower(f.exitId))) candidates.set(lower(f.exitId), { id: f.exitId, batchIndex: f.batchIndex, withdrawalIndex: f.withdrawalIndex, others: [] });
+  }
+  const all = [...candidates.values()].sort((x, y) => y.batchIndex - x.batchIndex || y.withdrawalIndex - x.withdrawalIndex);
 
   const withdrawals = inbox.entries.flatMap((entry) => {
-    const q = decodeQledgerTx(entry.payload);
-    return q && q.kind === QLEDGER_KIND_WITHDRAW && q.recipient ? [{ entry, q }] : [];
+    try {
+      const q = decodeQledgerTx(entry.payload);
+      return q && q.kind === QLEDGER_KIND_WITHDRAW && q.recipient ? [{ entry, q }] : [];
+    } catch {
+      return [];
+    }
   });
   const owedNow = new Map<Hex, Promise<bigint | undefined>>();
+  const checks: Checks = { local: { verified: 0, unchecked: 0 }, pqc: { valid: 0, invalid: 0, unanswered: 0 }, keys: { match: 0, mismatch: 0, unread: 0 } };
+  for (const m of [...members, lp]) {
+    if (!m.pin) checks.keys.unread++;
+    else if (m.pin.status === "mismatch") checks.keys.mismatch++;
+    else if (m.pin.status === "match") checks.keys.match++;
+  }
 
-  const exits = await Promise.all(
-    [...byId.entries()].map(async ([id, g]): Promise<ExitView> => {
-      const claim = g.claim;
-      const recipientQor1 = claim ? toQor1(`0x${claim.recipient}`) : undefined;
-      const fronted = fronts.find((f) => lower(f.exitId) === lower(id));
+  const build = async (cand: Candidate): Promise<ExitView> => {
+    const { id, claim } = cand;
+    const fronted = fronts.find((f) => lower(f.exitId) === lower(id));
+    const recipientQor1 = claim ? toQor1(`0x${claim.recipient}`) : fronted ? toQor1(exitAddressOf(v, fronted.payout)) : undefined;
+    const batchP = batchInfo(rdk, cand.batchIndex, claim?.stateRoot, windowSec, anchorsP, rollup.creator).catch(() => undefined);
+    const shown = [...(cand.headline ?? []), ...cand.others];
+    const attsP = Promise.all(
+      shown.map(async (a): Promise<AttestationView> => {
+        const m = members[a.memberIndex]!;
+        const sameClaim = !!claim && a.claim.amountUqor === claim.amountUqor && a.claim.recipient === claim.recipient && a.claim.deadline === claim.deadline;
+        const pqc: SigCheck =
+          m.keyBytes !== ML_DSA_87_PUBKEY_LEN || !m.key
+            ? { valid: undefined, ms: 0, error: m.key === undefined ? "the member's key could not be read" : "the vault reports no usable ML-DSA-87 key for this member" }
+            : await pqcVerify(m.key, a.signature, exitMessage(target, a.claim)).catch((e: unknown) => ({ valid: undefined, ms: 0, error: errText(e) }));
+        return { member: m, memberIndex: a.memberIndex, entry: a.post, claim: a.claim, sameClaim, local: a.localValid, pqc };
+      }),
+    );
+    const messageP =
+      fronted && claim
+        ? cached(messageChecks, `${id}:${fronted.payout}`, () =>
+            read<Hex>(v, "exitMessage", [
+              {
+                batchIndex: BigInt(claim.batchIndex),
+                stateRoot: `0x${claim.stateRoot}`,
+                withdrawalIndex: BigInt(claim.withdrawalIndex),
+                amountUqor: claim.amountUqor,
+                payout: fronted.payout,
+                deadline: BigInt(claim.deadline),
+              },
+            ]),
+          )
+            .then((onChain) => {
+              const ours = toHex(exitMessage(target, claim));
+              return { same: lower(onChain) === lower(ours), bytes: (ours.length - 2) / 2 };
+            })
+            .catch((e: unknown) => ({ error: errText(e) }))
+        : Promise.resolve(undefined);
+    const owedP = fronted ? cached(owedNow, fronted.payout, () => read<bigint>(v, "owed", [fronted.payout]).catch(() => undefined)) : Promise.resolve(undefined);
+    const [batch, atts, messageCheck, owed] = await Promise.all([batchP, attsP, messageP, owedP]);
+    for (const a of atts) {
+      if (a.local) checks.local.verified++;
+      else checks.local.unchecked++;
+      if (a.pqc.valid === true) checks.pqc.valid++;
+      else if (a.pqc.valid === false) checks.pqc.invalid++;
+      else checks.pqc.unanswered++;
+    }
 
-      const batchP = batchInfo(rdk, g.batchIndex, claim?.stateRoot, windowSec, anchorsP).catch(() => undefined);
-      const attsP = Promise.all(
-        g.atts.map(async ({ memberIndex, entry, s }): Promise<AttestationView> => {
-          const m = members[memberIndex]!;
-          const sameClaim = !!claim && s.claim.amountUqor === claim.amountUqor && s.claim.recipient === claim.recipient && s.claim.deadline === claim.deadline;
-          const check: SigCheck =
-            m.keyBytes !== ML_DSA_87_PUBKEY_LEN || !m.key
-              ? { valid: undefined, ms: 0, error: m.key === undefined ? "the member's key could not be read" : "the vault reports no usable ML-DSA-87 key for this member" }
-              : await pqcVerify(m.key, s.signature, exitMessage(target, s.claim)).catch((e: unknown) => ({ valid: undefined, ms: 0, error: String(e instanceof Error ? e.message : e) }));
-          return { member: m, memberIndex, entry, claim: s.claim, sameClaim, check };
-        }),
-      );
-      const messageP =
-        fronted && claim
-          ? cached(messageChecks, `${id}:${fronted.payout}`, () =>
-              read<Hex>(v, "exitMessage", [
-                {
-                  batchIndex: BigInt(claim.batchIndex),
-                  stateRoot: `0x${claim.stateRoot}`,
-                  withdrawalIndex: BigInt(claim.withdrawalIndex),
-                  amountUqor: claim.amountUqor,
-                  payout: fronted.payout,
-                  deadline: BigInt(claim.deadline),
-                },
-              ]),
-            )
-              .then((onChain) => {
-                const ours = toHex(exitMessage(target, claim));
-                return { same: lower(onChain) === lower(ours), bytes: (ours.length - 2) / 2 };
-              })
-              .catch((e: unknown) => ({ error: String(e instanceof Error ? e.message : e) }))
-          : Promise.resolve(undefined);
-      const owedP = fronted ? cached(owedNow, fronted.payout, () => read<bigint>(v, "owed", [fronted.payout]).catch(() => undefined)) : Promise.resolve(undefined);
-      const [batch, atts, messageCheck, owed] = await Promise.all([batchP, attsP, messageP, owedP]);
-
-      // The L2 withdrawal: in the batch's inbox range when the record says it, to the claim's recipient, for its amount.
-      const firstAttestation = Math.min(...atts.map((a) => a.entry.sequence));
-      const w = claim
+    // The L2 withdrawal: in the batch's inbox range when the record says it, to the exit's recipient, for its amount.
+    const amount = claim?.amountUqor ?? (fronted ? (fronted.paid + fronted.fee) / WEI_PER_UQOR : undefined);
+    const firstAttestation = Math.min(...atts.map((a) => a.entry.sequence));
+    const w =
+      recipientQor1 && amount !== undefined
         ? withdrawals
             .filter(
               ({ entry, q }) =>
                 q.recipient === recipientQor1 &&
-                q.amount === claim.amountUqor &&
+                q.amount === amount &&
                 (batch?.inboxStart !== undefined && batch.inboxEnd !== undefined ? entry.sequence > batch.inboxStart && entry.sequence <= batch.inboxEnd : entry.sequence < firstAttestation),
             )
             .at(-1)
         : undefined;
-      const withdrawal: WithdrawalView | undefined = w && {
-        entry: w.entry,
-        amount: w.q.amount,
-        recipient: w.q.recipient ?? "",
-        account: bytesToHex(qledgerAccountId(w.q.publicKey, w.q.scheme)),
-        signatureValid: verifyQledgerTx(w.q, CHAIN_ID, ROLLUP),
-      };
+    const withdrawal: WithdrawalView | undefined = w && {
+      entry: w.entry,
+      amount: w.q.amount,
+      recipient: w.q.recipient ?? "",
+      account: bytesToHex(qledgerAccountId(w.q.publicKey, w.q.scheme)),
+      signatureValid: verifyQledgerTx(w.q, CHAIN_ID, ROLLUP),
+    };
 
-      const settlements = fronted ? settles.filter((s) => s.payout === fronted.payout && order(s, fronted) > 0) : [];
-      return {
-        id,
-        batchIndex: g.batchIndex,
-        withdrawalIndex: g.withdrawalIndex,
-        claim,
-        recipientQor1,
-        withdrawal,
-        batch,
-        attestations: atts.sort((x, y) => x.entry.sequence - y.entry.sequence),
-        validSigners: atts.filter((a) => a.check.valid === true && a.sameClaim).length,
-        messageCheck,
-        fronted,
-        settlements,
-        repaid: settlements.some((s) => s.stillOwed === 0n),
-        owedNow: owed,
-        executed: executed.find((x) => x.batchIndex === g.batchIndex && x.withdrawalIndex === g.withdrawalIndex),
-      };
-    }),
+    const attestations = atts.sort((x, y) => Number(y.sameClaim) - Number(x.sameClaim) || x.entry.sequence - y.entry.sequence);
+    return {
+      id,
+      batchIndex: cand.batchIndex,
+      withdrawalIndex: cand.withdrawalIndex,
+      claim,
+      recipientQor1,
+      withdrawal,
+      batch,
+      attestations,
+      validSigners: new Set(attestations.filter((a) => a.sameClaim && a.local === true && a.pqc.valid !== false).map((a) => a.memberIndex)).size,
+      messageCheck,
+      fronted,
+      repayment: fronted ? repayments.get(lower(fronted.exitId)) : undefined,
+      owedNow: owed,
+      executed: matchExecuted(executed, { batchIndex: cand.batchIndex, withdrawalIndex: cand.withdrawalIndex, recipientQor1, amountUqor: amount, batch }),
+    };
+  };
+
+  // Each exit is read on its own: one that fails shows its error, and the others are unaffected.
+  const exits = await Promise.all(
+    all.slice(0, limit).map((cand) =>
+      build(cand).catch(
+        (e: unknown): ExitView => ({
+          id: cand.id,
+          batchIndex: cand.batchIndex,
+          withdrawalIndex: cand.withdrawalIndex,
+          claim: cand.claim,
+          recipientQor1: undefined,
+          withdrawal: undefined,
+          batch: undefined,
+          attestations: [],
+          validSigners: 0,
+          messageCheck: undefined,
+          fronted: undefined,
+          repayment: undefined,
+          owedNow: undefined,
+          executed: undefined,
+          error: errText(e),
+        }),
+      ),
+    ),
   );
-  exits.sort((x, y) => y.batchIndex - x.batchIndex || y.withdrawalIndex - x.withdrawalIndex);
+
+  const rejected = new Map<Rejection, { reason: Rejection; count: number; example: string }>();
+  for (const r of screened.rejected) {
+    const x = rejected.get(r.reason) ?? { reason: r.reason, count: 0, example: `entry #${r.post.sequence}: ${r.detail}` };
+    x.count++;
+    rejected.set(r.reason, x);
+  }
 
   return {
     vault: {
@@ -864,9 +915,18 @@ export async function loadExits(): Promise<ExitsState> {
       funding,
     },
     exits,
-    inbox: { head: inbox.head, read: inbox.entries.length, accumulatorOk: inbox.accumulatorOk, attestations },
+    totalExits: all.length,
+    inbox: {
+      head: inbox.head,
+      read: inbox.entries.length,
+      accumulatorOk: inbox.accumulatorOk,
+      fetched: inbox.fetched,
+      accepted: new Set(screened.accepted.map((a) => a.post.sequence)).size,
+      rejected: [...rejected.values()],
+    },
+    checks,
     challengeWindowSec: windowSec,
-    logs: { from: Number(d.block), to: scan.to, requests: Math.ceil((scan.to - Number(d.block) + 1) / (LOG_SPAN + 1)) },
+    logs: scan.scan,
     loadedAt: Date.now(),
   };
 }
@@ -881,9 +941,7 @@ export function parsePayout(input: string): { ok: true; address: Hex } | { ok: f
     if (!isCanonicalQorAddress(s)) return { ok: false, error: "That is not a valid qor1 account address (canonical, lowercase, 20 bytes)." };
     return { ok: true, address: getAddress(bech32ToHex(s)) };
   }
-  const h = s.replace(/^0x/i, "");
-  if (!/^[0-9a-fA-F]{40}$/.test(h)) return { ok: false, error: "That is not a 20-byte hex address (0x and 40 hex digits)." };
-  return { ok: true, address: getAddress(`0x${h.toLowerCase()}`) };
+  return parseHexAddress(s);
 }
 
 export interface ExitAddress {
@@ -891,17 +949,45 @@ export interface ExitAddress {
   payoutQor1: string;
   exit: Hex;
   exitQor1: string;
-  owed: bigint;
-  holds: bigint;
+  /** The vault's exitAddressOf() gave the same address (undefined: it could not be asked). */
+  vaultAgrees: true | undefined;
+  vaultError?: string;
+  owed: bigint | undefined;
+  holds: bigint | undefined;
 }
 
+/**
+ * The exit address for `payout`, derived here from the pinned ExitAddress code and cross-checked with the
+ * vault's own exitAddressOf(). Throws, showing neither, if the two disagree.
+ */
 export async function exitAddressFor(payout: Hex): Promise<ExitAddress> {
   const d = VAULT_DEPLOYMENT;
   if (!d) throw new Error("deployments/diana.json has no InstantExitVault");
   const v = getAddress(d.address);
-  const [exit, owed] = await Promise.all([read<Hex>(v, "exitAddressOf", [payout]), read<bigint>(v, "owed", [payout])]);
-  const holds = BigInt(await evmRpc<Hex>("eth_getBalance", [exit, "latest"]));
-  return { payout, payoutQor1: toQor1(payout), exit: getAddress(exit), exitQor1: toQor1(exit), owed, holds };
+  const local = exitAddressOf(v, payout);
+  const [onChain, owed, holds] = await Promise.all([
+    read<Hex>(v, "exitAddressOf", [payout]).then(
+      (a) => ({ a }),
+      (e: unknown) => ({ e: errText(e) }),
+    ),
+    read<bigint>(v, "owed", [payout]).catch(() => undefined),
+    evmRpc<Hex>("eth_getBalance", [local, "latest"])
+      .then((h) => BigInt(h))
+      .catch(() => undefined),
+  ]);
+  if ("a" in onChain && getAddress(onChain.a) !== local) {
+    throw new Error(`the vault's exitAddressOf() answered ${getAddress(onChain.a)}, but this page derives ${local} from the pinned ExitAddress code. They must agree, so neither is shown.`);
+  }
+  return {
+    payout,
+    payoutQor1: toQor1(payout),
+    exit: local,
+    exitQor1: toQor1(local),
+    vaultAgrees: "a" in onChain ? true : undefined,
+    ...("e" in onChain ? { vaultError: onChain.e } : {}),
+    owed,
+    holds,
+  };
 }
 
 /** Wei as QOR, every significant digit kept. */

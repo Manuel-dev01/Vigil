@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { EXPLORER, REPO, ROLLUP, qor, short, shortAddr, txUrl } from "../chain.ts";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { EVM_HOST, NODE_HOST, REPO, ROLLUP, accountUrl, blockUrl, dur, errText, qor, short, shortAddr, stamp, txUrl, utcFull, utcTime } from "../config.ts";
 import {
+  EXITS_PAGE,
   LOG_SPAN,
   ML_DSA_87_PUBKEY_LEN,
   PQC_VERIFY,
@@ -10,39 +11,20 @@ import {
   nameOf,
   parsePayout,
   qorWei,
+  type AttestationView,
   type ExitAddress,
   type ExitView,
   type ExitsState,
   type Member,
-  type SigCheck,
   type VaultState,
 } from "../exits.ts";
 import { listen } from "../live.ts";
+import { CopyHash, Ext, ExplorerHint, Mark, useRefresh, type Tone } from "../ui.tsx";
 
 const REFRESH_MS = 30_000;
 const SOURCE = `${REPO}/blob/main/contracts/src/InstantExitVault.sol`;
-const addressUrl = (a: string): string => `${EXPLORER}/address/${a}`;
-const blockUrl = (h: number): string => `${EXPLORER}/block/${h}`;
-
-const utc = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
-const utcFull = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", dateStyle: "full", timeStyle: "long" });
-/** A block time (Unix seconds) as "23 Nov, 21:05:37 UTC". */
-const stamp = (unix: number): string => `${utc.format(unix * 1000)} UTC`;
-
-/** A span of seconds in words: "47 s", "3 min 6 s", "57 min", "1 h 10 min", "3 days". */
-function dur(sec: number): string {
-  const s = Math.abs(Math.round(sec));
-  if (s < 60) return `${s} s`;
-  const m = Math.floor(s / 60);
-  if (m < 10) return s % 60 ? `${m} min ${s % 60} s` : `${m} min`;
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return m % 60 ? `${h} h ${m % 60} min` : `${h} h`;
-  return `${Math.floor(h / 24)} days`;
-}
 
 const pct = (bps: number): string => `${(bps / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
-const errText = (e: unknown): string => String(e instanceof Error ? e.message : e);
 
 /** An account by its known name, or its shortened address; the full address on hover. */
 function Who({ addr, also }: { addr: string; also?: string }) {
@@ -50,27 +32,15 @@ function Who({ addr, also }: { addr: string; also?: string }) {
   return <span title={also ? `${addr}\n${also}` : addr}>{name ? <strong>{name}</strong> : <code>{shortAddr(addr)}</code>}</span>;
 }
 
-type Tone = "ok" | "bad" | "skip" | "wait";
-const MARKS: Record<Tone, [string, string]> = { ok: ["✓", "done"], bad: ["✕", "failed"], skip: ["–", "did not happen"], wait: ["○", "pending"] };
-
-function Mark({ tone }: { tone: Tone }) {
-  const [glyph, label] = MARKS[tone];
-  return (
-    <span className={`mark-${tone}`} role="img" aria-label={label}>
-      {glyph}
-    </span>
-  );
-}
-
-function Step({ tone, title, when, children, links }: { tone: Tone; title: ReactNode; when?: number | undefined; children?: ReactNode; links?: ReactNode }) {
+function Step({ tone, label, title, when, children, links }: { tone: Tone; label?: string; title: ReactNode; when?: number | undefined; children?: ReactNode; links?: ReactNode }) {
   return (
     <li>
-      <Mark tone={tone} />
+      <Mark tone={tone} label={label ?? { ok: "done", bad: "failed", skip: "did not happen", wait: "pending" }[tone]} />
       <div>
         <div className="step-head">
           <span className="what">{title}</span>
           {when ? (
-            <time className="when" dateTime={new Date(when * 1000).toISOString()} title={utcFull.format(when * 1000)}>
+            <time className="when" dateTime={new Date(when * 1000).toISOString()} title={utcFull(when * 1000)}>
               {stamp(when)}
             </time>
           ) : null}
@@ -84,33 +54,63 @@ function Step({ tone, title, when, children, links }: { tone: Tone; title: React
 
 function KeyChip({ m }: { m: Member }) {
   if (m.key === undefined) return <span className="chip warn">key could not be read</span>;
-  if (m.keyBytes === ML_DSA_87_PUBKEY_LEN)
-    return (
-      <span className="chip ok" title={`keyOf() returned a ${m.keyBytes}-byte ML-DSA-87 public key: registered on chain, with proof of possession`}>
+  if (m.keyBytes !== ML_DSA_87_PUBKEY_LEN) return <span className="chip bad">no usable ML-DSA-87 key</span>;
+  const pin = m.pin;
+  return (
+    <>
+      <span className="chip ok" title={`keyOf() returned a ${m.keyBytes}-byte ML-DSA-87 public key: registered on chain, with proof of possession (as ${EVM_HOST} reports)`}>
         ML-DSA-87 key registered and proven
       </span>
-    );
-  return <span className="chip bad">no usable ML-DSA-87 key</span>;
+      {pin?.status === "match" && (
+        <span className="chip ok" title={`SHA-256 ${pin.sha256}, as pinned in this page's source`}>
+          matches pinned key
+        </span>
+      )}
+      {pin?.status === "mismatch" && (
+        <span className="chip bad" title={`The chain reports SHA-256 ${pin.sha256}; the page pins ${pin.pinned}`}>
+          differs from pinned key
+        </span>
+      )}
+      {pin?.status === "unpinned" && <span className="chip warn">no key pinned for it</span>}
+    </>
+  );
 }
 
-function SigChip({ c }: { c: SigCheck }) {
-  if (c.valid === true)
-    return (
-      <span className="chip ok" title={`QoreChain's pqcVerify precompile answered true (${c.ms} ms)`}>
-        pqcVerify: valid
-      </span>
-    );
-  if (c.valid === false) return <span className="chip bad">pqcVerify: invalid</span>;
+function SigChips({ a }: { a: AttestationView }) {
   return (
-    <span className="chip warn" title={c.error}>
-      not checked
-    </span>
+    <>
+      {a.local ? (
+        <span className="chip ok" title="Verified in this browser with ML-DSA-87 (FIPS 204, @noble/post-quantum) against the member's key">
+          ML-DSA-87 ✓ in browser
+        </span>
+      ) : (
+        <span className="chip warn" title="The member's key could not be read, or differs from the one pinned in this page, so the signature was not checked here">
+          not checked in browser
+        </span>
+      )}{" "}
+      {a.pqc.valid === true ? (
+        <span className="chip ok" title={`QoreChain's pqcVerify precompile answered true (${a.pqc.ms} ms, an eth_call to ${EVM_HOST})`}>
+          pqcVerify ✓
+        </span>
+      ) : a.pqc.valid === false ? (
+        <span className="chip bad" title={`QoreChain's pqcVerify precompile answered false (an eth_call to ${EVM_HOST})`}>
+          pqcVerify: invalid
+        </span>
+      ) : (
+        <span className="chip warn" title={a.pqc.error}>
+          pqcVerify not answered
+        </span>
+      )}
+    </>
   );
 }
 
 function exitStatus(x: ExitView, threshold: number, nowSec: number): { cls: string; label: string } {
+  if (x.error) return { cls: "warn", label: "Could not be read" };
   if (x.batch?.status === "rejected") return { cls: "bad", label: "Batch rejected" };
-  if (x.fronted) return x.repaid ? { cls: "ok", label: "Paid at once · vault repaid" } : { cls: "warn", label: "Paid at once · repayment pending" };
+  if (x.batch?.status === "replaced") return { cls: "bad", label: "Batch replaced" };
+  const repaid = !!x.repayment?.completedBy;
+  if (x.fronted) return repaid ? { cls: "ok", label: "Paid at once · vault repaid" } : { cls: "warn", label: "Paid at once · repayment pending" };
   if (x.executed) return { cls: "pruned", label: "Not fronted · paid in full after finality" };
   if (x.claim && nowSec > x.claim.deadline) return { cls: "warn", label: "Not fronted · waiting for finality" };
   if (x.validSigners >= threshold) return { cls: "info", label: "Ready to front" };
@@ -119,8 +119,22 @@ function exitStatus(x: ExitView, threshold: number, nowSec: number): { cls: stri
 
 function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec: number }) {
   const st = exitStatus(x, vault.threshold, nowSec);
+  if (x.error) {
+    return (
+      <section className="panel exit">
+        <h2>
+          <span>
+            Batch {x.batchIndex}, withdrawal {x.withdrawalIndex}
+          </span>
+          <span className={`chip ${st.cls}`}>{st.label}</span>
+        </h2>
+        <p className="err">This exit could not be read just now: {x.error}. The page asks again on the next refresh.</p>
+      </section>
+    );
+  }
   const b = x.batch;
   const f = x.fronted;
+  const r = x.repayment;
   const amount = x.claim?.amountUqor ?? (f ? (f.paid + f.fee) / WEI_PER_UQOR : undefined);
   const exitName = x.recipientQor1 ? (nameOf(x.recipientQor1) ?? (f ? `exit address of ${nameOf(f.payout) ?? shortAddr(f.payout)}` : undefined)) : undefined;
   const exitLabel = x.recipientQor1 ? (
@@ -128,11 +142,14 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
   ) : (
     <span>the exit address</span>
   );
-  const final = b?.status === "finalized" || b?.status === "pruned";
+  const final = !!b?.final;
   const finalFrom = b?.finalFrom;
-  const signedAt = x.attestations[vault.threshold - 1]?.entry;
-  const missing = vault.members.filter((m) => !x.attestations.some((a) => a.member.address === m.address));
-  const repaidBy = x.settlements.find((s) => s.stillOwed === 0n) ?? x.settlements.at(-1);
+  const shown = x.attestations.filter((a) => a.sameClaim);
+  const counted = shown.filter((a) => a.local === true && a.pqc.valid !== false);
+  const signedAt = counted[vault.threshold - 1]?.entry;
+  const missing = vault.members.filter((m) => !shown.some((a) => a.member.address === m.address));
+  const lastShare = r?.shares.at(-1);
+  const repaidBy = r?.completedBy ?? lastShare?.settle;
 
   return (
     <section className="panel exit">
@@ -161,8 +178,8 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
           </div>
           <div className="stat">
             <div className="k">Vault repaid</div>
-            <div className="v">{x.repaid ? qorWei(x.settlements.reduce((n, s) => n + s.repaid, 0n)) : "not yet"}</div>
-            <div className="s">{x.repaid ? "by the withdrawal itself, via sweep()" : "after finality, via sweep()"}</div>
+            <div className="v">{r && r.repaid > 0n ? qorWei(r.repaid) : "not yet"}</div>
+            <div className="s">{r?.completedBy ? "for this exit, by its own withdrawal, via sweep()" : r && r.repaid > 0n ? `of ${qorWei(r.owed)} owed for this exit` : "after finality, via sweep()"}</div>
           </div>
         </div>
       )}
@@ -176,30 +193,30 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             when={x.withdrawal.entry.time}
             links={
               <>
-                <a href={txUrl(x.withdrawal.entry.tx)}>post tx</a>
+                <Ext href={txUrl(x.withdrawal.entry.tx)}>post tx</Ext>
                 <span>block {x.withdrawal.entry.height.toLocaleString()}</span>
               </>
             }
           >
             {qor(x.withdrawal.amount)} from L2 account <code title={x.withdrawal.account}>{short(x.withdrawal.account, 6)}</code> to {exitLabel}, posted as inbox entry{" "}
             <strong>#{x.withdrawal.entry.sequence}</strong> by <Who addr={x.withdrawal.entry.poster} />.{" "}
-            {x.withdrawal.signatureValid ? <span className="chip ok">ML-DSA-44 signature valid</span> : <span className="chip bad">L2 signature does not verify</span>}
+            {x.withdrawal.signatureValid ? <span className="chip ok">ML-DSA-44 signature valid in browser</span> : <span className="chip bad">L2 signature does not verify</span>}
           </Step>
         ) : (
-          <Step tone="skip" title="Withdrawn on L2">
-            {x.claim ? "No inbox entry withdrawing this amount to this exit address was found in the node's transaction index." : "The exit's claim is not in the inbox, so its withdrawal is not shown."}
+          <Step tone="skip" label="not found" title="Withdrawn on L2">
+            {x.recipientQor1 ? "No inbox entry withdrawing this amount to this exit address was found in the node's transaction index." : "The exit's claim is not in the inbox, so its withdrawal is not shown."}
           </Step>
         )}
 
         {/* 2. The batch */}
         {b ? (
           <Step
-            tone={b.status === "rejected" || b.sameRoot === false ? "bad" : "ok"}
+            tone={b.status === "rejected" || b.status === "replaced" || b.sameRoot === false ? "bad" : b.status === "missing" ? "wait" : "ok"}
             title={`In batch ${b.index}`}
             when={b.submittedTime}
             links={
               <>
-                {b.tx && <a href={txUrl(b.tx)}>batch tx</a>}
+                {b.tx && <Ext href={txUrl(b.tx)}>batch tx</Ext>}
                 {b.submittedHeight !== undefined && <span>block {b.submittedHeight.toLocaleString()}</span>}
                 {b.anchored && <a href={`#/verify?batch=${b.index}`}>verify its receipt</a>}
               </>
@@ -212,7 +229,16 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             )}
             {b.status === "pruned" ? (
               <>
-                <span className="chip pruned">record pruned</span> The chain deletes a finalized batch's record after about 7 days; its anchor{b.anchored ? " still carries the root" : " is not found either"}.{" "}
+                <span className="chip pruned">record pruned</span> {b.missing?.reason}.{" "}
+              </>
+            ) : b.status === "missing" ? (
+              <>
+                <span className="chip warn">record missing</span> {b.missing?.reason}, so it is not treated as final.{" "}
+              </>
+            ) : b.status === "replaced" ? (
+              <>
+                <span className="chip bad">replaced</span> The chain's batch {b.index} now has another root: the batch the quorum signed was rejected and its index
+                reused.{" "}
               </>
             ) : (
               <>
@@ -226,26 +252,26 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             )}
             {b.sameRoot === false && (
               <>
-                <span className="chip bad">different root</span> The quorum signed <code>{short(x.claim?.stateRoot ?? "", 6)}</code>, but the batch's root is <code>{short(b.root ?? "", 6)}</code>.
+                The quorum signed <code>{short(x.claim?.stateRoot ?? "", 6)}</code>, but the batch's root is <code>{short(b.root ?? "", 6)}</code>.
               </>
             )}
             {b.sameRoot === undefined && x.claim && <>The batch's root could not be read to compare with the attested one.</>}
           </Step>
         ) : (
-          <Step tone="skip" title={`In batch ${x.batchIndex}`}>
+          <Step tone="skip" label="not read" title={`In batch ${x.batchIndex}`}>
             The batch could not be read from the chain just now.
           </Step>
         )}
 
         {/* 3. The quorum's signatures */}
         {f && x.attestations.length === 0 ? (
-          <Step tone="ok" title="Signed by the quorum">
-            The attestations for this exit were not found in the rollup's inbox, so they are not re-checked here. front() pays only after the vault itself has
+          <Step tone="skip" label="not checked here" title="Signed by the quorum (not checked here)">
+            The attestations for this exit were not found in the rollup's inbox, so this page did not check them. front() pays only after the vault itself has
             verified {vault.threshold} members' ML-DSA-87 signatures with pqcVerify.
           </Step>
         ) : (
           <Step
-            tone={x.validSigners >= vault.threshold ? "ok" : x.attestations.some((a) => a.check.valid === false) ? "bad" : "wait"}
+            tone={x.validSigners >= vault.threshold ? "ok" : shown.some((a) => a.pqc.valid === false) ? "bad" : "wait"}
             title={
               x.validSigners >= vault.threshold && x.validSigners === vault.members.length && vault.members.length === 2
                 ? "Signed by both watchtowers"
@@ -256,27 +282,22 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             <ul className="sigs">
               {x.attestations.map((a) => (
                 <li key={`${a.member.address}:${a.entry.sequence}`}>
-                  <Mark tone={a.check.valid === true && a.sameClaim ? "ok" : a.check.valid === false ? "bad" : "wait"} />
+                  <Mark tone={a.local === true && a.pqc.valid !== false ? (a.sameClaim ? "ok" : "wait") : a.pqc.valid === false ? "bad" : "wait"} />
                   <span>
-                    <Who addr={a.member.qor1} also={a.member.address} /> re-executed the batch and signed: inbox entry <strong>#{a.entry.sequence}</strong>
+                    <Who addr={a.member.qor1} also={a.member.address} /> signed (watchtowers sign after re-executing the batch): inbox entry{" "}
+                    <strong>#{a.entry.sequence}</strong>
                     {b?.submittedHeight !== undefined && a.entry.height >= b.submittedHeight && <>, {(a.entry.height - b.submittedHeight).toLocaleString()} blocks after the batch</>}
-                    {a.entry.poster !== a.member.qor1 && (
-                      <>
-                        {" "}
-                        (posted by <Who addr={a.entry.poster} />)
-                      </>
-                    )}
-                    . <SigChip c={a.check} /> {!a.sameClaim && <span className="chip warn">signed a different claim</span>}{" "}
-                    <a href={txUrl(a.entry.tx)}>tx</a>
-                    {a.check.error && <span className="note"> ({a.check.error})</span>}
+                    , posted by the member itself. <SigChips a={a} /> {!a.sameClaim && <span className="chip warn">signed a different claim</span>}{" "}
+                    <Ext href={txUrl(a.entry.tx)}>tx</Ext>
+                    {a.pqc.error && <span className="note"> ({a.pqc.error})</span>}
                   </span>
                 </li>
               ))}
               {missing.map((m) => (
                 <li key={m.address}>
-                  <Mark tone="wait" />
+                  <Mark tone="wait" label="no attestation" />
                   <span>
-                    <Who addr={m.qor1} also={m.address} /> has not attested this exit.
+                    <Who addr={m.qor1} also={m.address} /> has no accepted attestation for this exit.
                   </span>
                 </li>
               ))}
@@ -285,8 +306,9 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
               <p>
                 They signed batch {x.claim.batchIndex}, root <code title={x.claim.stateRoot}>{short(x.claim.stateRoot, 6)}</code>, withdrawal {x.claim.withdrawalIndex},{" "}
                 {qor(x.claim.amountUqor)} to <code title={x.recipientQor1}>{shortAddr(x.recipientQor1 ?? "")}</code>, valid until {stamp(x.claim.deadline)}
-                {finalFrom && finalFrom > x.claim.deadline ? `, ${dur(finalFrom - x.claim.deadline)} before the batch could be final` : ""}. Each signature is checked here
-                by QoreChain's own <code title={PQC_VERIFY}>pqcVerify</code> precompile (ML-DSA-87, a free eth_call), against the member's key as the vault reads it.
+                {finalFrom && finalFrom > x.claim.deadline ? `, ${dur(finalFrom - x.claim.deadline)} before the batch could be final` : ""}. Each signature is checked twice:
+                in this browser with ML-DSA-87 (FIPS 204) against the member's key, whose SHA-256 is pinned in this page; and by QoreChain's{" "}
+                <code title={PQC_VERIFY}>pqcVerify</code> precompile through a free eth_call to {EVM_HOST}, which is what the vault itself relies on.
               </p>
             )}
             {x.messageCheck && (
@@ -312,13 +334,13 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             when={f.time}
             links={
               <>
-                <a href={txUrl(f.tx)}>front() tx</a>
+                <CopyHash label="front() tx" value={f.tx} />
                 <span>EVM block {f.block.toLocaleString()}</span>
               </>
             }
           >
             The vault paid <strong>{qorWei(f.paid)}</strong> to <Who addr={f.payout} /> and kept a {qorWei(f.fee)} fee ({pct(vault.feeBps)}); the exit address now owed it{" "}
-            {qorWei(f.paid + f.fee)}.{" "}
+            {qorWei(f.paid + f.fee)} for this exit.{" "}
             {finalFrom && (
               <>
                 That was <strong>{finalFrom > f.time ? `${dur(finalFrom - f.time)} before` : `${dur(f.time - finalFrom)} after`}</strong> batch {x.batchIndex} could be final
@@ -338,7 +360,8 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
           </Step>
         ) : x.validSigners >= vault.threshold && x.claim ? (
           <Step tone="wait" title="Ready to be fronted">
-            Anyone can call front() with these signatures until {stamp(x.claim.deadline)} (in {dur(x.claim.deadline - nowSec)}), if the vault has {qor((x.claim.amountUqor * BigInt(10_000 - vault.feeBps)) / 10_000n)} free.
+            Anyone can call front() with these signatures until {stamp(x.claim.deadline)} (in {dur(x.claim.deadline - nowSec)}), if the vault has{" "}
+            {qor((x.claim.amountUqor * BigInt(10_000 - vault.feeBps)) / 10_000n)} free.
           </Step>
         ) : (
           <Step tone="wait" title="Not fronted yet">
@@ -347,28 +370,30 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
         )}
 
         {/* 5. Final */}
-        {b?.status === "rejected" ? (
+        {b?.status === "rejected" || b?.status === "replaced" ? (
           <Step tone="bad" title={`Batch ${x.batchIndex} rejected`}>
-            A fraud proof removed the batch, so this withdrawal does not exist on L1.{f ? " The vault's LP bears the loss of a front against a bad batch." : ""}
+            A fraud proof removed the batch the quorum signed, so this withdrawal does not exist on L1.{f ? " The vault's LP bears the loss of a front against a bad batch." : ""}
           </Step>
         ) : final ? (
           <Step
             tone="ok"
             title={`Batch ${x.batchIndex} final`}
             when={b?.finalizedTime}
-            links={b?.finalizedHeight ? <a href={blockUrl(b.finalizedHeight)}>block {b.finalizedHeight.toLocaleString()}</a> : undefined}
+            links={b?.finalizedHeight ? <Ext href={blockUrl(b.finalizedHeight)}>block {b.finalizedHeight.toLocaleString()}</Ext> : undefined}
           >
             {b?.status === "pruned"
-              ? "Its record has since been pruned, which the chain does only to finalized batches."
+              ? `Its record has since been pruned: ${b.missing?.reason ?? "the chain prunes only finalized batches"}.`
               : `Its challenge window closed with no fraud proof${finalFrom && b?.finalizedTime ? ` (it could be final from ${stamp(finalFrom)})` : ""}.`}
           </Step>
         ) : (
           <Step tone="wait" title={`Batch ${x.batchIndex} final`}>
-            {finalFrom
-              ? finalFrom > nowSec
-                ? `Its challenge window closes at ${stamp(finalFrom)}, in ${dur(finalFrom - nowSec)}.`
-                : `Its challenge window closed at ${stamp(finalFrom)}; the chain finalizes it with the next block that checks.`
-              : "Final once its challenge window closes with no fraud proof."}
+            {b?.status === "missing" || (b?.status === "pruned" && !b.final)
+              ? `Not confirmed: ${b.missing?.reason ?? "the batch record is missing"}.`
+              : finalFrom
+                ? finalFrom > nowSec
+                  ? `Its challenge window closes at ${stamp(finalFrom)}, in ${dur(finalFrom - nowSec)}.`
+                  : `Its challenge window closed at ${stamp(finalFrom)}; the chain finalizes it with the next block that checks.`
+                : "Final once its challenge window closes with no fraud proof."}
           </Step>
         )}
 
@@ -380,7 +405,7 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             when={x.executed.time}
             links={
               <>
-                <a href={txUrl(x.executed.tx)}>execute tx</a>
+                <Ext href={txUrl(x.executed.tx)}>execute tx</Ext>
                 <span>block {x.executed.height.toLocaleString()}</span>
               </>
             }
@@ -394,32 +419,32 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             {!f && "Nothing is owed to the vault, so sweep(payout) forwards all of it to the payout."}
           </Step>
         ) : (
-          <Step tone={b?.status === "rejected" ? "skip" : "wait"} title="Withdrawal paid on L1">
+          <Step tone={b?.status === "rejected" || b?.status === "replaced" ? "skip" : "wait"} title="Withdrawal paid on L1">
             {final ? "The batch is final: anyone can now execute the withdrawal, and the chain pays the exit address." : "After finality anyone executes the withdrawal on L1, and the chain pays the exit address."}
           </Step>
         )}
 
         {/* 7. Repaid */}
         {f &&
-          (repaidBy ? (
+          (r && lastShare && repaidBy ? (
             <Step
-              tone={x.repaid ? "ok" : "wait"}
-              title={x.repaid ? "Vault repaid" : "Vault partly repaid"}
+              tone={r.completedBy ? "ok" : "wait"}
+              title={r.completedBy ? "Vault repaid" : "Vault partly repaid"}
               when={repaidBy.time}
               links={
                 <>
-                  {x.settlements.map((s) => (
-                    <a key={s.tx} href={txUrl(s.tx)}>
-                      sweep() tx
-                    </a>
+                  {r.shares.map((s) => (
+                    <CopyHash key={`${s.settle.tx}:${s.settle.logIndex}`} label="sweep() tx" value={s.settle.tx} />
                   ))}
                   <span>EVM block {repaidBy.block.toLocaleString()}</span>
                 </>
               }
             >
-              sweep() moved the exit address's money and repaid the vault {qorWei(x.settlements.reduce((n, s) => n + s.repaid, 0n))}; the payout then owed{" "}
-              {qorWei(repaidBy.stillOwed)}
-              {x.owedNow !== undefined && x.owedNow !== repaidBy.stillOwed ? ` (now ${qorWei(x.owedNow)})` : ""}.{" "}
+              sweep() moved the exit address's money and repaid the vault {qorWei(r.repaid)} for this exit
+              {r.completedBy ? "" : `, of the ${qorWei(r.owed)} it owed`}
+              {r.shares.length > 1 ? ` (over ${r.shares.length} sweeps)` : ""}. The vault keeps one balance per payout and repayments go to its exits oldest first.
+              After that sweep, <Who addr={f.payout} /> owed the vault {qorWei(lastShare.settle.stillOwed)} for all its exits
+              {x.owedNow !== undefined && x.owedNow !== lastShare.settle.stillOwed ? ` (now ${qorWei(x.owedNow)})` : ""}.{" "}
               {repaidBy.from && (
                 <>
                   Sent by <Who addr={repaidBy.from} />.
@@ -443,16 +468,14 @@ function VaultPanel({ s }: { s: ExitsState }) {
       <h2>
         The vault{" "}
         <small>
-          <a href={SOURCE} target="_blank" rel="noreferrer">
-            InstantExitVault.sol
-          </a>
+          <Ext href={SOURCE}>InstantExitVault.sol</Ext>
         </small>
       </h2>
       <div className="addr-block">
         <code>{v.address}</code>
         <code>{v.qor1}</code>
         <span className="note">
-          <a href={addressUrl(v.address)}>explorer</a> · <a href={txUrl(v.deployTx)}>deploy tx</a>, EVM block {v.deployBlock.toLocaleString()}
+          <Ext href={accountUrl(v.qor1)}>explorer</Ext> · <CopyHash label="deploy tx" value={v.deployTx} />, EVM block {v.deployBlock.toLocaleString()}
         </span>
       </div>
       <dl className="kv">
@@ -484,23 +507,27 @@ function VaultPanel({ s }: { s: ExitsState }) {
         <dt>LP</dt>
         <dd>
           <Who addr={v.lp.qor1} also={v.lp.address} />
-          {v.lpIsCreator ? ", the rollup's creator" : ""}. Only its ML-DSA-87 key can take liquidity out. <KeyChip m={v.lp} />
+          {v.lpIsCreator ? ", the rollup's creator" : ""}. Only its ML-DSA-87 key can take liquidity out.{" "}
+          <span className="member-meta">
+            <KeyChip m={v.lp} />
+          </span>
         </dd>
         {v.funding.length > 0 && (
           <>
             <dt>Funding</dt>
             <dd>
-              {v.funding.map((f) =>
-                f.wei < 0n ? (
+              {v.funding.map((f) => {
+                const tx = f.tx.startsWith("0x") ? <CopyHash label="tx" value={f.tx} /> : <Ext href={txUrl(f.tx)}>tx</Ext>;
+                return f.wei < 0n ? (
                   <div key={f.tx}>
-                    {qorWei(-f.wei)} taken out to <Who addr={f.from} />, signed by the LP · <a href={txUrl(f.tx)}>tx</a>
+                    {qorWei(-f.wei)} taken out to <Who addr={f.from} />, signed by the LP · {tx}
                   </div>
                 ) : (
                   <div key={f.tx}>
-                    {qorWei(f.wei)} from <Who addr={f.from} /> by {f.via} · <a href={txUrl(f.tx)}>tx</a>
+                    {qorWei(f.wei)} from <Who addr={f.from} /> by {f.via} · {tx}
                   </div>
-                ),
-              )}
+                );
+              })}
             </dd>
           </>
         )}
@@ -509,6 +536,7 @@ function VaultPanel({ s }: { s: ExitsState }) {
         No owner and no admin key: every action is either open to anyone (front, sweep) or authorised by an ML-DSA-87 signature the contract checks with pqcVerify,
         against keys it reads live with pqcKeyStatus.
       </p>
+      <ExplorerHint />
     </section>
   );
 }
@@ -531,7 +559,7 @@ function ExitAddressTool({ example }: { example: string | undefined }) {
     try {
       setResult(await exitAddressFor(p.address));
     } catch (e) {
-      setError(`The vault could not be asked: ${errText(e)}`);
+      setError(errText(e));
     } finally {
       setBusy(false);
     }
@@ -558,7 +586,7 @@ function ExitAddressTool({ example }: { example: string | undefined }) {
           autoComplete="off"
         />
         <button className="primary" disabled={busy || !input.trim()}>
-          {busy ? "Asking…" : "Get exit address"}
+          {busy ? "Deriving…" : "Get exit address"}
         </button>
       </form>
       {example && !result && (
@@ -586,13 +614,31 @@ function ExitAddressTool({ example }: { example: string | undefined }) {
         <>
           <div className="addr-block">
             <span className="note">
-              Payout{nameOf(result.payoutQor1) ? <>: <strong>{nameOf(result.payoutQor1)}</strong></> : ""}
+              Payout
+              {nameOf(result.payoutQor1) ? (
+                <>
+                  : <strong>{nameOf(result.payoutQor1)}</strong>
+                </>
+              ) : (
+                ""
+              )}
             </span>
             <code>{result.payoutQor1}</code>
             <code>{result.payout}</code>
           </div>
           <div className="addr-block">
-            <span className="note">Its exit address, from the vault's exitAddressOf():</span>
+            <span className="note">
+              Its exit address, derived in this browser (CREATE2 over the ExitAddress code pinned in the page){" "}
+              {result.vaultAgrees ? (
+                <span className="chip ok" title="The vault's exitAddressOf() returned the same address">
+                  the vault's exitAddressOf() agrees
+                </span>
+              ) : (
+                <span className="chip warn" title={result.vaultError}>
+                  not confirmed: the vault could not be asked
+                </span>
+              )}
+            </span>
             <code>
               <strong>{result.exitQor1}</strong>
             </code>
@@ -600,9 +646,9 @@ function ExitAddressTool({ example }: { example: string | undefined }) {
           </div>
           <dl className="kv">
             <dt>Owes the vault</dt>
-            <dd>{qorWei(result.owed)}</dd>
+            <dd>{result.owed === undefined ? "could not be read" : qorWei(result.owed)}</dd>
             <dt>Holds now</dt>
-            <dd>{qorWei(result.holds)}</dd>
+            <dd>{result.holds === undefined ? "could not be read" : qorWei(result.holds)}</dd>
           </dl>
         </>
       )}
@@ -612,120 +658,127 @@ function ExitAddressTool({ example }: { example: string | undefined }) {
 
 function HowPanel({ s, refreshing }: { s: ExitsState; refreshing: boolean }) {
   const acc = s.inbox.accumulatorOk;
+  const c = s.checks;
+  const sigCount = c.local.verified + c.local.unchecked;
+  const rows: { tone: Tone; label: string; what: ReactNode; why: ReactNode }[] = [
+    {
+      tone: acc === true ? "ok" : acc === false ? "bad" : "wait",
+      label: acc === true ? "passed" : acc === false ? "failed" : "not checked",
+      what: `Inbox: ${s.inbox.read} of ${s.inbox.head} entries read back from ${NODE_HOST}`,
+      why: (
+        <>
+          {acc === true
+            ? "Together they reproduce the chain's inbox accumulator, so none is missing or altered. "
+            : acc === false
+              ? "They do NOT reproduce the chain's inbox accumulator. "
+              : "The node's index did not return every entry, so the accumulator could not be checked. "}
+          {s.inbox.fetched === s.inbox.read
+            ? "All were read this time; later refreshes read only entries posted since."
+            : s.inbox.fetched
+              ? `${s.inbox.fetched} new this refresh; earlier entries are kept, not read again.`
+              : "Nothing new this refresh; earlier entries are kept, not read again."}
+        </>
+      ),
+    },
+    {
+      tone: "ok",
+      label: "screened",
+      what: `Attestations: ${s.inbox.accepted} accepted`,
+      why: (
+        <>
+          Only posts for this vault, by a quorum member, posted by that member's own address, with a signature that verifies in this browser.{" "}
+          {s.inbox.rejected.length === 0
+            ? "No look-alike post was rejected."
+            : `Ignored: ${s.inbox.rejected.map((r) => `${r.count} ${r.reason} (${r.example})`).join("; ")}.`}
+        </>
+      ),
+    },
+    {
+      tone: c.keys.mismatch ? "bad" : c.keys.unread ? "wait" : "ok",
+      label: c.keys.mismatch ? "failed" : c.keys.unread ? "not checked" : "passed",
+      what: "Keys: compared with the ones pinned in this page",
+      why: `${c.keys.match} of ${c.keys.match + c.keys.mismatch + c.keys.unread} member and LP keys, as the vault reads them (keyOf, pqcKeyStatus), have the SHA-256 pinned in the page's source${c.keys.mismatch ? `; ${c.keys.mismatch} differ` : ""}${c.keys.unread ? `; ${c.keys.unread} could not be read` : ""}.`,
+    },
+    {
+      tone: sigCount === 0 ? "skip" : c.local.unchecked ? "wait" : "ok",
+      label: sigCount === 0 ? "nothing to check" : c.local.unchecked ? "partly checked" : "passed",
+      what: "Signatures in this browser: ML-DSA-87",
+      why:
+        sigCount === 0
+          ? "No attestation on the exits shown."
+          : `${c.local.verified} of ${sigCount} verified here with @noble/post-quantum (FIPS 204, empty context) over the exit message rebuilt in the page${c.local.unchecked ? `; ${c.local.unchecked} could not be checked (the key was not read, or differs from the pinned one)` : ""}.`,
+    },
+    {
+      tone: sigCount === 0 ? "skip" : c.pqc.invalid ? "bad" : c.pqc.unanswered ? "wait" : "ok",
+      label: sigCount === 0 ? "nothing to check" : c.pqc.invalid ? "failed" : c.pqc.unanswered ? "partly answered" : "passed",
+      what: "Signatures on chain: the pqcVerify precompile",
+      why: (
+        <>
+          {sigCount === 0 ? "No attestation on the exits shown. " : `${c.pqc.valid} of ${sigCount} answered valid${c.pqc.invalid ? `, ${c.pqc.invalid} invalid` : ""}${c.pqc.unanswered ? `, ${c.pqc.unanswered} not answered` : ""}. `}
+          Asked at <code>{shortAddr(PQC_VERIFY)}</code> with a free eth_call to {EVM_HOST} (the node's operator; the answer is not proven). This is what the vault itself
+          relies on.
+        </>
+      ),
+    },
+    {
+      tone: s.logs.gaps.length ? "wait" : "ok",
+      label: s.logs.gaps.length ? "incomplete" : "passed",
+      what: "Vault history: eth_getLogs",
+      why: s.logs.gaps.length
+        ? `Blocks ${s.logs.gaps.map(([a, b]) => `${a.toLocaleString()}–${b.toLocaleString()}`).join(", ")} could not be read after ${3} tries each; they are asked again on the next refresh, and anything shown from them may be missing.`
+        : `Blocks ${s.logs.from.toLocaleString()} to ${s.logs.to.toLocaleString()} read (${s.logs.requests} request${s.logs.requests === 1 ? "" : "s"} this refresh, ${s.logs.totalRequests} since the page opened; at most ${LOG_SPAN.toLocaleString()} blocks per request). Each refresh reads only new blocks.`,
+    },
+  ];
   return (
     <section className="panel">
       <h2>
-        How this is read <small>{refreshing ? "refreshing…" : `updated ${new Date(s.loadedAt).toLocaleTimeString()}`}</small>
+        How this is read <small>{refreshing ? "refreshing…" : `updated ${utcTime(s.loadedAt)}`}</small>
       </h2>
       <ul className="checks">
-        <li>
-          <Mark tone={acc === true ? "ok" : acc === false ? "bad" : "wait"} />
-          <span>
-            <span className="what">
-              Inbox: {s.inbox.read} of {s.inbox.head} entries read back
+        {rows.map((r, i) => (
+          <li key={i}>
+            <Mark tone={r.tone} label={r.label} />
+            <span>
+              <span className="what">{r.what}</span>
+              <br />
+              <span className="why">{r.why}</span>
             </span>
-            <br />
-            <span className="why">
-              {acc === true
-                ? "Together they reproduce the chain's inbox accumulator, so none is missing or altered. "
-                : acc === false
-                  ? "They do NOT reproduce the chain's inbox accumulator. "
-                  : "The node's index did not return every entry, so the accumulator could not be checked. "}
-              {s.inbox.attestations} {s.inbox.attestations === 1 ? "is an exit attestation" : "are exit attestations"} for this vault.
-            </span>
-          </span>
-        </li>
-        <li>
-          <Mark tone="ok" />
-          <span>
-            <span className="what">Vault history: eth_getLogs</span>
-            <br />
-            <span className="why">
-              Blocks {s.logs.from.toLocaleString()} to {s.logs.to.toLocaleString()} in {s.logs.requests} requests; the EVM endpoint answers at most {LOG_SPAN.toLocaleString()} blocks
-              per request.
-            </span>
-          </span>
-        </li>
-        <li>
-          <Mark tone="ok" />
-          <span>
-            <span className="what">Signatures: the chain's pqcVerify precompile</span>
-            <br />
-            <span className="why">
-              Called at <code>{shortAddr(PQC_VERIFY)}</code> with a free eth_call, against each member's key from the vault's keyOf(), which reads pqcKeyStatus.
-              An inactive precompile answers with no data, which is reported here as not checked.
-            </span>
-          </span>
-        </li>
+          </li>
+        ))}
       </ul>
       <p className="note" style={{ marginTop: 10 }}>
-        Refreshes when the rollup gets a new post or batch, and every {REFRESH_MS / 1000} s while this tab is open.
+        Refreshes when the rollup gets a new post or batch, after a reconnect, and every {REFRESH_MS / 1000} s while this tab is open.
       </p>
     </section>
   );
 }
 
 export function ExitsView() {
-  const [state, setState] = useState<ExitsState>();
-  const [error, setError] = useState<string>();
-  const [refreshing, setRefreshing] = useState(false);
+  const [limit, setLimit] = useState(EXITS_PAGE);
+  const { data: state, error, refreshing, refresh } = useRefresh(() => loadExits(limit), REFRESH_MS);
   const [now, setNow] = useState(Date.now());
-  const lastLoad = useRef(0);
-
-  // One load at a time; a request that arrives meanwhile runs once the current one ends.
-  const refresh = useMemo(() => {
-    let running = false;
-    let again = false;
-    const run = (): void => {
-      if (running) {
-        again = true;
-        return;
-      }
-      running = true;
-      setRefreshing(true);
-      loadExits()
-        .then((s) => {
-          setState(s);
-          setError(undefined);
-          setNow(Date.now());
-        })
-        .catch((e: unknown) => setError(errText(e)))
-        .finally(() => {
-          lastLoad.current = Date.now();
-          running = false;
-          setRefreshing(false);
-          if (again) {
-            again = false;
-            run();
-          }
-        });
-    };
-    return run;
-  }, []);
 
   useEffect(() => {
-    refresh();
     const l = listen({
       onItem: (i) => {
         if (i.kind === "post" || i.kind === "batch") refresh();
       },
     });
-    const visible = () => document.visibilityState === "visible";
-    const poll = setInterval(() => {
-      if (visible()) refresh();
-    }, REFRESH_MS);
     const tick = setInterval(() => setNow(Date.now()), 15_000);
-    const onVisibility = () => {
-      if (visible() && Date.now() - lastLoad.current > REFRESH_MS) refresh();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       l.stop();
-      clearInterval(poll);
       clearInterval(tick);
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (state) setNow(Date.now());
+  }, [state]);
+
+  // "Show more" raised the limit: read again with it.
+  useEffect(() => {
+    if (limit > EXITS_PAGE) refresh();
+  }, [limit, refresh]);
 
   const v = state?.vault;
   const windowSec = state?.challengeWindowSec;
@@ -744,7 +797,7 @@ export function ExitsView() {
       </p>
 
       {!state && !error && <p className="empty">Reading the vault, its logs and the rollup's inbox from the chain…</p>}
-      {error && !state && <p className="err">Could not read the instant-exit vault: {error}</p>}
+      {error && !state && <p className="err">Could not read the instant-exit vault: {error}. It is asked again every {REFRESH_MS / 1000} s.</p>}
 
       {state && v && (
         <>
@@ -763,7 +816,7 @@ export function ExitsView() {
               <div className="k">Exits fronted</div>
               <div className="v">{v.frontedCount}</div>
               <div className="s">
-                {state.exits.length} attested {state.exits.length === 1 ? "exit" : "exits"} in the inbox
+                {state.totalExits} attested or fronted {state.totalExits === 1 ? "exit" : "exits"}
               </div>
             </div>
             <div className="stat">
@@ -785,7 +838,11 @@ export function ExitsView() {
             </div>
           </div>
 
-          {error && <p className="err">The last refresh failed ({error}); showing what was read at {new Date(state.loadedAt).toLocaleTimeString()}.</p>}
+          {error && (
+            <p className="err">
+              The last refresh failed ({error}); showing what was read at {utcTime(state.loadedAt)}.
+            </p>
+          )}
 
           <div className="cols">
             <div>
@@ -796,6 +853,20 @@ export function ExitsView() {
                 </section>
               ) : (
                 state.exits.map((x) => <ExitCard key={x.id} x={x} vault={v} nowSec={nowSec} />)
+              )}
+              {state.totalExits > state.exits.length && (
+                <p className="row" style={{ marginTop: 12 }}>
+                  <button
+                    type="button"
+                    disabled={refreshing}
+                    onClick={() => setLimit((n) => n + EXITS_PAGE)}
+                  >
+                    {refreshing ? "Reading…" : `Show ${Math.min(EXITS_PAGE, state.totalExits - state.exits.length)} more`}
+                  </button>
+                  <span className="note">
+                    Newest {state.exits.length} of {state.totalExits} exits shown.
+                  </span>
+                </p>
               )}
             </div>
             <aside>

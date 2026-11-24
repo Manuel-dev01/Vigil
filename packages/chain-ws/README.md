@@ -4,7 +4,7 @@ Read QoreChain from a web page with no server in between.
 
 QoreChain's public REST and RPC endpoints send no CORS headers, so a page on another origin can't `fetch` them. The node's CometBFT websocket isn't subject to CORS, and it answers every RPC method, including `abci_query` (any gRPC query), `tx`, `tx_search` and live subscriptions. This package turns that one connection into the node's REST API:
 
-- **`WsRpc`**: JSON-RPC over the websocket, with subscriptions that are renewed after a reconnect.
+- **`WsRpc`**: JSON-RPC over the websocket, with subscriptions that are kept until ended: each is sent once per connection, renewed after a reconnect, and asked for again if the node refuses it. `health()` (and the `onHealth` option) says how many the node has confirmed, for an honest "live" badge.
 - **`restOverWs(rpc, registry)`**: a `fetch` replacement.
   - Each REST route (`/qorechain/rdk/v1/batch/{rollup_id}/{batch_index}` …) is taken from the `google.api.http` option in the chain's own descriptors, sent as the matching gRPC query through `abci_query`, and decoded into the same JSON the REST gateway returns.
   - Transaction routes are answered from CometBFT's `tx` and `tx_search`.

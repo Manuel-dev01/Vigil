@@ -1,19 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { buildSettlementReceipt, verifySettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
-import { CHAIN_ID, KNOWN, REPO, ROLLUP, chain, short } from "../chain.ts";
+import { chain, isNotFound } from "../chain.ts";
+import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, short, utcStamp } from "../config.ts";
 import { RECEIPT_VERIFIER, checkInEvm, evmCovers, type EvmCheck } from "../evm.ts";
-import { prunedBatch, receiptFromOwnAnchor, verifyPrunedReceipt, type PrunedVerification } from "../pruned.ts";
+import { keyPin, type KeyPin } from "../keys.ts";
+import { prunedBatch, receiptFromOwnAnchor, verifyPrunedReceipt, type CheckKey, type PrunedVerification } from "../pruned.ts";
+import { parseReceipt, receiptProblem } from "../receipt.ts";
+import { Ext, Mark, type Tone } from "../ui.tsx";
 
 type Verification = ReceiptVerification & Partial<Omit<PrunedVerification, keyof ReceiptVerification>>;
 
+/** The checks in the order the RDK runs them, so the first one that is false is the one that failed. */
 const CHECKS: { key: keyof ReceiptVerification["checks"]; what: string; why: string }[] = [
-  { key: "rollupLayerBinding", what: "Rollup and layer belong together", why: "The chain says this rollup settles to the receipt's layer." },
-  { key: "batchStateRoot", what: "The chain's batch carries this state root", why: "Read from the batch record the chain itself keeps." },
-  { key: "anchorOnChain", what: "A matching anchor exists on chain", why: "State root, layer height, signature, main-chain height and time all match an anchor the chain stored." },
-  { key: "creatorAuthority", what: "The signing key came from the chain", why: "The creator's ML-DSA-87 public key is read from the chain's PQ key registry, not taken from the receipt." },
-  { key: "pqcSignature", what: "ML-DSA-87 signature verifies", why: "Checked in this browser against that key, over the chain's canonical anchor message." },
+  { key: "rollupLayerBinding", what: "Rollup and layer belong together", why: "The node says this rollup settles to the receipt's layer." },
+  { key: "batchStateRoot", what: "The chain's batch carries this state root", why: "Read from the batch record, as the node reports it." },
+  { key: "anchorOnChain", what: "A matching anchor exists on chain", why: "State root, layer height, signature, main-chain height and time all match an anchor the node reports." },
+  {
+    key: "creatorAuthority",
+    what: "The signing key came from the chain's PQ key registry, as reported by the node",
+    why: "The creator's ML-DSA-87 public key is read from the registry through the node, not taken from the receipt.",
+  },
   { key: "chainBinding", what: "The receipt names this chain", why: `The receipt says ${CHAIN_ID}, the chain that was queried.` },
+  { key: "pqcSignature", what: "ML-DSA-87 signature verifies", why: "Checked in this browser against that key, over the chain's canonical anchor message." },
 ];
+const RDK_ORDER = CHECKS.map((c) => c.key);
 
 /**
  * The receipt for batch `i`, bound to batch `i`'s own anchor. Several batches
@@ -38,14 +48,47 @@ async function buildOwnReceipt(rdk: RdkClient, i: number): Promise<SettlementRec
   };
 }
 
+/** Why no receipt could be built for batch `i`, in words a visitor can act on. */
+async function whyNoReceipt(rdk: RdkClient, i: number, e: unknown): Promise<string> {
+  const raw = String(e instanceof Error ? e.message : e);
+  try {
+    const latest = await rdk.rest.getLatestBatch(ROLLUP);
+    if (i > latest.batchIndex) return `There is no batch ${i} yet: the newest batch of ${ROLLUP} is ${latest.batchIndex}.`;
+    const batch = await rdk.rest.getBatch(ROLLUP, i).catch((x: unknown) => (isNotFound(x) ? undefined : Promise.reject(x)));
+    if (!batch) return `The chain holds no record of batch ${i} and no anchor for it, so it has no settlement receipt.`;
+    const rollup = await rdk.rest.getRollup(ROLLUP);
+    const anchors = await rdk.rest.getAnchors(rollup.layerId);
+    if (!anchors.some((a) => a.layerHeight === i)) {
+      if (anchors.some((a) => a.layerHeight > i) || batch.status !== "submitted") {
+        return `Batch ${i} has no ML-DSA-87 anchor, and never will: it was submitted by the standby sequencer or another bonded submitter, which do not anchor (only the creator's key signs anchors). So it has no settlement receipt. The batch itself is ${batch.status}.`;
+      }
+      return `Batch ${i} is not anchored yet. If the creator's sequencer submitted it, its anchor appears with it; if the standby did, it will have no anchor and no receipt.`;
+    }
+  } catch {
+    // fall through to the node's own words
+  }
+  return `No receipt for batch ${i}: ${raw}`;
+}
+
 const batchFromHash = (): number | undefined => {
   const m = /[?&]batch=(\d+)/.exec(location.hash);
-  return m ? Number(m[1]) : undefined;
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isSafeInteger(n) ? n : undefined;
 };
 
 function flipStateRoot(r: SettlementReceipt): SettlementReceipt {
   const s = r.stateRoot;
   return { ...r, stateRoot: (s[0] === "0" ? "1" : "0") + s.slice(1) };
+}
+
+const errText = (e: unknown): string => String(e instanceof Error ? e.message : e);
+
+interface Row {
+  key: string;
+  what: string;
+  why: string;
+  tone: Tone;
+  label: string;
 }
 
 export function VerifyView() {
@@ -54,11 +97,13 @@ export function VerifyView() {
   const [receipt, setReceipt] = useState<SettlementReceipt>();
   const [pasted, setPasted] = useState("");
   const [result, setResult] = useState<Verification>();
+  const [pin, setPin] = useState<KeyPin | { error: string }>();
   const [finality, setFinality] = useState<{ final: boolean; status: string; until?: number }>();
   const [took, setTook] = useState<number>();
   const [evm, setEvm] = useState<EvmCheck | { error: string }>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
+  const run = useRef(0);
 
   useEffect(() => {
     void chain()
@@ -70,88 +115,123 @@ export function VerifyView() {
       .catch(() => undefined);
   }, []);
 
+  // A link like #/verify?batch=7 builds that batch's receipt, on load and whenever the hash changes.
   useEffect(() => {
-    const b = batchFromHash();
-    if (b !== undefined) void build(b);
+    const fromHash = () => {
+      const b = batchFromHash();
+      if (b === undefined) return;
+      setBatchIndex(b);
+      void build(b);
+    };
+    fromHash();
+    addEventListener("hashchange", fromHash);
+    return () => removeEventListener("hashchange", fromHash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function verify(r: SettlementReceipt) {
-    setBusy("Verifying against the chain…");
+  function reset(message: string) {
+    setBusy(message);
     setError(undefined);
     setResult(undefined);
     setFinality(undefined);
     setEvm(undefined);
-    // The contract check runs alongside; it never decides the verdict above, only adds to it.
-    const evmCheck = evmCovers(r)
-      ? checkInEvm(r).catch((e: unknown) => ({ error: String(e instanceof Error ? e.message : e) }))
-      : Promise.resolve(undefined);
+    setPin(undefined);
+  }
+
+  async function verify(r: SettlementReceipt) {
+    const me = ++run.current;
+    const current = () => me === run.current;
+    reset("Verifying against the chain…");
     try {
+      const problem = receiptProblem(r);
+      if (problem) throw new Error(problem);
+      // The contract check runs alongside; it never decides the verdict, only adds to it.
+      const evmCheck = evmCovers(r) ? checkInEvm(r).catch((e: unknown) => ({ error: errText(e) })) : Promise.resolve(undefined);
       const { rdk } = await chain();
       const t0 = performance.now();
+      // The creator's key as the node reports it, against the one pinned in this page.
+      const pinP = rdk.rest
+        .getRollup(r.rollupId)
+        .then((rollup) => rdk.rest.getPqcAccount(rollup.creator).then((a) => (a.publicKey ? keyPin(rollup.creator, a.publicKey) : { error: "no key registered" })))
+        .catch((e: unknown) => ({ error: errText(e) }));
       let v: Verification = await verifySettlementReceipt(r, { client: rdk });
-      // The chain prunes finalized batch records after a retention window. If
+      // The chain may prune finalized batch records after a retention window. If
       // that is why the batch read failed, re-run every check that does not
       // need the record (pruned.ts) instead of stopping there.
       const pruned = !v.valid && v.checks.rollupLayerBinding && !v.checks.batchStateRoot ? await prunedBatch(rdk, r.rollupId, r.batchIndex) : undefined;
       if (pruned) v = await verifyPrunedReceipt(rdk, r, pruned);
+      else if (!v.valid) v = { ...v, failed: RDK_ORDER.find((k) => !v.checks[k]) ?? "rollupLayerBinding" };
+      if (!current()) return;
       setTook(Math.round(performance.now() - t0));
       if (pruned) {
         const p = v as PrunedVerification;
         setFinality({ final: p.valid && p.fraudSearched, status: "pruned" });
-        setResult(v);
-        setEvm(await evmCheck);
-        return;
+      } else {
+        // A receipt's anchor exists from the moment the batch is submitted. The
+        // batch is settled only once its challenge window has closed.
+        const [batch, rollup] = await Promise.all([rdk.rest.getBatch(r.rollupId, r.batchIndex).catch(() => undefined), rdk.rest.getRollup(r.rollupId)]);
+        if (!current()) return;
+        setFinality(
+          batch
+            ? {
+                final: batch.status === "finalized",
+                status: batch.status,
+                ...(batch.submittedTime && rollup.challengeWindowSec ? { until: batch.submittedTime + rollup.challengeWindowSec } : {}),
+              }
+            : { final: false, status: "not found" },
+        );
       }
-      // A receipt's anchor exists from the moment the batch is submitted. The
-      // batch is settled only once its challenge window has closed.
-      const [batch, rollup] = await Promise.all([rdk.rest.getBatch(r.rollupId, r.batchIndex).catch(() => undefined), rdk.rest.getRollup(r.rollupId)]);
-      setFinality(
-        batch
-          ? {
-              final: batch.status === "finalized",
-              status: batch.status,
-              ...(batch.submittedTime && rollup.challengeWindowSec ? { until: batch.submittedTime + rollup.challengeWindowSec } : {}),
-            }
-          : { final: false, status: "not found" },
-      );
       setResult(v);
-      setEvm(await evmCheck);
+      const [p, e] = await Promise.all([pinP, evmCheck]);
+      if (!current()) return;
+      setPin(p);
+      setEvm(e);
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      if (current()) setError(errText(e));
     } finally {
-      setBusy(undefined);
+      if (current()) setBusy(undefined);
     }
   }
 
   async function build(i: number) {
-    setBusy(`Building the receipt for batch ${i} from chain state…`);
-    setError(undefined);
-    setResult(undefined);
+    if (!Number.isSafeInteger(i) || i < 0) {
+      setError("Enter a batch number (0 or more).");
+      return;
+    }
+    const me = ++run.current;
+    reset(`Building the receipt for batch ${i} from the chain…`);
     try {
       const { rdk } = await chain();
-      const r = await buildOwnReceipt(rdk, i).catch(async (e: unknown) => {
+      let r: SettlementReceipt;
+      try {
+        r = await buildOwnReceipt(rdk, i);
+      } catch (e) {
         // A pruned batch has no record to build from; its own anchor remains.
-        if (!(await prunedBatch(rdk, ROLLUP, i))) throw e;
-        return receiptFromOwnAnchor(rdk, ROLLUP, i);
-      });
+        if (!(await prunedBatch(rdk, ROLLUP, i).catch(() => undefined))) throw new Error(await whyNoReceipt(rdk, i, e));
+        r = await receiptFromOwnAnchor(rdk, ROLLUP, i);
+      }
+      if (me !== run.current) return;
       setReceipt(r);
       setPasted(JSON.stringify(r, null, 2));
       await verify(r);
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      if (me !== run.current) return;
+      setError(errText(e));
       setBusy(undefined);
     }
   }
 
   async function verifyPasted() {
-    try {
-      const r = JSON.parse(pasted) as SettlementReceipt;
-      setReceipt(r);
-      await verify(r);
-    } catch (e) {
-      setError(`That is not a receipt: ${String(e instanceof Error ? e.message : e)}`);
+    const p = parseReceipt(pasted);
+    if (!p.ok) {
+      run.current++;
+      setResult(undefined);
+      setBusy(undefined);
+      setError(p.error);
+      return;
     }
+    setReceipt(p.receipt);
+    await verify(p.receipt);
   }
 
   async function tamper() {
@@ -170,29 +250,141 @@ export function VerifyView() {
     URL.revokeObjectURL(url);
   }
 
+  const rows: Row[] = [];
+  if (result && receipt) {
+    const failed: CheckKey | undefined = result.valid ? undefined : (result.failed ?? RDK_ORDER.find((k) => !result.checks[k]));
+    const order: CheckKey[] = [...RDK_ORDER, "ownAnchor", "final"];
+    const failedAt = failed ? order.indexOf(failed) : -1;
+    const toneOf = (key: CheckKey, ok: boolean): [Tone, string] => {
+      if (ok) return ["ok", "passed"];
+      if (key === failed) return ["bad", "failed"];
+      if (failedAt >= 0 && order.indexOf(key) > failedAt) return ["skip", "not reached"];
+      return ["bad", "failed"];
+    };
+    for (const c of CHECKS) {
+      if (c.key === "batchStateRoot" && result.pruned) {
+        const why = `The chain keeps finalized batches for ${result.pruned.retentionBlocks.toLocaleString()} blocks, then may delete the record${result.ageBlocks !== undefined ? `; this batch's anchor is ${result.ageBlocks.toLocaleString()} blocks old` : ""}. Its own anchor still carries its state root.`;
+        rows.push(
+          failed === "batchStateRoot"
+            ? { key: c.key, what: "The batch record is missing", why: result.reason ?? why, tone: "bad", label: "failed" }
+            : failedAt >= 0 && failedAt < order.indexOf("batchStateRoot")
+              ? { key: c.key, what: "The batch record has been pruned", why, tone: "skip", label: "not reached" }
+              : { key: c.key, what: "The batch record has been pruned", why, tone: "skip", label: "no longer on chain" },
+        );
+        continue;
+      }
+      const [tone, label] = toneOf(c.key, result.checks[c.key]);
+      rows.push({ key: c.key, what: c.what, why: c.why, tone, label });
+      if (c.key === "creatorAuthority") {
+        const pinNotReached = failedAt >= 0 && failedAt <= order.indexOf("creatorAuthority");
+        rows.push(
+          pinNotReached
+            ? { key: "pin", what: "The creator's key is the one pinned in this page", why: "Compared once the key check above has passed.", tone: "skip", label: "not reached" }
+            : !pin
+            ? { key: "pin", what: "The creator's key is the one pinned in this page", why: "Comparing the key's SHA-256 with the one pinned in the page's source…", tone: "wait", label: "pending" }
+            : "error" in pin
+              ? { key: "pin", what: "The creator's key is the one pinned in this page", why: `The key could not be read to compare: ${pin.error}.`, tone: "skip", label: "not checked" }
+              : pin.status === "match"
+                ? { key: "pin", what: "The creator's key is the one pinned in this page", why: `SHA-256 ${short(pin.sha256, 8)}, the same as pinned in the page's source, so a node reporting another key would be caught.`, tone: "ok", label: "passed" }
+                : pin.status === "mismatch"
+                  ? { key: "pin", what: "The creator's key differs from the one pinned in this page", why: `The node reports a key with SHA-256 ${short(pin.sha256, 8)}; the page pins ${short(pin.pinned ?? "", 8)}. Either the creator changed keys or the node is wrong.`, tone: "bad", label: "failed" }
+                  : { key: "pin", what: "No key is pinned for this creator", why: "This receipt's rollup is not one this page pins a key for.", tone: "skip", label: "not checked" },
+        );
+      }
+    }
+    const own = !!result.anchor && result.anchor.layerHeight === receipt.batchIndex;
+    const [ownTone, ownLabel] = toneOf("ownAnchor", own);
+    rows.push({
+      key: "ownAnchor",
+      what: "It is this batch's own anchor",
+      why: result.anchor
+        ? `The matched anchor is layer height ${result.anchor.layerHeight}, made at block ${result.anchor.mainChainHeight.toLocaleString()}.`
+        : "The anchor's layer height equals the batch index, so its block and time are this batch's.",
+      tone: ownTone,
+      label: ownLabel,
+    });
+    const finalWhy = result.pruned
+      ? result.fraud
+        ? `A fraud proof against the creator's batch ${receipt.batchIndex} was upheld at block ${result.fraud.height.toLocaleString()}.`
+        : result.fraudSearched
+          ? `Only finalized batches are pruned, and the node's index shows no upheld fraud proof against the creator's batch ${receipt.batchIndex}.`
+          : "The batch record is gone and the node's transaction index could not be searched for fraud proofs, so finality cannot be confirmed here."
+      : finality?.final
+        ? "Its challenge window has closed, so no fraud proof can remove it."
+        : finality?.until
+          ? `It is ${finality.status} and can still be challenged until ${utcStamp(finality.until * 1000)}.`
+          : `The node reports it as ${finality?.status ?? "unknown"}.`;
+    const [finalTone, finalLabel]: [Tone, string] =
+      failed && failed !== "final"
+        ? ["skip", "not reached"]
+        : failed === "final"
+          ? ["bad", "failed"]
+          : finality?.final
+            ? ["ok", "passed"]
+            : result.pruned && !result.fraudSearched
+              ? ["skip", "not checked"]
+              : ["wait", "pending"];
+    rows.push({ key: "final", what: "The batch is final", why: finalLabel === "not reached" ? "Checked once the receipt itself verifies." : finalWhy, tone: finalTone, label: finalLabel });
+  }
+
+  const pinMismatch = !!pin && !("error" in pin) && pin.status === "mismatch";
+  const ownAnchor = !!result?.anchor && !!receipt && result.anchor.layerHeight === receipt.batchIndex;
+  const verdict =
+    result && receipt
+      ? !result.valid
+        ? { cls: "bad", text: `Not valid: ${result.reason ?? "a check failed"}` }
+        : !ownAnchor
+          ? { cls: "bad", text: `The state root is anchored, but this receipt carries the anchor of layer height ${result.anchor?.layerHeight}, not batch ${receipt.batchIndex}'s own. Its block and time are that batch's.` }
+          : pinMismatch
+            ? { cls: "bad", text: "The signature verifies, but against a creator key that differs from the one pinned in this page. Treat this receipt as unconfirmed." }
+            : result.pruned
+              ? finality?.final
+                ? { cls: "ok", text: `Valid according to ${NODE_HOST}: batch ${receipt.batchIndex} of ${receipt.rollupId} settled on ${CHAIN_ID}. The chain has since pruned the batch record; its anchor and the creator's key were read from the node and the ML-DSA-87 signature was verified in this browser.` }
+                : { cls: "warn", text: "Anchored and signed, but the batch record is pruned and its finality could not be confirmed here." }
+              : finality?.final
+                ? { cls: "ok", text: `Valid: batch ${receipt.batchIndex} of ${receipt.rollupId} is settled and final on ${CHAIN_ID}, according to ${NODE_HOST}. The ML-DSA-87 signature was verified in this browser.` }
+                : { cls: "warn", text: `Anchored and signed, but not final yet: batch ${receipt.batchIndex} can still be challenged. Do not treat it as settled.` }
+      : undefined;
+
   return (
     <>
       <h1>Verify a settlement receipt</h1>
       <p className="lede">
         A settlement receipt says "the chain settled this rollup at this state root, signed by the rollup's ML-DSA-87 key". Here it is checked the
-        strict way: every field is re-read from chain state and the post-quantum signature is verified in your browser. A receipt on its own proves
-        nothing; only this check does.
+        strict way: every field is re-read from {NODE_HOST} (the node's answers are not proven), and the post-quantum signature is verified in your
+        browser against the creator's key, which is also compared with the one pinned in this page. A receipt on its own proves nothing; only a check
+        like this does.
       </p>
 
       <div className="cols">
         <div>
           <section className="panel">
             <h2>1. Get a receipt</h2>
-            <div className="row">
+            <form
+              className="row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void build(batchIndex);
+              }}
+            >
               <label htmlFor="batch">Batch</label>
-              <input id="batch" type="number" min={0} max={latest} value={batchIndex} onChange={(e) => setBatchIndex(Number(e.target.value))} style={{ width: 90 }} />
-              <button className="primary" disabled={!!busy} onClick={() => void build(batchIndex)}>
+              <input
+                id="batch"
+                type="number"
+                min={0}
+                max={latest}
+                step={1}
+                value={Number.isFinite(batchIndex) ? batchIndex : ""}
+                onChange={(e) => setBatchIndex(e.target.value === "" ? NaN : Number(e.target.value))}
+                style={{ width: 90 }}
+              />
+              <button className="primary" disabled={!!busy}>
                 Build from chain and verify
               </button>
               {latest !== undefined && <span className="note">batches 0 to {latest}</span>}
-            </div>
+            </form>
             <p className="note" style={{ marginTop: 10 }}>
-              Or paste a receipt someone gave you (for example one from <code>receipts/vigil-pay-1/</code> in the repo):
+              Or paste a receipt someone gave you (for example a <code>batch-N.json</code> from <code>receipts/vigil-pay-1/</code> in the repo):
             </p>
             <textarea value={pasted} onChange={(e) => setPasted(e.target.value)} spellCheck={false} aria-label="Receipt JSON" placeholder='{"version": 2, "rollupId": "vigil-pay-1", …}' />
             <div className="row" style={{ marginTop: 8 }}>
@@ -215,88 +407,27 @@ export function VerifyView() {
             {busy && <p className="empty">{busy}</p>}
             {error && <p className="err">{error}</p>}
             {!busy && !error && !result && <p className="empty">Build or paste a receipt to check it.</p>}
-            {result && receipt && (
+            {result && receipt && verdict && (
               <>
                 <ul className="checks">
-                  {[
-                    ...CHECKS.map((c) =>
-                      c.key === "batchStateRoot" && result.pruned
-                        ? {
-                            ...c,
-                            what: "The batch record has been pruned",
-                            why: `The chain keeps finalized batches for ${result.pruned.retentionBlocks.toLocaleString()} blocks, then deletes the record${result.ageBlocks !== undefined ? `; this batch's anchor is ${result.ageBlocks.toLocaleString()} blocks old` : ""}. The anchor below still carries its state root.`,
-                            ok: false,
-                            gone: true,
-                          }
-                        : { ...c, ok: result.checks[c.key], gone: false },
-                    ),
-                    {
-                      key: "ownAnchor",
-                      what: "It is this batch's own anchor",
-                      why: result.anchor
-                        ? `The matched anchor is layer height ${result.anchor.layerHeight}, made at block ${result.anchor.mainChainHeight.toLocaleString()}.`
-                        : "The anchor's layer height equals the batch index, so its block and time are this batch's.",
-                      ok: !!result.anchor && result.anchor.layerHeight === receipt.batchIndex,
-                      gone: false,
-                    },
-                    {
-                      key: "final",
-                      what: "The batch is final",
-                      why: result.pruned
-                        ? result.fraud
-                          ? `A fraud proof against the creator's batch ${receipt.batchIndex} was upheld at block ${result.fraud.height.toLocaleString()}.`
-                          : result.fraudSearched
-                            ? `Only finalized batches are pruned this way, and the node's index shows no upheld fraud proof against the creator's batch ${receipt.batchIndex}.`
-                            : "The batch record is gone and the node's transaction index could not be searched for fraud proofs, so finality cannot be confirmed here."
-                        : finality?.final
-                        ? "Its challenge window has closed, so no fraud proof can remove it."
-                        : finality?.until
-                          ? `It is ${finality.status} and can still be challenged until ${new Date(finality.until * 1000).toUTCString()}.`
-                          : `The chain reports it as ${finality?.status ?? "unknown"}.`,
-                      ok: !!finality?.final,
-                      gone: !!result.pruned && result.valid && !result.fraudSearched,
-                    },
-                  ].map((c, i, all) => {
-                    const firstFail = all.findIndex((x) => !x.ok && !x.gone);
-                    const reached = result.valid || firstFail === -1 || i <= firstFail;
-                    const [cls, label, mark] = c.ok
-                      ? ["mark-ok", "passed", "✓"]
-                      : c.gone
-                        ? ["mark-skip", "no longer on chain", "○"]
-                        : reached
-                          ? ["mark-bad", "failed", "✕"]
-                          : ["mark-skip", "not reached", "–"];
-                    return (
-                      <li key={c.key}>
-                        <span className={cls} aria-label={label}>
-                          {mark}
-                        </span>
-                        <span>
-                          <span className="what">{c.what}</span>
-                          {!c.ok && !c.gone && !reached && <span className="note"> (not reached)</span>}
-                          <br />
-                          <span className="why">{c.why}</span>
-                        </span>
-                      </li>
-                    );
-                  })}
+                  {rows.map((c) => (
+                    <li key={c.key}>
+                      <Mark tone={c.tone} label={c.label} />
+                      <span>
+                        <span className="what">{c.what}</span>
+                        {c.label === "not reached" && <span className="note"> (not reached)</span>}
+                        <br />
+                        <span className="why">{c.why}</span>
+                      </span>
+                    </li>
+                  ))}
                 </ul>
-                <div className={`verdict ${!result.valid ? "bad" : result.anchor?.layerHeight !== receipt.batchIndex ? "bad" : finality?.final ? "ok" : "warn"}`}>
-                  {!result.valid
-                    ? `Not valid: ${result.reason ?? "a check failed"}`
-                    : result.anchor?.layerHeight !== receipt.batchIndex
-                      ? `The state root is anchored, but this receipt carries the anchor of layer height ${result.anchor?.layerHeight}, not batch ${receipt.batchIndex}'s own. Its block and time are that batch's.`
-                      : result.pruned
-                        ? finality?.final
-                          ? `Valid: batch ${receipt.batchIndex} of ${receipt.rollupId} settled on ${CHAIN_ID}. The chain has since pruned the batch record; its anchor, the creator's key and the ML-DSA-87 signature were checked live.`
-                          : `Anchored and signed, but the batch record is pruned and its finality could not be confirmed here.`
-                      : finality?.final
-                        ? `Valid: batch ${receipt.batchIndex} of ${receipt.rollupId} is settled and final on ${CHAIN_ID}.`
-                        : `Anchored and signed, but not final yet: batch ${receipt.batchIndex} can still be challenged. Do not treat it as settled.`}
-                </div>
+                <div className={`verdict ${verdict.cls}`}>{verdict.text}</div>
                 <dl className="kv">
                   <dt>Mode</dt>
-                  <dd>{result.pruned ? "against live chain state (batch record pruned; anchor checked)" : result.mode === "chain" ? "against live chain state" : result.mode}</dd>
+                  <dd>
+                    {result.pruned ? `against the state ${NODE_HOST} reports (batch record pruned; anchor checked)` : result.mode === "chain" ? `against the state ${NODE_HOST} reports` : result.mode}
+                  </dd>
                   <dt>Signed by</dt>
                   <dd>{KNOWN[receipt.creator] ?? receipt.creator}</dd>
                   <dt>Algorithm</dt>
@@ -309,7 +440,7 @@ export function VerifyView() {
                     <code>{short(receipt.stateRoot, 12)}</code>
                   </dd>
                   <dt>Main-chain block</dt>
-                  <dd>{receipt.mainChainHeight.toLocaleString()}</dd>
+                  <dd>{Number(receipt.mainChainHeight).toLocaleString()}</dd>
                   <dt>Checked in</dt>
                   <dd>{took} ms, over the node's websocket</dd>
                 </dl>
@@ -319,16 +450,14 @@ export function VerifyView() {
           {result && receipt && RECEIPT_VERIFIER && evmCovers(receipt) && (
             <section className="panel" aria-live="polite">
               <h2>
-                3. In Solidity <small>QoreChain EVM</small>
+                3. In Solidity <small>QoreChain EVM, a second opinion</small>
               </h2>
               {!evm && <p className="empty">Asking the contract…</p>}
               {evm && "error" in evm && <p className="err">The EVM check did not run: {evm.error}</p>}
               {evm && !("error" in evm) && (
                 <ul className="checks">
                   <li>
-                    <span className={evm.valid ? "mark-ok" : "mark-bad"} aria-label={evm.valid ? "passed" : "failed"}>
-                      {evm.valid ? "✓" : "✕"}
-                    </span>
+                    <Mark tone={evm.valid ? "ok" : "bad"} />
                     <span>
                       <span className="what">
                         The contract says: {evm.result} (layer height {receipt.layerHeight})
@@ -336,17 +465,15 @@ export function VerifyView() {
                       <br />
                       <span className="why">
                         It rebuilt the anchor message, read the creator's key through the pqcKeyStatus precompile and verified the ML-DSA-87
-                        signature with pqcVerify ({evm.ms} ms, a free eth_call).
+                        signature with pqcVerify ({evm.ms} ms, a free eth_call to the node operator's EVM endpoint, whose answer is not proven).
                       </span>
                     </span>
                   </li>
                   <li>
-                    <span
-                      className={evm.record.attested && evm.record.sameRoot && !evm.record.conflicted ? "mark-ok" : evm.record.attested ? "mark-bad" : "mark-skip"}
-                      aria-label={evm.record.attested ? (evm.record.sameRoot && !evm.record.conflicted ? "passed" : "failed") : "not yet"}
-                    >
-                      {evm.record.attested ? (evm.record.sameRoot && !evm.record.conflicted ? "✓" : "✕") : "–"}
-                    </span>
+                    <Mark
+                      tone={evm.record.attested ? (evm.record.sameRoot && !evm.record.conflicted ? "ok" : "bad") : "skip"}
+                      label={evm.record.attested ? (evm.record.sameRoot && !evm.record.conflicted ? "passed" : "failed") : "not yet"}
+                    />
                     <span>
                       <span className="what">
                         {!evm.record.attested
@@ -368,12 +495,9 @@ export function VerifyView() {
                 </ul>
               )}
               <p className="note" style={{ marginTop: 10 }}>
-                Contract <code>{short(RECEIPT_VERIFIER.address, 8)}</code> (
-                <a href={`${REPO}/blob/main/contracts/src/SettlementReceiptVerifier.sol`} target="_blank" rel="noreferrer">
-                  source
-                </a>
-                ), no owner, fixed to {ROLLUP} and its creator. EVM code cannot read the rollup module, so it cannot tell whether a batch is
-                final; that comes from the checks above.
+                Contract <code>{short(RECEIPT_VERIFIER.address, 8)}</code> (<Ext href={`${REPO}/blob/main/contracts/src/SettlementReceiptVerifier.sol`}>source</Ext>), no owner,
+                fixed to {ROLLUP} and its creator. EVM code cannot read the rollup module, so it cannot tell whether a batch is final; that comes from
+                the checks above.
               </p>
             </section>
           )}
