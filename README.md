@@ -21,7 +21,8 @@ Anyone can check a settlement receipt in their browser or in Solidity without tr
    - Your browser rebuilds batch 0's settlement receipt from chain state and runs eight checks. These include the ML-DSA-87 signature, checked against the creator's key from the chain's PQ registry, and whether the batch is final.
    - Our Solidity contract then checks the same anchor through the `pqcVerify` precompile.
    - Press **"Forge it"** to change one digit and watch it fail.
-3. **[Open a payslip](https://web-production-324cc271.up.railway.app/#/payslip).** A payslip sealed to three recipients sits in the rollup's public inbox. Anyone can see that it was posted and settled; only its recipients can read it.
+3. **[Instant exits](https://web-production-324cc271.up.railway.app/#/exits).** A 0.1 QOR withdrawal paid 57 minutes before its batch could be final, step by step: the L2 withdrawal, both watchtowers' ML-DSA-87 signatures (checked in your browser by the chain's `pqcVerify` precompile), the payment, and the vault repaid after finality. Enter any address to get its exit address.
+4. **[Open a payslip](https://web-production-324cc271.up.railway.app/#/payslip).** A payslip sealed to three recipients sits in the rollup's public inbox. Anyone can see that it was posted and settled; only its recipients can read it.
 
 There is no server of ours in between: the page talks straight to a QoreChain node over its websocket.
 
