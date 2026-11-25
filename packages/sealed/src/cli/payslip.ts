@@ -17,6 +17,7 @@ import { bytesToHex, postRollupDataMsg, postedDataHash } from "@qorechain/rdk";
 import { fetchPqcStatus, isRegisteredPqcKey } from "@qorechain/sdk";
 import { HybridSender } from "@vigil/keel/chain";
 import { cardPath, loadCard, recipientFromChain } from "../card.ts";
+import { openInboxReader } from "@vigil/core/inbox";
 import { readInbox, transferOf } from "../inbox.ts";
 import { loadAccount } from "../keys.ts";
 import { checkPayslip, sealPayslip, type Payslip } from "../payslip.ts";
@@ -37,7 +38,7 @@ if (payslip.employer !== account.cosmos) fail(`the payslip's employer is ${paysl
 if (!to.includes(payslip.employee)) fail(`the employee ${payslip.employee} must be one of the recipients`);
 
 // The payment must already be in the inbox, and must be the transfer the payslip describes.
-const posts = await readInbox(rest, env);
+const posts = await readInbox(rest, env, 0, openInboxReader(env));
 const paid = posts.find((p) => p.dataHash === payslip.payment.postDataHash);
 if (!paid) fail(`no inbox post of ${rollupId} has data_hash ${payslip.payment.postDataHash}; post the payment first`);
 const transfer = transferOf(paid.payload, env);
