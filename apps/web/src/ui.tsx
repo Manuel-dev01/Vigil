@@ -173,3 +173,24 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey: st
     );
   }
 }
+
+/** An element's width in CSS pixels, kept current as it resizes: `const [ref, width] = useWidth()`. */
+export function useWidth<E extends HTMLElement = HTMLDivElement>(): [(el: E | null) => void, number] {
+  const [width, setWidth] = useState(0);
+  const ro = useRef<ResizeObserver>(undefined);
+  const ref = useMemo(
+    () => (el: E | null) => {
+      ro.current?.disconnect();
+      if (!el) return;
+      setWidth(Math.round(el.getBoundingClientRect().width));
+      ro.current = new ResizeObserver((es) => {
+        const w = es[0]?.contentRect.width;
+        if (w !== undefined) setWidth(Math.round(w));
+      });
+      ro.current.observe(el);
+    },
+    [],
+  );
+  useEffect(() => () => ro.current?.disconnect(), []);
+  return [ref, width];
+}

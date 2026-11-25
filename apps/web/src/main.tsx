@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import "./styles.css";
+// After the app stylesheet, so the pages' own art direction wins where the two meet.
+import "./views/pages.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

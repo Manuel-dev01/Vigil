@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EMPTY_INBOX_ACC, bytesToHex, qledgerAccumulate, type BatchView, type RdkClient } from "@qorechain/rdk";
 import { fromHex, sealKeysFromSeed, type SealKeyPair } from "@qorechain/qoreseal";
 import { checkDataReceiptOnChain, dataReceiptFrom, verifyDataReceipt } from "@vigil/sealed/data-receipt";
@@ -6,7 +6,10 @@ import { batchHolding, readInbox, transferOf, type InboxPost } from "@vigil/seal
 import { isSealedEnvelope, openPayslip, type Payslip } from "@vigil/sealed/payslip";
 import { chain, isNotFound } from "../chain.ts";
 import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, qor, short, shortAddr, utcStamp } from "../config.ts";
+import { reveal } from "../reveal.ts";
 import { Ext } from "../ui.tsx";
+import { PageHead, Reading, type Sounding } from "./Head.tsx";
+import { InboxStrip, kindOf } from "./Inbox.tsx";
 
 const env = { chainId: CHAIN_ID, rollupId: ROLLUP };
 
@@ -111,6 +114,8 @@ function SettledCell({ s }: { s: Sealed }) {
 
 export function PayslipView() {
   const [posts, setPosts] = useState<InboxPost[]>();
+  const [batches, setBatches] = useState<BatchView[]>();
+  const [dragging, setDragging] = useState(false);
   const [sealed, setSealed] = useState<Sealed[]>([]);
   const [error, setError] = useState<string>();
   const [holder, setHolder] = useState<string>();
@@ -125,6 +130,7 @@ export function PayslipView() {
         const [all, batches, inbox] = await Promise.all([readInbox(rdk.rest, env), rdk.rest.listBatches(ROLLUP), rdk.rest.getInbox(ROLLUP)]);
         if (!alive) return;
         setPosts(all);
+        setBatches(batches);
         const consumed = Number(inbox.consumedSequence);
         const rows: Sealed[] = all
           .filter((p) => isSealedEnvelope(p.payload))
@@ -194,23 +200,54 @@ export function PayslipView() {
     }
   }
 
+  const kinds = useMemo(() => new Map((posts ?? []).map((p) => [p.sequence, kindOf(p, env)])), [posts]);
+  const openedSet = useMemo(() => new Set((opened ?? []).map((o) => o.sequence)), [opened]);
+  const settledCount = sealed.filter((s) => s.settled.kind === "receipt" && s.settled.valid && s.settled.onChain).length;
+  const checking = sealed.some((s) => s.settled.kind === "checking");
+  const soundings: Sounding[] = [
+    { k: "Inbox entries", v: posts?.length, s: "each read from the transaction that posted it" },
+    { k: "Sealed envelopes", v: posts ? sealed.length : undefined, s: "ML-KEM-1024 with X25519" },
+    {
+      k: "Settled",
+      v: posts ? (checking ? "checking…" : `${settledCount} of ${sealed.length}`) : undefined,
+      tone: posts && !checking && settledCount === sealed.length && sealed.length > 0 ? "ok" : undefined,
+      s: "a data receipt checked here for each",
+    },
+    { k: "Opened here", v: opened ? opened.length : "—", s: "your key never leaves this page" },
+  ];
+  const showPayslip = (seq: number) => document.getElementById(`payslip-${seq}`)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+
   return (
     <>
-      <h1>Open a sealed payslip</h1>
-      <p className="lede">
-        Payslips travel inside the rollup's public inbox, sealed with QoreSeal (ML-KEM-1024 together with X25519) to the employee, the employer and an
-        auditor. Anyone can check that a payslip was posted and settled. Only its recipients can read it, today and after a quantum computer exists, while
-        ML-KEM-1024 holds. The payment itself is a public transfer signed with ML-DSA-44; the payslip that explains it is encrypted but not signed.
-      </p>
+      <PageHead
+        eyebrow={<>Sealed payslips · QoreSeal</>}
+        title="Open a sealed payslip"
+        lede={
+          <>
+            <p>
+              Payslips travel inside the rollup's public inbox, sealed with QoreSeal (ML-KEM-1024 together with X25519) to the employee, the employer and an
+              auditor.
+            </p>
+            <p>
+              Anyone can check that a payslip was posted and settled. Only its recipients can read it, today and after a quantum computer exists, while
+              ML-KEM-1024 holds. The payment itself is a public transfer signed with ML-DSA-44; the payslip that explains it is encrypted but not signed.
+            </p>
+          </>
+        }
+        soundings={soundings}
+      />
+
+      {error && <p className="err">{error}</p>}
+      {!error && !posts && <Reading>Reading every inbox entry from {NODE_HOST} and checking them against the chain's accumulator…</Reading>}
+
+      <InboxStrip posts={posts} kinds={kinds} batches={batches} opened={openedSet} onOpen={showPayslip} />
 
       <div className="cols">
         <div>
-          <section className="panel">
+          <section className="panel" ref={reveal}>
             <h2>
               Sealed envelopes in the inbox <small>{posts ? `${sealed.length} of ${posts.length} entries` : "reading…"}</small>
             </h2>
-            {error && <p className="err">{error}</p>}
-            {!error && !posts && <p className="empty">Reading every inbox entry and checking it against the chain's accumulator…</p>}
             {posts && sealed.length === 0 && <p className="empty">No sealed envelope in the inbox yet.</p>}
             {sealed.length > 0 && (
               <div className="table-wrap">
@@ -226,7 +263,7 @@ export function PayslipView() {
                   </thead>
                   <tbody>
                     {sealed.map((s) => (
-                      <tr key={s.post.sequence}>
+                      <tr key={s.post.sequence} className={openedSet.has(s.post.sequence) ? "is-opened" : undefined}>
                         <td className="num">{s.post.sequence}</td>
                         <td>
                           <Name addr={s.post.poster} />
@@ -253,28 +290,50 @@ export function PayslipView() {
         </div>
 
         <aside>
-          <section className="panel">
+          <section className="panel" ref={reveal}>
             <h2>Open with your seal key</h2>
-            <p className="note">
-              Choose your QoreSeal key file (<code>QSEAL_ADDRESS</code>, <code>QSEAL_SEED_HEX</code>). It is read in this page only: nothing is sent
-              anywhere, and it is forgotten when you leave.
-            </p>
-            <input type="file" accept=".env,.txt,text/plain" disabled={!posts} onChange={(e) => void onKeyFile(e.target.files?.[0])} aria-label="Seal key file" />
+            <label
+              className={`drop${dragging ? " over" : ""}${!posts ? " off" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (posts) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                if (posts) void onKeyFile(e.dataTransfer.files?.[0]);
+              }}
+            >
+              <span className="drop-env" aria-hidden="true">
+                <svg viewBox="-12 -9 24 18" width="40" height="30">
+                  <rect x={-11} y={-8} width={22} height={16} rx={1} />
+                  <path className="flap" d="M-11 -8L0 1.5L11 -8" />
+                </svg>
+              </span>
+              <span className="drop-t">{posts ? "Drop your QoreSeal key file here, or choose it" : "Reading the inbox first…"}</span>
+              <span className="note">
+                A file with <code>QSEAL_ADDRESS</code> and <code>QSEAL_SEED_HEX</code>. It is read in this page only: nothing is sent anywhere, and it is
+                forgotten when you leave.
+              </span>
+              <input type="file" accept=".env,.txt,text/plain" disabled={!posts} onChange={(e) => void onKeyFile(e.target.files?.[0])} aria-label="Seal key file" />
+            </label>
             {keyError && (
               <p className="err" style={{ marginTop: 10 }}>
                 {keyError}
               </p>
             )}
             {holder && opened && opened.length === 0 && <p className="empty">No envelope here is sealed to {shortAddr(holder)}.</p>}
-            {opened && opened.length > 1 && <p className="note">{opened.length} payslips, newest first.</p>}
+            {opened && opened.length > 1 && <p className="note opened-count">{opened.length} payslips, newest first.</p>}
             {opened?.map((o) => {
               const employerIsPoster = o.payslip.employer === o.poster;
               return (
-                <div className="payslip" key={o.sequence}>
-                  <div className="row" style={{ justifyContent: "space-between" }}>
-                    <strong>Payslip {o.payslip.period}</strong>
-                    <span className="chip info">entry {o.sequence}</span>
-                  </div>
+                <article className="pdoc" key={o.sequence} id={`payslip-${o.sequence}`}>
+                  <header className="rdoc-top">
+                    <span>Payslip · opened in this browser</span>
+                    <span>entry {o.sequence}</span>
+                  </header>
+                  <h3 className="pdoc-t">{o.payslip.period}</h3>
                   <dl className="kv">
                     <dt>Employer</dt>
                     <dd>
@@ -305,7 +364,7 @@ export function PayslipView() {
                       is written inside the sealed payslip and is not signed; only the poster is vouched for by the chain. Do not trust who it claims to be from.
                     </p>
                   )}
-                  <table style={{ marginTop: 10 }}>
+                  <table className="pdoc-lines">
                     <tbody>
                       {o.payslip.lines.map((l, i) => (
                         <tr key={i}>
@@ -316,13 +375,9 @@ export function PayslipView() {
                           </td>
                         </tr>
                       ))}
-                      <tr>
-                        <td>
-                          <strong>Paid</strong>
-                        </td>
-                        <td className="num">
-                          <strong>{qor(o.payslip.payment.amountUqor)}</strong>
-                        </td>
+                      <tr className="pdoc-paid">
+                        <td>Paid</td>
+                        <td className="num">{qor(o.payslip.payment.amountUqor)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -340,11 +395,12 @@ export function PayslipView() {
                     wrote. Only the poster of the envelope is vouched for by the chain.
                   </p>
                   {o.payslip.note && <p className="note">{o.payslip.note}</p>}
-                </div>
+                  <p className="rdoc-stamp ok pdoc-stamp">Unsealed · ML-KEM + X25519</p>
+                </article>
               );
             })}
           </section>
-          <section className="panel">
+          <section className="panel" ref={reveal}>
             <h2>What stays public</h2>
             <p className="note">
               QoreSeal hides the content. The envelope's size, the time it was posted, the poster's address and the public transfer it explains stay

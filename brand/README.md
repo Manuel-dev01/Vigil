@@ -85,7 +85,7 @@ really are a sequence: on the landing page, that is the five steps of one batch'
 
 - **Easing:** expressive out (`cubic-bezier(0.16, 1, 0.3, 1)`) for reveals; gentle in-out (`cubic-bezier(0.65, 0, 0.35, 1)`) for state changes.
 - **Durations:** 240 ms for hover and press, about 900 ms for reveals, about 1.2 s for the hero.
-- **The one big moment** is the landing page's scroll sequence. Elsewhere, motion only confirms something:
+- **The one big moment** is the landing page's scroll sequence. On the app pages, each page's instrument draws as it comes in, and otherwise motion only confirms something:
   - a pressed button flashes like a signal lamp;
   - a page lifts away and the next one rises;
   - a receipt's checks land one after another;
@@ -107,6 +107,25 @@ The landing page's 3D scene ([`apps/web/src/landing/scene.ts`](../apps/web/src/l
 - **Live from the chain:**
   - each new block sends a faint ring out from the lamp;
   - each anchored batch stands as a beacon in the row.
+
+## The app pages
+
+Each app page opens with the same head, a chart and its legend:
+- the words on the left;
+- soundings on the right: what the page has just read from the chain, with a placeholder bar until the chain answers.
+
+Behind the head is the chart plate ([`apps/web/src/plate.ts`](../apps/web/src/plate.ts)): the landing page's lattice, drawn in 2D canvas, with the lamp on the horizon. It stays put while pages change; only the lamp turns. Each new block sends a ring from it.
+
+Below the head, one instrument per page draws that page's own data:
+
+| Page | Instrument | What it shows |
+|---|---|---|
+| Rollup | the beacon line | Every batch: lit when anchored with ML-DSA-87, hollow when not. A port-red mark sinks where a fraud proof was upheld. |
+| Instant exits | the race | The latest fronted exit on one time axis: paid at once, the vault repaid after finality, and the window a withdrawal waits without the vault. |
+| Verify | the sector light and the receipt | Each check is one sector of a chart's sector light: green when passed, red where it failed. The receipt is set as a document, with a forged digit marked. |
+| Payslip | the inbox strip | Every inbox entry by kind, bracketed by the batch that settled it. Sealed envelopes open when your key opens them. |
+
+The tables under each instrument stay the accessible record. The drawings are hidden from screen readers, which get a one-line summary instead.
 
 ## Rebuild the files
 
