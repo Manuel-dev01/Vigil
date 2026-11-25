@@ -1,0 +1,11 @@
+# Served at https://web-production-324cc271.up.railway.app, the web app's address until 25 Nov 2026.
+# Every path goes to the same path on the new address; browsers keep the #/route part themselves.
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	redir https://vigil-pq.up.railway.app{uri} permanent
+	header -Server
+}
