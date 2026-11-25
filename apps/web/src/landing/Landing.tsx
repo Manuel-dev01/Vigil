@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   {
     n: "04",
     title: "Fronted",
-    body: "Leaving early? Both watchtowers sign your withdrawal, the vault checks their ML-DSA-87 signatures with pqcVerify and pays you now. Our first automatic exit was paid 11 blocks after its batch.",
+    body: "Leaving early? Both watchtowers sign your withdrawal, the vault checks their ML-DSA-87 signatures with pqcVerify and can pay you before the batch is final. Our first automatic exit was paid 11 blocks after its batch.",
     sounding: { label: "EVIDENCE 104 · block 10,686,385", href: EVIDENCE },
   },
   {
@@ -246,8 +246,8 @@ export function Landing() {
             </span>
           </h1>
           <p className="hero-lede">
-            Vigil is a payments rollup on QoreChain. Users sign with ML-DSA-44, every batch is anchored with ML-DSA-87, and two watchtowers re-execute
-            each one and challenge fraud on chain.
+            Vigil is a payments rollup on QoreChain. Users sign with ML-DSA-44, our sequencer anchors each batch it posts with ML-DSA-87, and two
+            watchtowers re-execute every batch and challenge fraud on chain.
           </p>
           <div className="cta">
             <a className="btn primary" href="#/rollup">

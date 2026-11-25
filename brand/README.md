@@ -47,7 +47,7 @@ failed and passed.
 | `--sounding` | `#8E9BA7` | `#4C5964` | secondary ink, labels |
 | `--lamp` | `#F3B33D` | `#8A5400` | the accent: links, the primary button, what the watch has lit |
 | `--port` | `#EE5A3F` | `#B3301B` | fraud, a failed check |
-| `--starboard` | `#4CC08E` | `#1E7A4E` | a passed check, final |
+| `--starboard` | `#4CC08E` | `#1C764B` | a passed check, final |
 
 Contrast against the ground, with a floor of 4.5:1 for body text:
 
@@ -57,9 +57,11 @@ Contrast against the ground, with a floor of 4.5:1 for body text:
 | Sounding | 6.7:1 | 6.3:1 |
 | Lamp | 10.3:1 | 5.5:1 |
 | Port | 5.6:1 | 5.5:1 |
-| Starboard | 8.4:1 | 4.6:1 |
+| Starboard | 8.4:1 | 4.9:1 |
 
 Text on a lamp-amber button is `--night`: 10.3:1 at night and 5.5:1 by day.
+
+Chips, marks and verdicts put a colour on its own wash, and those pairs pass too. By day: starboard 4.7:1, lamp 5.3:1, port 5.1:1. By night: starboard 6.7:1, lamp 8.5:1, port 4.9:1.
 
 ## Type
 
