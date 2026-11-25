@@ -46,6 +46,18 @@ jobs:
         env:
           VIGIL_LIVE: "0"
 
+      # The web app bundles workspace packages for the browser. If one of them pulls in a Node module
+      # (fs, path, url…), Vite replaces it with an empty stand-in and only warns, and the page breaks
+      # at run time. Treat that warning as a failure.
+      - name: Web build (no Node modules in the browser bundle)
+        run: |
+          pnpm --filter @vigil/web build 2>&1 | tee web-build.log
+          if grep -q "externalized for browser compatibility" web-build.log; then
+            echo "::error::A Node module reached the web bundle:"
+            grep "externalized for browser compatibility" web-build.log
+            exit 1
+          fi
+
   contracts:
     name: Contracts (forge test)
     runs-on: ubuntu-latest

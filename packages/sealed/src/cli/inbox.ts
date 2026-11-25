@@ -7,6 +7,7 @@
  * Envelopes are anonymous, so every sealed post is tried; the ones this key
  * cannot open are counted, not shown.
  */
+import { openInboxReader } from "@vigil/core/inbox";
 import { batchHolding, readInbox } from "../inbox.ts";
 import { loadSealKeyFile } from "../keys.ts";
 import { isSealedEnvelope, openPayslip } from "../payslip.ts";
@@ -18,7 +19,7 @@ const rollupId = argValue(argv, "--rollup") ?? "vigil-pay-1";
 if (!keyPath) fail("usage: inbox.ts --key <seal key file> [--rollup id]");
 
 const { address, keys } = loadSealKeyFile(keyPath);
-const [posts, batches] = await Promise.all([readInbox(rest, { chainId, rollupId }), rest.listBatches(rollupId)]);
+const [posts, batches] = await Promise.all([readInbox(rest, { chainId, rollupId }, 0, openInboxReader({ chainId, rollupId })), rest.listBatches(rollupId)]);
 const sealed = posts.filter((p) => isSealedEnvelope(p.payload));
 console.log(`${rollupId}: ${posts.length} inbox posts, ${sealed.length} sealed; opening as ${address}`);
 let opened = 0;
