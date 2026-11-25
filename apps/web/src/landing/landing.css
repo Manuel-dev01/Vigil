@@ -260,9 +260,15 @@
 }
 .life-steps > li {
   grid-area: 1 / 1;
+  /* The outgoing step clears quickly; the incoming one waits for it, so the two never overlap. */
   transition:
-    opacity 600ms var(--ease-out),
-    transform 900ms var(--ease-out);
+    opacity 220ms var(--ease-inout),
+    transform 500ms var(--ease-out);
+}
+.life-steps > li.on {
+  transition:
+    opacity 640ms var(--ease-out) 200ms,
+    transform 900ms var(--ease-out) 140ms;
 }
 .life-steps > li.next {
   opacity: 0;
