@@ -34,3 +34,5 @@ data/*
 Thumbs.db
 .vscode/
 .idea/
+# brand/build.py's temporary render pages
+brand/.render/

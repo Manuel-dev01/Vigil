@@ -23,6 +23,8 @@ export default defineConfig({
             // Vite's tiny module-preload helper is used by the shell; keep it out of the vendor chunks.
             { name: "preload", test: /preload-helper/, priority: 40 },
             { name: "vendor-react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 30 },
+            // The landing page's scene and smooth scrolling: loaded after its first paint.
+            { name: "vendor-three", test: /node_modules[\\/](three|lenis)[\\/]/, priority: 25 },
             { name: "vendor-viem", test: /node_modules[\\/](viem|abitype|ox|@adraffy|isows)[\\/]/, priority: 20 },
             { name: "vendor-chain", test: /node_modules[\\/]/, priority: 10 },
           ],

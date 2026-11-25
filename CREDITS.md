@@ -31,6 +31,20 @@ under `node_modules/`) or from the project's repository.
 | Vite (`vite`, dev) | 8.3.5 | MIT | https://github.com/vitejs/vite |
 | `@vitejs/plugin-react` (dev) | 6.2.1 | MIT | https://github.com/vitejs/vite-plugin-react |
 | `@types/react`, `@types/react-dom` (dev) | 19.3.0 | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
+| three.js (`three`; the landing page's 3D scene) | 0.187.0 | MIT | https://github.com/mrdoob/three.js |
+| `@types/three` (dev) | 0.187.0 | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
+| Lenis (`lenis`; the landing page's smooth scrolling) | 1.3.27 | MIT | https://github.com/darkroomengineering/lenis |
+
+## Fonts (bundled with the web app and used in `brand/`)
+
+Latin subsets from Fontsource, served by the site itself. Licences sit beside the files in
+`apps/web/src/brand/fonts/`.
+
+| Font | Package and version | Licence | Link |
+|---|---|---|---|
+| Bodoni Moda (display) | `@fontsource-variable/bodoni-moda` 5.3.0 | SIL Open Font License 1.1 | https://github.com/indestructible-type/Bodoni |
+| Libre Franklin (text) | `@fontsource-variable/libre-franklin` 5.3.0 | SIL Open Font License 1.1 | https://github.com/impallari/Libre-Franklin |
+| IBM Plex Mono (figures, hashes, labels) | `@fontsource/ibm-plex-mono` 5.3.0 | SIL Open Font License 1.1 | https://github.com/IBM/plex |
 
 ## Notable indirect dependencies
 

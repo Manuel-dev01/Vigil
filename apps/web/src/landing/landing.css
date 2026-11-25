@@ -1,0 +1,635 @@
+/* The landing page. Tokens come from brand/brand.css; the page wears the night tokens until dawn. */
+
+.landing {
+  position: relative;
+  color: var(--chart);
+  font-family: var(--f-body);
+  font-size: var(--t-body);
+  line-height: 1.6;
+  --gutter: max(16px, 4.2vw, env(safe-area-inset-left, 0px));
+}
+.landing a {
+  color: inherit;
+}
+.landing .mono {
+  font-family: var(--f-mono);
+}
+
+/* ------------------------------------------------------------------ the sky behind everything */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  /* A faint haze where the lamp burns, over the night. */
+  background:
+    radial-gradient(ellipse 60% 38% at 68% 50%, rgba(243, 179, 61, 0.07), transparent 72%),
+    linear-gradient(180deg, #0a1016 0%, #0c141b 55%, #0a1016 100%);
+  pointer-events: none;
+}
+.sky-dawn {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(180deg, #c4cfd8 0%, #d9d8d0 34%, #efd5a6 54%, #ebe1cf 68%, #e6ebec 100%);
+  will-change: opacity;
+}
+.sea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* Without WebGL: a still lattice. */
+.sea.off {
+  display: none;
+}
+.sky:has(.sea.off) {
+  background:
+    radial-gradient(ellipse 80% 60% at 62% 70%, rgba(243, 179, 61, 0.1), transparent 70%),
+    radial-gradient(circle at 1px 1px, rgba(234, 228, 214, 0.16) 1px, transparent 1.6px) 0 0 / 22px 20px,
+    #0a1016;
+}
+/* Film grain: a few percent of noise over the whole page. */
+.landing::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.landing > section {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ shared pieces */
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sounding);
+  margin: 0 0 var(--s5);
+}
+.eyebrow .mono {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--chart);
+}
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+.landing .btn {
+  font-size: 0.95rem;
+  padding: 14px 22px;
+}
+.sec-title {
+  font-family: var(--f-display);
+  font-size: var(--t-h1);
+  font-weight: 500;
+  font-variation-settings: "opsz" 96;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+.grid12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--s5);
+}
+
+/* ------------------------------------------------------------------ hero */
+.hero {
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--s5);
+  align-content: end;
+  padding: 128px var(--gutter) clamp(72px, 12vh, 132px);
+}
+.hero-copy {
+  grid-column: 1 / span 8;
+  min-width: 0;
+}
+.hero-title {
+  font-family: var(--f-display);
+  font-size: var(--t-hero);
+  font-weight: 500;
+  font-variation-settings: "opsz" 96;
+  line-height: 0.94;
+  letter-spacing: -0.028em;
+  margin: 0 0 var(--s6);
+}
+.hero-title em,
+.dawn-title em {
+  font-style: italic;
+  color: var(--lamp);
+}
+.hero-title .line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+.hero-title .line > span {
+  display: inline-block;
+  animation: vg-rise var(--d-hero) var(--ease-out) both;
+  animation-delay: calc(120ms + var(--i) * 110ms);
+}
+.hero .eyebrow,
+.hero-lede,
+.hero .cta,
+.soundings {
+  animation: vg-fade-up var(--d-reveal) var(--ease-out) both;
+}
+.hero .eyebrow {
+  animation-delay: 60ms;
+}
+.hero-lede {
+  max-width: 34em;
+  margin: 0 0 var(--s6);
+  animation-delay: 420ms;
+}
+.hero .cta {
+  animation-delay: 540ms;
+}
+.soundings {
+  grid-column: 10 / span 3;
+  align-self: end;
+  animation-delay: 700ms;
+  min-width: 0;
+}
+.soundings dl {
+  margin: 0;
+  display: grid;
+}
+.soundings dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+}
+.soundings dt {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sounding);
+}
+.soundings dd {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.scroll-cue {
+  position: absolute;
+  left: var(--gutter);
+  bottom: 24px;
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sounding);
+}
+.scroll-cue span {
+  color: var(--lamp);
+  margin-left: 6px;
+}
+
+@keyframes vg-rise {
+  from {
+    transform: translateY(108%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes vg-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ one batch's life (pinned) */
+.life {
+  height: 560vh;
+}
+.life-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--s5);
+  align-items: center;
+  padding: 96px var(--gutter) 48px;
+}
+.life-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0 45% 0 0;
+  background: linear-gradient(90deg, rgba(10, 16, 22, 0.72), rgba(10, 16, 22, 0));
+  pointer-events: none;
+}
+.life-legend {
+  position: relative;
+  grid-column: 1 / span 5;
+  min-width: 0;
+}
+.life-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.life-steps > li {
+  grid-area: 1 / 1;
+  /* The outgoing step clears quickly; the incoming one waits for it, so the two never overlap. */
+  transition:
+    opacity 220ms var(--ease-inout),
+    transform 500ms var(--ease-out);
+}
+.life-steps > li.on {
+  transition:
+    opacity 640ms var(--ease-out) 200ms,
+    transform 900ms var(--ease-out) 140ms;
+}
+.life-steps > li.next {
+  opacity: 0;
+  transform: translateY(32px);
+  pointer-events: none;
+}
+.life-steps > li.past {
+  opacity: 0;
+  transform: translateY(-32px);
+  pointer-events: none;
+}
+.life-n {
+  display: block;
+  font-size: var(--t-label);
+  letter-spacing: 0.12em;
+  color: var(--lamp);
+  margin-bottom: var(--s3);
+}
+.life-title {
+  font-family: var(--f-display);
+  font-size: var(--t-h1);
+  font-weight: 500;
+  font-variation-settings: "opsz" 96;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--s4);
+}
+.life-body {
+  max-width: 30em;
+  margin: 0 0 var(--s4);
+}
+a.life-sounding {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: var(--lamp);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+}
+.life-rail {
+  display: flex;
+  gap: var(--s4);
+  margin-top: var(--s7);
+  font-size: var(--t-label);
+  color: var(--sounding);
+}
+.life-rail span {
+  position: relative;
+  padding-top: 12px;
+  transition: color var(--d-micro) var(--ease-out);
+}
+.life-rail span::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 1px;
+  background: var(--rule);
+}
+.life-rail span::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 1px;
+  background: var(--lamp);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 700ms var(--ease-out);
+}
+.life-rail span.on {
+  color: var(--chart);
+}
+.life-rail span.on::after,
+.life-rail span.past::after {
+  transform: none;
+}
+
+/* ------------------------------------------------------------------ also on watch, the log */
+.also,
+.log {
+  padding: clamp(96px, 15vh, 168px) var(--gutter);
+  background: linear-gradient(180deg, rgba(10, 16, 22, 0) 0, rgba(10, 16, 22, 0.9) 14%, rgba(10, 16, 22, 0.9) 86%, rgba(10, 16, 22, 0) 100%);
+}
+.also .sec-title {
+  max-width: 9em;
+  margin-bottom: var(--s8);
+}
+.also-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s6);
+}
+.also-grid article {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s5);
+  min-width: 0;
+}
+.also-grid h3 {
+  font-family: var(--f-display);
+  font-size: var(--t-h2);
+  font-weight: 500;
+  font-variation-settings: "opsz" 72;
+  line-height: 1.05;
+  margin: 0 0 var(--s3);
+}
+.also-grid p {
+  color: var(--sounding);
+  margin: 0 0 var(--s4);
+}
+.also-grid a,
+.log-more a {
+  color: var(--lamp);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+  font-weight: 500;
+}
+
+.log-head {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--s5);
+  align-items: end;
+  margin-bottom: var(--s7);
+}
+.log-head .sec-title {
+  grid-column: 1 / span 6;
+}
+.log-head p {
+  grid-column: 8 / span 5;
+  color: var(--sounding);
+  margin: 0;
+}
+.logbook {
+  list-style: none;
+  margin: 0 0 var(--s6);
+  padding: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.logbook li {
+  display: grid;
+  grid-template-columns: 5.5rem 7.5rem minmax(0, 1fr) 9.5rem;
+  gap: var(--s4);
+  align-items: baseline;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+  transition: background-color var(--d-micro) var(--ease-out);
+}
+.logbook li:hover {
+  background: rgba(243, 179, 61, 0.05);
+}
+.lb-date,
+.lb-height {
+  font-size: 0.85rem;
+  color: var(--sounding);
+  font-variant-numeric: tabular-nums;
+}
+.lb-what {
+  min-width: 0;
+}
+a.lb-tx {
+  font-size: 0.85rem;
+  color: var(--lamp);
+  text-decoration: none;
+  justify-self: end;
+}
+a.lb-tx:hover {
+  text-decoration: underline;
+}
+.log-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s6);
+  align-items: baseline;
+  margin: 0;
+}
+.log-more .note {
+  color: var(--sounding);
+  font-size: var(--t-small);
+}
+
+/* ------------------------------------------------------------------ dawn */
+.dawn {
+  color: var(--chart);
+  min-height: 110svh;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--s5);
+  align-content: center;
+  padding: 160px var(--gutter) 96px;
+}
+.dawn-copy {
+  grid-column: 1 / span 9;
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--d-reveal) var(--ease-out),
+    transform var(--d-reveal) var(--ease-out);
+}
+/* The words come up with the light, not before it. */
+html.is-dawn .dawn-copy {
+  opacity: 1;
+  transform: none;
+}
+.dawn-title {
+  font-family: var(--f-display);
+  font-size: clamp(2.8rem, 7vw, 7.5rem);
+  font-weight: 500;
+  font-variation-settings: "opsz" 96;
+  line-height: 0.95;
+  letter-spacing: -0.028em;
+  margin: 0 0 var(--s6);
+  text-wrap: balance;
+}
+.dawn-lede {
+  max-width: 36em;
+  margin: 0 0 var(--s6);
+}
+
+/* ------------------------------------------------------------------ reveals */
+.js-reveal [data-reveal] {
+  transition:
+    opacity var(--d-reveal) var(--ease-out),
+    transform var(--d-reveal) var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+.js-reveal [data-reveal]:not(.in) {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+/* ------------------------------------------------------------------ narrow screens */
+@media (max-width: 899px) {
+  .hero {
+    align-content: end;
+    padding-top: 112px;
+  }
+  .hero-copy,
+  .soundings {
+    grid-column: 1 / -1;
+  }
+  .hero {
+    padding-bottom: 64px;
+  }
+  .hero .eyebrow .since {
+    display: none;
+  }
+  .hero-title {
+    margin-bottom: var(--s5);
+  }
+  .hero-lede {
+    margin-bottom: var(--s5);
+  }
+  /* On a phone the hero keeps two soundings, in one row, so the sea has the top of the screen. */
+  .soundings {
+    margin-top: var(--s5);
+  }
+  .soundings dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--s4);
+  }
+  .soundings dl > div:nth-child(n + 3) {
+    display: none;
+  }
+  .soundings dl > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 0;
+  }
+  .soundings dd {
+    text-align: left;
+  }
+  .scroll-cue {
+    bottom: 20px;
+  }
+  .life {
+    height: 520vh;
+  }
+  .life-stage {
+    align-items: end;
+    padding-bottom: 7svh;
+  }
+  .life-stage::before {
+    inset: 38% 0 0 0;
+    background: linear-gradient(0deg, rgba(10, 16, 22, 0.94) 55%, rgba(10, 16, 22, 0));
+  }
+  .life-legend {
+    grid-column: 1 / -1;
+  }
+  .life-rail {
+    margin-top: var(--s5);
+  }
+  .also-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .log-head .sec-title,
+  .log-head p {
+    grid-column: 1 / -1;
+  }
+  .log-head p {
+    margin-top: var(--s4);
+  }
+  .logbook li {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px var(--s4);
+  }
+  .lb-what {
+    grid-column: 1 / -1;
+  }
+  a.lb-tx {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .dawn-copy {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 420px) {
+  .landing .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 13px 16px;
+  }
+}
+
+/* ------------------------------------------------------------------ reduced motion: everything still, nothing pinned */
+@media (prefers-reduced-motion: reduce) {
+  .hero-title .line > span,
+  .hero .eyebrow,
+  .hero-lede,
+  .hero .cta,
+  .soundings {
+    animation: none;
+  }
+  .js-reveal [data-reveal]:not(.in) {
+    opacity: 1;
+    transform: none;
+  }
+  .life {
+    height: auto;
+  }
+  .life-stage {
+    position: relative;
+    height: auto;
+    padding-block: var(--s8);
+  }
+  .life-steps {
+    gap: var(--s7);
+  }
+  .life-steps > li {
+    grid-area: auto;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+  .life-rail {
+    display: none;
+  }
+}
