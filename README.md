@@ -20,7 +20,7 @@ Anyone can check a settlement receipt in their browser or in Solidity, against t
 
 1. **[Rollup](https://web-production-324cc271.up.railway.app/#/).** `vigil-pay-1` live: its batches and their ML-DSA-87 anchors, its inbox, its bond, and the fraud caught on it. New posts and batches appear as the chain makes them.
 2. **[Verify a receipt](https://web-production-324cc271.up.railway.app/#/verify?batch=0).**
-   - Your browser rebuilds batch 0's settlement receipt from chain state and runs eight checks. These include the ML-DSA-87 signature, checked against the creator's key as the node reports it from the chain's PQ registry, and whether the batch is final.
+   - Your browser rebuilds batch 0's settlement receipt from chain state and runs nine checks. These include the ML-DSA-87 signature, checked against the creator's key as the node reports it from the chain's PQ registry and against the key's hash pinned in the page, and whether the batch is final.
    - Our Solidity contract then checks the same anchor through the `pqcVerify` precompile.
    - Press **"Forge it"** to change one digit and watch it fail.
 3. **[Instant exits](https://web-production-324cc271.up.railway.app/#/exits).** A 0.1 QOR withdrawal paid 57 minutes before its batch could be final, step by step: the L2 withdrawal, both watchtowers' ML-DSA-87 signatures (verified in your browser, and again by the chain's `pqcVerify` precompile), the payment, and the vault repaid after finality. Enter any address to get its exit address, computed in your browser and cross-checked with the vault.
