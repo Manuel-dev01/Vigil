@@ -14,11 +14,11 @@ Anyone can check a settlement receipt in their browser or in Solidity, against t
 
 > **Build Before Q-Day**, QoreChain Developer Fest, category **Protocol Builders**. Testnet only. Every claim below links to a row in [EVIDENCE.md](EVIDENCE.md): a transaction hash, an explorer link and a way to re-check it yourself.
 
-**Web app: https://web-production-324cc271.up.railway.app** · [Evidence ledger](EVIDENCE.md) · [Threat model](THREAT_MODEL.md) · [AI usage](AI_USAGE.md) · [Project page](https://build.qorechain.io/p/vigil)
+**Web app: https://web-production-324cc271.up.railway.app** (its landing page follows one batch from signature to final, in 3D) · [Evidence ledger](EVIDENCE.md) · [Threat model](THREAT_MODEL.md) · [AI usage](AI_USAGE.md) · [Project page](https://build.qorechain.io/p/vigil)
 
 ## Try it in a minute
 
-1. **[Rollup](https://web-production-324cc271.up.railway.app/#/).** `vigil-pay-1` live: its batches and their ML-DSA-87 anchors, its inbox, its bond, and the fraud caught on it. New posts and batches appear as the chain makes them.
+1. **[Rollup](https://web-production-324cc271.up.railway.app/#/rollup).** `vigil-pay-1` live: its batches and their ML-DSA-87 anchors, its inbox, its bond, and the fraud caught on it. New posts and batches appear as the chain makes them.
 2. **[Verify a receipt](https://web-production-324cc271.up.railway.app/#/verify?batch=0).**
    - Your browser rebuilds batch 0's settlement receipt from chain state and runs nine checks. These include the ML-DSA-87 signature, checked against the creator's key as the node reports it from the chain's PQ registry and against the key's hash pinned in the page, and whether the batch is final.
    - Our Solidity contract then checks the same anchor through the `pqcVerify` precompile.

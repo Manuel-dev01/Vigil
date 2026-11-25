@@ -1,75 +1,96 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Vigil cover</title>
-<style>
-  :root { --bg:#0b1210; --panel:#121c18; --panel2:#17241f; --ink:#eaf2ee; --muted:#93a59d; --line:#24342d; --accent:#3cc3a2; --accent-soft:#143029; --ok:#4ade80; --bad:#f87171; --warn:#fbbf24; }
-  * { box-sizing:border-box; margin:0; }
-  html, body { width:1920px; height:1080px; overflow:hidden; }
-  body { background:
-      radial-gradient(900px 700px at 88% 12%, #12382e 0%, transparent 62%),
-      radial-gradient(700px 500px at 8% 105%, #0f2a23 0%, transparent 60%),
-      var(--bg);
-    color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",sans-serif; }
-  .grid { position:absolute; inset:0; background-image:linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size:64px 64px; opacity:.18; mask-image:radial-gradient(ellipse at 70% 40%, #000 0%, transparent 70%); }
-  .wrap { position:relative; height:100%; padding:84px 96px; display:grid; grid-template-columns: 1fr 720px; gap:72px; }
-  .brand { display:flex; align-items:center; gap:18px; font-size:30px; font-weight:700; letter-spacing:.14em; }
-  .logo { width:44px; height:44px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 8px var(--accent-soft), 0 0 48px #3cc3a255; position:relative; }
-  .logo:after { content:""; position:absolute; inset:13px; border-radius:50%; background:var(--bg); }
-  .event { margin-top:14px; color:var(--muted); font-size:22px; letter-spacing:.04em; }
-  h1 { margin-top:86px; font-size:96px; line-height:1.0; letter-spacing:-.035em; font-weight:750; }
-  h1 em { font-style:normal; color:var(--accent); }
-  .sub { margin-top:34px; font-size:31px; line-height:1.42; color:#c3d1ca; max-width:900px; }
-  .chips { position:absolute; left:96px; bottom:84px; display:flex; gap:14px; flex-wrap:wrap; max-width:1740px; }
-  .chip { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:21px; padding:10px 18px; border-radius:999px; border:1px solid var(--line); background:#0f1916cc; color:#cfe0d8; }
-  .chip b { color:var(--accent); font-weight:600; }
+<!--
+  Vigil's cover (1920 x 1080): the project page's cover image and the README's banner.
+  Rendered by brand/build.py, which also writes cover.data.js (the batch strip) from the chain.
+  The scene is a frame of the landing page's 3D sequence (step 3: the forged batch caught).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vigil cover</title>
+    <script src="cover.data.js"></script>
+    <style>
+      @font-face { font-family: "Bodoni Moda"; src: url("../apps/web/src/brand/fonts/bodoni-moda-latin-standard-normal.woff2") format("woff2"); font-weight: 400 900; }
+      @font-face { font-family: "Bodoni Moda"; font-style: italic; src: url("../apps/web/src/brand/fonts/bodoni-moda-latin-standard-italic.woff2") format("woff2"); font-weight: 400 900; }
+      @font-face { font-family: "Libre Franklin"; src: url("../apps/web/src/brand/fonts/libre-franklin-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; }
+      @font-face { font-family: "IBM Plex Mono"; src: url("../apps/web/src/brand/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+      :root { --night: #0a1016; --chart: #eae4d6; --sounding: #8e9ba7; --rule: #26323d; --lamp: #f3b33d; --port: #ee5a3f; }
+      * { box-sizing: border-box; margin: 0; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--night); color: var(--chart); }
+      body { font-family: "Libre Franklin", sans-serif; position: relative; }
+      .scene { position: absolute; inset: 0; background: url("cover-scene.jpg") center / cover no-repeat; }
+      .scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10, 16, 22, 0.86) 0%, rgba(10, 16, 22, 0.55) 40%, rgba(10, 16, 22, 0) 62%), linear-gradient(0deg, rgba(10, 16, 22, 0.92) 0%, rgba(10, 16, 22, 0) 26%); }
+      .mono { font-family: "IBM Plex Mono", monospace; letter-spacing: 0.12em; text-transform: uppercase; }
+      .top { position: absolute; left: 96px; top: 84px; display: flex; align-items: center; gap: 22px; }
+      .word { font-family: "Bodoni Moda", serif; font-variation-settings: "opsz" 96; font-weight: 520; font-size: 40px; letter-spacing: 0.24em; }
+      .event { position: absolute; left: 96px; top: 158px; font-size: 19px; color: var(--sounding); }
+      h1 { position: absolute; left: 92px; top: 280px; font-family: "Bodoni Moda", serif; font-variation-settings: "opsz" 96; font-weight: 500; font-size: 150px; line-height: 0.94; letter-spacing: -0.028em; }
+      h1 em { font-style: italic; color: var(--lamp); }
+      .sub { position: absolute; left: 96px; top: 612px; width: 860px; font-size: 31px; line-height: 1.45; color: #d9d3c6; }
+      .note { position: absolute; font-size: 15px; color: var(--chart); display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+      .note::before { content: ""; width: 56px; height: 1px; background: currentColor; opacity: 0.6; }
+      .note.fraud { left: 1508px; top: 446px; color: var(--port); align-items: flex-start; line-height: 1.6; }
+      .note.fraud::before { margin-top: 12px; width: 36px; }
+      .note.valid { left: 1229px; top: 684px; }
+      .note.valid::before { width: 36px; }
+      .strip { position: absolute; left: 96px; right: 96px; bottom: 70px; }
+      .strip .label { font-size: 15px; color: var(--sounding); margin-bottom: 18px; }
+      .beacons { display: flex; gap: 14px; align-items: flex-end; }
+      .b { width: 44px; display: grid; justify-items: center; gap: 8px; font-family: "IBM Plex Mono", monospace; font-size: 15px; color: var(--sounding); }
+      .b i { width: 9px; height: 9px; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 14px rgba(243, 179, 61, 0.8); }
+      .b s { width: 1px; height: 38px; background: var(--lamp); opacity: 0.75; text-decoration: none; }
+      .b.open i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--sounding); }
+      .b.open s { background: none; border-left: 1px dashed var(--sounding); opacity: 1; }
+      .legend { display: flex; gap: 40px; margin-top: 16px; font-size: 15px; color: var(--sounding); }
+      .legend span { display: inline-flex; align-items: center; gap: 10px; }
+      .legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--lamp); display: inline-block; }
+      .legend i.o { background: transparent; box-shadow: inset 0 0 0 1.5px var(--sounding); }
+    </style>
+  </head>
+  <body>
+    <div class="scene"></div>
+    <div class="scrim"></div>
 
-  /* Right: the receipt */
-  .right { display:flex; flex-direction:column; justify-content:center; gap:28px; }
-  .chain { display:flex; gap:9px; align-items:flex-end; }
-  .blk { width:37px; height:37px; border-radius:8px; background:var(--panel2); border:2px solid #2c4a40; display:grid; place-items:center; font:600 13px ui-monospace,Menlo,monospace; color:var(--muted); position:relative; }
-  .blk.a { border-color:var(--accent); color:var(--ink); }
-  .blk.a:after { content:""; position:absolute; top:-7px; right:-7px; width:13px; height:13px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px var(--bg); }
-  .blk.s { border-style:dashed; }
-  .legend { display:flex; gap:26px; color:var(--muted); font-size:19px; margin-top:-12px; }
-  .legend i { display:inline-block; width:12px; height:12px; border-radius:50%; background:var(--accent); margin-right:8px; vertical-align:middle; }
-  .card { background:linear-gradient(180deg, #15221d 0%, #111b17 100%); border:1px solid #2a3d35; border-radius:22px; padding:34px 38px 30px; box-shadow:0 40px 80px #00000066, 0 0 0 1px #3cc3a214 inset; }
-  .card .hd { display:flex; justify-content:space-between; align-items:baseline; }
-  .card .t { font-size:27px; font-weight:650; }
-  .card .id { font:20px ui-monospace,Menlo,monospace; color:var(--muted); }
-  .checks { list-style:none; padding:0; margin-top:22px; display:grid; gap:13px; }
-  .checks li { display:grid; grid-template-columns:34px 1fr; align-items:center; font-size:22px; color:#d7e4de; }
-  .ok { width:24px; height:24px; border-radius:50%; background:#163d2a; color:var(--ok); display:grid; place-items:center; font-size:15px; font-weight:800; }
-  .verdict { margin-top:24px; padding:16px 20px; border-radius:14px; background:#123526; color:var(--ok); font-size:23px; font-weight:650; }
-  .where { margin-top:14px; display:flex; gap:12px; }
-  .where span { font:18px ui-monospace,Menlo,monospace; color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:6px 12px; }
-</style></head>
-<body><div class="grid"></div><div class="wrap">
-  <div class="left">
-    <div class="brand"><span class="logo"></span>VIGIL</div>
-    <div class="event">Build Before Q-Day · Protocol Builders · QoreChain</div>
-    <h1>A payments rollup<br>built to <em>survive Q-Day</em>.</h1>
-    <p class="sub">Our sequencer anchors every batch with ML&#8209;DSA&#8209;87. Our watchtowers catch fraud on chain. Payslips sealed with ML&#8209;KEM&#8209;1024. Receipts anyone can verify, in a browser or in Solidity.</p>
-  </div>
-  <div class="right">
-    <div class="chain" aria-label="vigil-pay-1 batches 0 to 14">
-      <div class="blk a">0</div><div class="blk a">1</div><div class="blk a">2</div><div class="blk a">3</div><div class="blk a">4</div><div class="blk a">5</div><div class="blk a">6</div><div class="blk a">7</div><div class="blk a">8</div><div class="blk a">9</div><div class="blk a">10</div><div class="blk s">11</div><div class="blk a">12</div><div class="blk a">13</div><div class="blk a">14</div>
+    <div class="top">
+      <svg width="58" height="58" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M21.24 34.11 9 8M26.76 34.11 39 8" fill="none" stroke="#eae4d6" stroke-width="3.2" />
+        <path d="M15.81 13.22A28 28 0 0 1 32.19 13.22" fill="none" stroke="#eae4d6" stroke-width="2" />
+        <circle cx="24" cy="40" r="3.6" fill="#f3b33d" />
+      </svg>
+      <span class="word">VIGIL</span>
     </div>
-    <div class="legend"><span><i></i>ML-DSA-87 anchor</span><span>batch 11: the standby sequencer, while ours was down</span></div>
-    <div class="card">
-      <div class="hd"><span class="t">Settlement receipt</span><span class="id">vigil-pay-1 · batch 0</span></div>
-      <ul class="checks">
-        <li><span class="ok">✓</span>Batch carries this state root</li>
-        <li><span class="ok">✓</span>Matching anchor stored on chain</li>
-        <li><span class="ok">✓</span>Signing key read from the chain's PQ registry</li>
-        <li><span class="ok">✓</span>ML-DSA-87 signature verifies</li>
-        <li><span class="ok">✓</span>Batch is final</li>
-      </ul>
-      <div class="verdict">Valid: settled and final on qorechain-diana</div>
-      <div class="where"><span>your browser</span><span>Solidity · pqcVerify</span><span>no server of ours</span></div>
+    <p class="event mono">Build Before Q-Day · Protocol Builders · QoreChain</p>
+
+    <h1>Keeping watch<br />until <em>Q-Day.</em></h1>
+    <p class="sub">A payments rollup on QoreChain. Every batch anchored with ML-DSA-87, re-executed by two watchtowers, and fraud challenged on chain.</p>
+
+    <p class="note mono fraud"><span>Forged batch<br />fraud upheld in the next block</span></p>
+    <p class="note mono valid">Re-executed by two watchtowers</p>
+
+    <div class="strip">
+      <p class="label mono" id="label"></p>
+      <div class="beacons" id="beacons"></div>
+      <div class="legend mono">
+        <span><i></i>ML-DSA-87 anchor</span>
+        <span id="open-note"><i class="o"></i></span>
+      </div>
     </div>
-  </div>
-  <div class="chips">
-    <span class="chip"><b>fraud</b> upheld in the next block</span>
-    <span class="chip"><b>sequencer</b> killed, withdrawal still paid</span>
-    <span class="chip"><b>5</b> RDK languages, 0 divergences</span>
-  </div>
-</div></body></html>
+
+    <script>
+      const d = window.COVER;
+      const rows = d.batches;
+      document.getElementById("label").textContent = `${d.rollup} · batches ${rows[0].i}–${rows[rows.length - 1].i} · as of ${d.asOf}`;
+      const host = document.getElementById("beacons");
+      for (const r of rows) {
+        const el = document.createElement("div");
+        el.className = r.anchored ? "b" : "b open";
+        el.innerHTML = `<i></i><s></s><span>${r.i}</span>`;
+        host.appendChild(el);
+      }
+      const open = rows.filter((r) => !r.anchored).map((r) => r.i);
+      const note = document.getElementById("open-note");
+      if (open.length) note.append(`${open.join(", ")}: batched by our standby sequencer while ours was stopped (only the creator's key anchors)`);
+      else note.remove();
+    </script>
+  </body>
+</html>

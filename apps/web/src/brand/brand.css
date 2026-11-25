@@ -1,0 +1,161 @@
+/*
+ * Vigil brand tokens. See brand/README.md at the repository root for the guide.
+ *
+ * The subject is the watch kept through the night before Q-Day, so the system borrows from the night
+ * watch at sea (sector lights on Admiralty charts, the ship's log, port and starboard lights) and from
+ * the lattices under ML-DSA and ML-KEM.
+ *
+ * Layout concept: a chart and its legend. The scene fills the screen; words sit in a legend column on
+ * the left; soundings (heights, hashes, counts) sit in the right margin in mono.
+ */
+
+/* Fonts: Latin subsets bundled with the site (OFL-1.1, licences beside the files). */
+@font-face {
+  font-family: "Bodoni Moda";
+  src: url("./fonts/bodoni-moda-latin-standard-normal.woff2") format("woff2-variations");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Bodoni Moda";
+  src: url("./fonts/bodoni-moda-latin-standard-italic.woff2") format("woff2-variations");
+  font-weight: 400 900;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libre Franklin";
+  src: url("./fonts/libre-franklin-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("./fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Colour, day (the app in light mode). Names come from the watch. */
+  --night: #edf0f1; /* ground: sea mist by day */
+  --swell: #f9fafa; /* raised surfaces */
+  --rule: #cdd5da; /* hairlines */
+  --chart: #0c1319; /* ink */
+  --sounding: #4c5964; /* secondary ink */
+  --lamp: #8a5400; /* the watch's light: the one accent */
+  --lamp-glow: #f3b33d; /* the lamp itself, for marks and fills that are not text */
+  --lamp-wash: #f6ead2; /* a soft lamp tint behind text */
+  --port: #b3301b; /* red: fraud, failed checks */
+  --port-wash: #f7e3df;
+  --starboard: #1e7a4e; /* green: passed checks, final */
+  --starboard-wash: #e1efe7;
+
+  /* Type */
+  --f-display: "Bodoni Moda", "Bodoni 72", Didot, "Big Caslon", Georgia, serif;
+  --f-body: "Libre Franklin", "Franklin Gothic Medium", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --t-hero: clamp(3.1rem, 8.6vw, 9.25rem);
+  --t-h1: clamp(2.25rem, 4.8vw, 4.75rem);
+  --t-h2: clamp(1.6rem, 2.7vw, 2.6rem);
+  --t-h3: clamp(1.15rem, 1.35vw, 1.4rem);
+  --t-body: clamp(1rem, 0.95rem + 0.22vw, 1.13rem);
+  --t-small: 0.875rem;
+  --t-label: 0.72rem;
+
+  /* Space (4 px steps) and shape. Charts have square corners; so do we, nearly. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 72px;
+  --s9: 120px;
+  --r: 2px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --d-micro: 240ms;
+  --d-reveal: 900ms;
+  --d-hero: 1200ms;
+
+  color-scheme: light;
+}
+
+/* Night: the app in dark mode, and the landing page always. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --night: #0a1016;
+    --swell: #111a22;
+    --rule: #1f2b35;
+    --chart: #eae4d6;
+    --sounding: #8e9ba7;
+    --lamp: #f3b33d;
+    --lamp-glow: #f3b33d;
+    --lamp-wash: #2a2213;
+    --port: #ee5a3f;
+    --port-wash: #33150f;
+    --starboard: #4cc08e;
+    --starboard-wash: #0f2a20;
+    color-scheme: dark;
+  }
+}
+.night {
+  --night: #0a1016;
+  --swell: #111a22;
+  --rule: #1f2b35;
+  --chart: #eae4d6;
+  --sounding: #8e9ba7;
+  --lamp: #f3b33d;
+  --lamp-glow: #f3b33d;
+  --lamp-wash: #2a2213;
+  --port: #ee5a3f;
+  --port-wash: #33150f;
+  --starboard: #4cc08e;
+  --starboard-wash: #0f2a20;
+  color-scheme: dark;
+}
+
+/* The landing page's header wears the night until dawn. */
+html.on-landing .top {
+  --night: #0a1016;
+  --swell: #111a22;
+  --rule: #1f2b35;
+  --chart: #eae4d6;
+  --sounding: #8e9ba7;
+  --lamp: #f3b33d;
+  --lamp-glow: #f3b33d;
+  color-scheme: dark;
+}
+
+/* Day, whatever the system theme: the landing page's dawn, and its footer. */
+.day,
+html.on-landing .foot,
+html.on-landing.is-dawn .top {
+  --night: #edf0f1;
+  --swell: #f9fafa;
+  --rule: #b9c3c9;
+  --chart: #0c1319;
+  --sounding: #4c5964;
+  --lamp: #8a5400;
+  --lamp-glow: #f3b33d;
+  --lamp-wash: #f6ead2;
+  --port: #b3301b;
+  --port-wash: #f7e3df;
+  --starboard: #1e7a4e;
+  --starboard-wash: #e1efe7;
+  color-scheme: light;
+}
