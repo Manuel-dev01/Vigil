@@ -58,7 +58,7 @@
   --lamp-wash: #f6ead2; /* a soft lamp tint behind text */
   --port: #b3301b; /* red: fraud, failed checks */
   --port-wash: #f7e3df;
-  --starboard: #1e7a4e; /* green: passed checks, final */
+  --starboard: #1c764b; /* green: passed checks, final */
   --starboard-wash: #e1efe7;
 
   /* Type */
@@ -155,7 +155,7 @@ html.on-landing.is-dawn .top {
   --lamp-wash: #f6ead2;
   --port: #b3301b;
   --port-wash: #f7e3df;
-  --starboard: #1e7a4e;
+  --starboard: #1c764b;
   --starboard-wash: #e1efe7;
   color-scheme: light;
 }
