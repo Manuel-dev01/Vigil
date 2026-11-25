@@ -3,7 +3,8 @@ import { flushSync } from "react-dom";
 import { Mark } from "./brand/Mark.tsx";
 import { EVM_HOST, NODE_HOST, REPO, ROLLUP } from "./config.ts";
 import { Landing } from "./landing/Landing.tsx";
-import { startLive } from "./live.ts";
+import { listen, startLive } from "./live.ts";
+import { startPlate, type Plate } from "./plate.ts";
 import { badgeOf, health, onHealth, wasOpen } from "./rpc.ts";
 import { ErrorBoundary } from "./ui.tsx";
 
@@ -33,6 +34,42 @@ const routeOf = (hash: string): Route =>
           : "home";
 
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Where the lamp points on each page: a page change turns it (radians; the plate eases between them).
+const HEADING: Record<Exclude<Route, "home">, number> = { rollup: 0.2, exits: 0.55, verify: -0.05, payslip: 0.38 };
+
+/**
+ * The chart plate behind the app pages' heads (plate.ts). It sits outside the page, so a page change
+ * leaves it in place and only turns the lamp; each new block sends a ring out from the lamp.
+ */
+function Sea({ route }: { route: Exclude<Route, "home"> }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const plate = useRef<Plate>(undefined);
+  useEffect(() => {
+    if (!canvas.current) return;
+    const p = startPlate(canvas.current, { reduced: reducedMotion() });
+    plate.current = p;
+    p.turn(HEADING[route]);
+    const feed = listen({ onHead: () => p.pulse() });
+    const scheme = matchMedia("(prefers-color-scheme: dark)");
+    const retheme = () => p.retheme();
+    scheme.addEventListener("change", retheme);
+    return () => {
+      feed.stop();
+      scheme.removeEventListener("change", retheme);
+      p.dispose();
+      plate.current = undefined;
+    };
+    // The plate starts once; route changes only turn it (below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => plate.current?.turn(HEADING[route]), [route]);
+  return (
+    <div className="plate" aria-hidden="true">
+      <canvas ref={canvas} />
+    </div>
+  );
+}
 
 export function App() {
   const [route, setRoute] = useState<Route>(routeOf(location.hash));
@@ -122,6 +159,7 @@ export function App() {
           </span>
         </div>
       </header>
+      {route !== "home" && <Sea route={route} />}
       <main id="main" tabIndex={-1} className={route === "home" ? "main-home" : "page"}>
         <ErrorBoundary resetKey={route}>
           {route === "home" ? (

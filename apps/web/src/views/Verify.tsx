@@ -7,6 +7,8 @@ import { keyPin, type KeyPin } from "../keys.ts";
 import { prunedBatch, receiptFromOwnAnchor, verifyPrunedReceipt, type CheckKey, type PrunedVerification } from "../pruned.ts";
 import { parseReceipt, receiptProblem } from "../receipt.ts";
 import { Ext, Mark, type Tone } from "../ui.tsx";
+import { PageHead, type Sounding } from "./Head.tsx";
+import { ReceiptDoc, SectorLight } from "./VerifyParts.tsx";
 
 type Verification = ReceiptVerification & Partial<Omit<PrunedVerification, keyof ReceiptVerification>>;
 
@@ -95,6 +97,8 @@ export function VerifyView() {
   const [batchIndex, setBatchIndex] = useState<number>(batchFromHash() ?? 0);
   const [latest, setLatest] = useState<number>();
   const [receipt, setReceipt] = useState<SettlementReceipt>();
+  /** The receipt as the page last built it from the chain, to mark what a forged or pasted one changed. */
+  const [built, setBuilt] = useState<SettlementReceipt>();
   const [pasted, setPasted] = useState("");
   const [result, setResult] = useState<Verification>();
   const [pin, setPin] = useState<KeyPin | { error: string }>();
@@ -110,7 +114,11 @@ export function VerifyView() {
       .then(({ rdk }) => rdk.rest.getLatestBatch(ROLLUP))
       .then((b) => {
         setLatest(b.batchIndex);
-        if (batchFromHash() === undefined) setBatchIndex(b.batchIndex);
+        // Opened without a batch in the link: check the newest one straight away, so the page opens on a result.
+        if (batchFromHash() === undefined && run.current === 0) {
+          setBatchIndex(b.batchIndex);
+          void build(b.batchIndex);
+        }
       })
       .catch(() => undefined);
   }, []);
@@ -212,6 +220,7 @@ export function VerifyView() {
       }
       if (me !== run.current) return;
       setReceipt(r);
+      setBuilt(r);
       setPasted(JSON.stringify(r, null, 2));
       await verify(r);
     } catch (e) {
@@ -346,20 +355,56 @@ export function VerifyView() {
                 : { cls: "warn", text: `Anchored and signed, but not final yet: batch ${receipt.batchIndex} can still be challenged. Do not treat it as settled.` }
       : undefined;
 
+  const word = verdict
+    ? verdict.cls === "ok"
+      ? "Valid"
+      : verdict.cls === "warn"
+        ? result?.pruned
+          ? "Unconfirmed"
+          : "Not final yet"
+        : !result?.valid
+          ? "Not valid"
+          : pinMismatch
+            ? "Unconfirmed"
+            : "Wrong anchor"
+    : undefined;
+  const soundings: Sounding[] = [
+    { k: "Batches", v: latest !== undefined ? `0–${latest}` : undefined, s: `of ${ROLLUP}` },
+    { k: "This receipt", v: receipt ? `batch ${receipt.batchIndex}` : "—", s: receipt ? `layer height ${receipt.layerHeight}` : "build or paste one" },
+    {
+      k: "Verdict",
+      v: busy ? "checking…" : (word ?? "—"),
+      tone: verdict?.cls === "ok" ? "ok" : verdict?.cls === "bad" ? "bad" : verdict?.cls === "warn" ? "warn" : undefined,
+      s: result ? `${rows.filter((r) => r.tone === "ok").length} of ${rows.length} checks passed` : undefined,
+    },
+    { k: "Checked in", v: result && took !== undefined ? `${took.toLocaleString()} ms` : "—", s: "in this browser, over the node's websocket" },
+  ];
+
   return (
     <>
-      <h1>Verify a settlement receipt</h1>
-      <p className="lede">
-        A settlement receipt says "the chain settled this rollup at this state root, signed by the rollup's ML-DSA-87 key". Here it is checked the
-        strict way: every field is re-read from {NODE_HOST} (the node's answers are not proven), and the post-quantum signature is verified in your
-        browser against the creator's key, which is also compared with the one pinned in this page. A receipt on its own proves nothing; only a check
-        like this does.
-      </p>
+      <PageHead
+        eyebrow={<>Settlement receipts · checked in your browser</>}
+        title="Verify a settlement receipt"
+        lede={
+          <>
+            <p>A settlement receipt says "the chain settled this rollup at this state root, signed by the rollup's ML-DSA-87 key".</p>
+            <p>
+              Here it is checked the strict way: every field is re-read from {NODE_HOST} (the node's answers are not proven), and the post-quantum signature
+              is verified in your browser against the creator's key, which is also compared with the one pinned in this page. A receipt on its own proves
+              nothing; only a check like this does.
+            </p>
+          </>
+        }
+        soundings={soundings}
+        label="This check"
+      />
 
-      <div className="cols">
-        <div>
+      <div className="verify-grid">
+        <div className="vg-left">
           <section className="panel">
-            <h2>1. Get a receipt</h2>
+            <h2>
+              Get a receipt <small>built from the chain, or pasted</small>
+            </h2>
             <form
               className="row"
               onSubmit={(e) => {
@@ -383,45 +428,60 @@ export function VerifyView() {
               </button>
               {latest !== undefined && <span className="note">batches 0 to {latest}</span>}
             </form>
-            <p className="note" style={{ marginTop: 10 }}>
-              Or paste a receipt someone gave you (for example a <code>batch-N.json</code> from <code>receipts/vigil-pay-1/</code> in the repo):
-            </p>
-            <textarea value={pasted} onChange={(e) => setPasted(e.target.value)} spellCheck={false} aria-label="Receipt JSON" placeholder='{"version": 2, "rollupId": "vigil-pay-1", …}' />
-            <div className="row" style={{ marginTop: 8 }}>
-              <button disabled={!!busy || !pasted.trim()} onClick={() => void verifyPasted()}>
-                Verify this receipt
-              </button>
-              <button disabled={!!busy || !receipt} onClick={() => void tamper()} title="Change one hex digit of the state root and verify again">
+
+            {receipt && <ReceiptDoc r={receipt} built={built} stampTone={verdict?.cls} stampText={busy ? undefined : word} />}
+
+            <div className="row forge-row">
+              <button className="forge" disabled={!!busy || !receipt} onClick={() => void tamper()} title="Change one hex digit of the state root and verify again">
                 Forge it: change one digit of the state root
               </button>
               <button disabled={!receipt} onClick={download}>
                 Download JSON
               </button>
             </div>
+
+            <details className="paste">
+              <summary>Or paste a receipt someone gave you</summary>
+              <p className="note">
+                For example a <code>batch-N.json</code> from <code>receipts/vigil-pay-1/</code> in the repo.
+              </p>
+              <textarea value={pasted} onChange={(e) => setPasted(e.target.value)} spellCheck={false} aria-label="Receipt JSON" placeholder='{"version": 2, "rollupId": "vigil-pay-1", …}' />
+              <div className="row" style={{ marginTop: 8 }}>
+                <button disabled={!!busy || !pasted.trim()} onClick={() => void verifyPasted()}>
+                  Verify this receipt
+                </button>
+              </div>
+            </details>
           </section>
         </div>
 
-        <aside>
-          <section className="panel" aria-live="polite">
-            <h2>2. Result</h2>
+        <aside className="vg-right">
+          <section className="panel result" aria-live="polite">
+            <h2>
+              Result <small>{busy ? "checking" : result ? `${took?.toLocaleString() ?? "–"} ms` : "waiting"}</small>
+            </h2>
+            <SectorLight tones={result && receipt && !busy ? rows.map((r) => r.tone) : undefined} busy={!!busy} word={word} wordTone={verdict?.cls} runKey={`${receipt?.stateRoot ?? ""}:${took ?? 0}`} />
             {busy && <p className="empty">{busy}</p>}
             {error && <p className="err">{error}</p>}
             {!busy && !error && !result && <p className="empty">Build or paste a receipt to check it.</p>}
-            {result && receipt && verdict && (
+            {result && receipt && verdict && !busy && (
               <>
-                <ul className="checks">
-                  {rows.map((c) => (
+                <ol className="checks numbered">
+                  {rows.map((c, i) => (
                     <li key={c.key}>
                       <Mark tone={c.tone} label={c.label} />
                       <span>
-                        <span className="what">{c.what}</span>
+                        <span className="what">
+                          <span className="ck-n">{String(i + 1).padStart(2, "0")}</span>
+                          {c.what}
+                        </span>
                         {c.label === "not reached" && <span className="note"> (not reached)</span>}
                         <br />
                         <span className="why">{c.why}</span>
                       </span>
                     </li>
                   ))}
-                </ul>
+                </ol>
                 <div className={`verdict ${verdict.cls}`}>{verdict.text}</div>
                 <dl className="kv">
                   <dt>Mode</dt>
@@ -450,7 +510,7 @@ export function VerifyView() {
           {result && receipt && RECEIPT_VERIFIER && evmCovers(receipt) && (
             <section className="panel" aria-live="polite">
               <h2>
-                3. In Solidity <small>QoreChain EVM, a second opinion</small>
+                In Solidity <small>QoreChain EVM, a second opinion</small>
               </h2>
               {!evm && <p className="empty">Asking the contract…</p>}
               {evm && "error" in evm && <p className="err">The EVM check did not run: {evm.error}</p>}

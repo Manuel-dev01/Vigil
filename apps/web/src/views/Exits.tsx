@@ -20,6 +20,8 @@ import {
 } from "../exits.ts";
 import { listen } from "../live.ts";
 import { CopyHash, Ext, ExplorerHint, Mark, useRefresh, type Tone } from "../ui.tsx";
+import { PageHead, Reading, type Sounding } from "./Head.tsx";
+import { Race, raceTimes } from "./Race.tsx";
 
 const REFRESH_MS = 30_000;
 const SOURCE = `${REPO}/blob/main/contracts/src/InstantExitVault.sol`;
@@ -117,7 +119,7 @@ function exitStatus(x: ExitView, threshold: number, nowSec: number): { cls: stri
   return { cls: "warn", label: "Waiting for signatures" };
 }
 
-function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec: number }) {
+function ExitCard({ x, vault, nowSec, open }: { x: ExitView; vault: VaultState; nowSec: number; open: boolean }) {
   const st = exitStatus(x, vault.threshold, nowSec);
   if (x.error) {
     return (
@@ -184,6 +186,11 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
         </div>
       )}
 
+      <details className="evidence-log" open={open}>
+        <summary>
+          <span>The evidence, step by step</span>
+          <span className="note">withdrawal, batch, signatures, payment, finality, repayment</span>
+        </summary>
       <ol className="steps">
         {/* 1. The L2 withdrawal */}
         {x.withdrawal ? (
@@ -457,6 +464,7 @@ function ExitCard({ x, vault, nowSec }: { x: ExitView; vault: VaultState; nowSec
             </Step>
           ))}
       </ol>
+      </details>
     </section>
   );
 }
@@ -787,95 +795,89 @@ export function ExitsView() {
   const nowSec = now / 1000;
   const example = state?.exits.find((x) => x.fronted)?.fronted?.payout;
 
+  const lead = state?.exits.find((x) => v && raceTimes(x, v.threshold));
+  const soundings: Sounding[] = [
+    { k: "Liquidity", v: v ? qorWei(v.available) : undefined, s: "free to front exits now" },
+    { k: "Owed to the vault", v: v ? qorWei(v.totalOwed) : undefined, s: "fronted, not yet swept back" },
+    { k: "Exits fronted", v: v ? v.frontedCount : undefined, s: state ? `${state.totalExits} attested or fronted ${state.totalExits === 1 ? "exit" : "exits"}` : undefined },
+    { k: "Fees earned", v: v ? qorWei(v.feesEarned) : undefined, s: v ? `${pct(v.feeBps)} of each fronted exit` : undefined },
+    { k: "Quorum", v: v ? `${v.threshold} of ${v.members.length}` : undefined, s: "watchtowers sign with ML-DSA-87" },
+    { k: "Without the vault", v: state ? (windowSec ? dur(windowSec) : "—") : undefined, s: "a withdrawal waits for finality" },
+  ];
+
   return (
     <>
-      <h1>Instant exits</h1>
-      <p className="lede">
-        A withdrawal from {ROLLUP} is normally paid on QoreChain only after its batch has waited out the rollup's {windowText} challenge window. This vault pays it at once,
-        when {quorumText} have re-executed the batch and signed for that withdrawal with ML-DSA-87; the vault checks those signatures on-chain with QoreChain's pqcVerify
-        precompile, and after finality the withdrawal itself repays the vault. If nobody fronts an exit, the user still gets paid in full after the window.
-      </p>
+      <PageHead
+        eyebrow={<>Instant exits · a vault on QoreChain's EVM</>}
+        title="Instant exits"
+        lede={
+          <>
+            <p>
+              A withdrawal from {ROLLUP} is normally paid on QoreChain only after its batch has waited out the rollup's {windowText} challenge window.
+            </p>
+            <p>
+              This vault pays it at once, when {quorumText} have re-executed the batch and signed for that withdrawal with ML-DSA-87; the vault checks those
+              signatures on-chain with QoreChain's pqcVerify precompile, and after finality the withdrawal itself repays the vault. If nobody fronts an exit,
+              the user still gets paid in full after the window.
+            </p>
+          </>
+        }
+        soundings={soundings}
+      />
 
-      {!state && !error && <p className="empty">Reading the vault, its logs and the rollup's inbox from the chain…</p>}
+      {!state && !error && <Reading>Reading the vault, its logs and the rollup's inbox from {NODE_HOST} and {EVM_HOST}…</Reading>}
       {error && !state && <p className="err">Could not read the instant-exit vault: {error}. It is asked again every {REFRESH_MS / 1000} s.</p>}
+      {error && state && (
+        <p className="err">
+          The last refresh failed ({error}); showing what was read at {utcTime(state.loadedAt)}.
+        </p>
+      )}
+
+      {(!state || lead) && (
+        <Race
+          x={lead}
+          t={lead && v ? raceTimes(lead, v.threshold) : undefined}
+          nowSec={nowSec}
+          title={
+            lead ? (
+              <>
+                <b>The latest fronted exit</b> · batch {lead.batchIndex}, withdrawal {lead.withdrawalIndex}
+              </>
+            ) : (
+              <b>The latest fronted exit</b>
+            )
+          }
+        />
+      )}
 
       {state && v && (
-        <>
-          <div className="grid">
-            <div className="stat">
-              <div className="k">Liquidity</div>
-              <div className="v">{qorWei(v.available)}</div>
-              <div className="s">free to front exits now</div>
-            </div>
-            <div className="stat">
-              <div className="k">Owed to the vault</div>
-              <div className="v">{qorWei(v.totalOwed)}</div>
-              <div className="s">fronted, not yet swept back</div>
-            </div>
-            <div className="stat">
-              <div className="k">Exits fronted</div>
-              <div className="v">{v.frontedCount}</div>
-              <div className="s">
-                {state.totalExits} attested or fronted {state.totalExits === 1 ? "exit" : "exits"}
-              </div>
-            </div>
-            <div className="stat">
-              <div className="k">Fees earned</div>
-              <div className="v">{qorWei(v.feesEarned)}</div>
-              <div className="s">{pct(v.feeBps)} of each fronted exit</div>
-            </div>
-            <div className="stat">
-              <div className="k">Quorum</div>
-              <div className="v">
-                {v.threshold} of {v.members.length}
-              </div>
-              <div className="s">watchtowers sign with ML-DSA-87</div>
-            </div>
-            <div className="stat">
-              <div className="k">Without the vault</div>
-              <div className="v">{windowSec ? dur(windowSec) : "—"}</div>
-              <div className="s">a withdrawal waits for finality</div>
-            </div>
+        <div className="cols">
+          <div>
+            {state.exits.length === 0 ? (
+              <section className="panel">
+                <h2>Exits</h2>
+                <p className="empty">No watchtower has attested an exit for this vault yet, and none has been fronted.</p>
+              </section>
+            ) : (
+              state.exits.map((x, i) => <ExitCard key={x.id} x={x} vault={v} nowSec={nowSec} open={i === 0} />)
+            )}
+            {state.totalExits > state.exits.length && (
+              <p className="row" style={{ marginTop: 12 }}>
+                <button type="button" disabled={refreshing} onClick={() => setLimit((n) => n + EXITS_PAGE)}>
+                  {refreshing ? "Reading…" : `Show ${Math.min(EXITS_PAGE, state.totalExits - state.exits.length)} more`}
+                </button>
+                <span className="note">
+                  Newest {state.exits.length} of {state.totalExits} exits shown.
+                </span>
+              </p>
+            )}
           </div>
-
-          {error && (
-            <p className="err">
-              The last refresh failed ({error}); showing what was read at {utcTime(state.loadedAt)}.
-            </p>
-          )}
-
-          <div className="cols">
-            <div>
-              {state.exits.length === 0 ? (
-                <section className="panel">
-                  <h2>Exits</h2>
-                  <p className="empty">No watchtower has attested an exit for this vault yet, and none has been fronted.</p>
-                </section>
-              ) : (
-                state.exits.map((x) => <ExitCard key={x.id} x={x} vault={v} nowSec={nowSec} />)
-              )}
-              {state.totalExits > state.exits.length && (
-                <p className="row" style={{ marginTop: 12 }}>
-                  <button
-                    type="button"
-                    disabled={refreshing}
-                    onClick={() => setLimit((n) => n + EXITS_PAGE)}
-                  >
-                    {refreshing ? "Reading…" : `Show ${Math.min(EXITS_PAGE, state.totalExits - state.exits.length)} more`}
-                  </button>
-                  <span className="note">
-                    Newest {state.exits.length} of {state.totalExits} exits shown.
-                  </span>
-                </p>
-              )}
-            </div>
-            <aside>
-              <VaultPanel s={state} />
-              <ExitAddressTool example={example} />
-              <HowPanel s={state} refreshing={refreshing} />
-            </aside>
-          </div>
-        </>
+          <aside>
+            <VaultPanel s={state} />
+            <ExitAddressTool example={example} />
+            <HowPanel s={state} refreshing={refreshing} />
+          </aside>
+        </div>
       )}
     </>
   );

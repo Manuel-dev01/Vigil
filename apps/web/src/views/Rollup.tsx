@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import type { AnchorView, BatchView, InboxView, RollupView as Rollup } from "@qorechain/rdk";
 import { chain } from "../chain.ts";
-import { KNOWN, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
+import { CHAIN_ID, KNOWN, NODE_HOST, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
 import { listen, type Head, type LiveItem } from "../live.ts";
+import { reveal } from "../reveal.ts";
 import { Ext, ExplorerHint, useRefresh } from "../ui.tsx";
+import { BeaconLine } from "./Beacons.tsx";
+import { PageHead, Reading, Section, type Sounding } from "./Head.tsx";
 
 const REFRESH_MS = 30_000;
 
@@ -129,22 +132,33 @@ function finalizesIn(b: BatchView, windowSec: number | undefined, now: number): 
   return `final in ${m >= 1 ? `${m} min` : `${left} s`}`;
 }
 
+const hms = (ms: number): string => utcTime(ms).replace(" UTC", "");
+
 function FeedItem({ item }: { item: LiveItem }) {
-  const when = utcTime(item.at);
+  const t = (
+    <time className="lg-t" dateTime={new Date(item.at).toISOString()}>
+      {hms(item.at)}
+    </time>
+  );
+  const where = (
+    <span className="when">
+      block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
+    </span>
+  );
   if (item.kind === "post")
     return (
       <li>
+        {t}
         <span>
           Inbox entry <strong>#{item.sequence}</strong> posted ({item.size} B) by <Name addr={item.poster} />
-        </span>
-        <span className="when">
-          {when} · block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
+          {where}
         </span>
       </li>
     );
   if (item.kind === "batch")
     return (
-      <li>
+      <li className="lit">
+        {t}
         <span>
           Batch <strong>#{item.batchIndex}</strong> settled to inbox {item.inboxEnd}, root <code>{short(item.stateRoot, 6)}</code>{" "}
           {item.pqcVerified ? (
@@ -154,23 +168,22 @@ function FeedItem({ item }: { item: LiveItem }) {
           ) : (
             <span className="chip warn">not anchored</span>
           )}
-        </span>
-        <span className="when">
-          {when} · block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
+          {where}
         </span>
       </li>
     );
   return (
-    <li>
+    <li className="bad">
+      {t}
       <span>
         <span className="chip bad">Fraud caught</span> batch <strong>#{item.batchIndex}</strong> rejected; challenger <Name addr={item.challenger} /> paid {qor(item.reward)}
-      </span>
-      <span className="when">
-        {when} · block {item.height.toLocaleString()} · <Ext href={txUrl(item.tx)}>tx</Ext>
+        {where}
       </span>
     </li>
   );
 }
+
+const COUNT = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
 
 export function RollupView() {
   // Read every 30 s while the tab is visible, after a reconnect and on each live post or batch; one load at a time.
@@ -196,194 +209,206 @@ export function RollupView() {
     };
   }, [refresh]);
 
-  if (error && !state) return <p className="err">Could not read the chain: {error}. It is asked again every {REFRESH_MS / 1000} s.</p>;
-  if (!state) return <p className="empty">Reading {ROLLUP} from the chain…</p>;
-  const { rollup, inbox, batches, rows, pruned, latestIndex, bond, frauds } = state;
-  const pending = batches.filter((b) => b.status === "submitted").length;
+  const rollup = state?.rollup;
+  const pending = state ? state.batches.filter((b) => b.status === "submitted").length : 0;
+  const soundings: Sounding[] = [
+    { k: "Chain height", v: head ? head.height.toLocaleString() : undefined, live: true, s: head ? `live · block time ${utcTime(Date.parse(head.time))}` : "waiting for the next block" },
+    {
+      k: "Status",
+      v: rollup?.status,
+      tone: rollup?.status === "active" ? "ok" : undefined,
+      s: rollup ? `${rollup.sequencing || "sequencer"} · ${rollup.executionVm || rollup.vmType} · ${rollup.proofSystem ?? "fraud"} proofs` : undefined,
+    },
+    {
+      k: "Batches",
+      v: state ? state.latestIndex + 1 : undefined,
+      s: state ? `${pending ? `${pending} in the challenge window` : "all final"}${state.pruned ? ` · ${state.pruned} pruned, anchors kept` : ""}` : undefined,
+    },
+    { k: "Inbox", v: state?.inbox.headSequence, s: state ? `entries posted · ${state.inbox.consumedSequence} settled` : undefined },
+    { k: "Withdrawal pool", v: rollup ? qor(rollup.escrowBalance) : undefined, s: "held by the chain, paid only from final batches" },
+    { k: "Sequencer bond", v: state ? qor(state.bond) : undefined, s: "slashed if a batch is proven wrong" },
+  ];
 
   return (
     <>
-      <h1>{ROLLUP}</h1>
-      <p className="lede">
-        A payroll rollup with no admin and no classical authority. Users sign with ML-DSA-44, the creator's sequencer anchors each batch with its ML-DSA-87
-        signature (a bonded standby sequencer takes over, unanchored, if it stops), payslips are sealed with ML-KEM-1024, and independent watchtowers re-execute every batch and challenge fraud on chain.
-      </p>
+      <PageHead
+        eyebrow={<>The rollup · live from {CHAIN_ID}</>}
+        title={ROLLUP}
+        lede={
+          <>
+            <p>A payroll rollup with no admin and no classical authority.</p>
+            <p>
+              Users sign with ML-DSA-44, the creator's sequencer anchors each batch with its ML-DSA-87 signature (a bonded standby sequencer takes over,
+              unanchored, if it stops), payslips are sealed with ML-KEM-1024, and independent watchtowers re-execute every batch and challenge fraud on chain.
+            </p>
+          </>
+        }
+        soundings={soundings}
+      />
 
-      {error && <p className="err">The last refresh failed ({error}); showing what was read at {utcTime(state.loadedAt)}.</p>}
+      {error && !state && <p className="err">Could not read the chain: {error}. It is asked again every {REFRESH_MS / 1000} s.</p>}
+      {error && state && <p className="err">The last refresh failed ({error}); showing what was read at {utcTime(state.loadedAt)}.</p>}
+      {!state && !error && <Reading>Reading {ROLLUP} from {NODE_HOST}: the rollup, its batches, anchors, inbox, bond and fraud proofs…</Reading>}
 
-      <div className="grid">
-        <div className="stat">
-          <div className="k">Status</div>
-          <div className="v">{rollup.status}</div>
-          <div className="s">
-            {rollup.sequencing || "sequencer"} · {rollup.executionVm || rollup.vmType} · {rollup.proofSystem ?? "fraud"} proofs
-          </div>
-        </div>
-        <div className="stat">
-          <div className="k">Chain height</div>
-          <div className="v">{head ? head.height.toLocaleString() : "…"}</div>
-          <div className="s">{head ? `live, block time ${utcTime(Date.parse(head.time))}` : "waiting for the next block"}</div>
-        </div>
-        <div className="stat">
-          <div className="k">Batches</div>
-          <div className="v">{latestIndex + 1}</div>
-          <div className="s">
-            {pending ? `${pending} in the challenge window` : "all final"}
-            {pruned ? ` · ${pruned} pruned, anchors kept` : ""}
-          </div>
-        </div>
-        <div className="stat">
-          <div className="k">Inbox</div>
-          <div className="v">{inbox.headSequence}</div>
-          <div className="s">entries posted · {inbox.consumedSequence} settled</div>
-        </div>
-        <div className="stat">
-          <div className="k">Withdrawal pool</div>
-          <div className="v">{qor(rollup.escrowBalance)}</div>
-          <div className="s">held by the chain, paid only from final batches</div>
-        </div>
-        <div className="stat">
-          <div className="k">Sequencer bond</div>
-          <div className="v">{qor(bond)}</div>
-          <div className="s">slashed if a batch is proven wrong</div>
-        </div>
-      </div>
+      <BeaconLine
+        rows={state?.rows.map((r) => ({ batchIndex: r.batchIndex, status: r.status, anchored: r.anchored, block: r.block, stateRoot: r.stateRoot, submittedTime: r.batch?.submittedTime }))}
+        frauds={state?.frauds}
+        windowSec={rollup?.challengeWindowSec}
+        now={now}
+        nameOf={(a) => KNOWN[a] ?? shortAddr(a)}
+      />
 
-      <div className="cols">
-        <div>
-          <section className="panel">
-            <h2>
-              Batches{" "}
-              <small>
-                challenge window {rollup.challengeWindowSec ? `${Math.round(rollup.challengeWindowSec / 60)} min` : "n/a"} ·{" "}
-                {refreshing ? "refreshing…" : `read ${utcTime(state.loadedAt)}`}
-              </small>
+      {state && state.frauds.length > 0 && (
+        <section className="fraud-band" ref={reveal} aria-labelledby="fraud-h">
+          <div className="fb-head">
+            <p className="fb-eyebrow">Fraud caught on chain · {state.frauds.length} upheld challenge{state.frauds.length === 1 ? "" : "s"}</p>
+            <h2 id="fraud-h" className="fb-title">
+              {COUNT[state.frauds.length] ?? state.frauds.length} forged batch{state.frauds.length === 1 ? "" : "es"}, <em>proven wrong</em> on chain.
             </h2>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th className="num">#</th>
-                    <th>Status</th>
-                    <th>State root</th>
-                    <th>Inbox</th>
-                    <th>Anchor</th>
-                    <th className="num">Block</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(({ key, batchIndex, status, stateRoot, batch: b, anchored, block }) => (
-                    <tr key={key}>
-                      <td className="num">{batchIndex}</td>
-                      <td>
-                        <span
-                          className={`chip ${status}`}
-                          title={status === "pruned" ? "The chain deleted this finalized batch's record after its retention window. Its anchor remains, so its receipt still verifies." : undefined}
-                        >
-                          {status}
-                        </span>{" "}
-                        {b && <span className="note">{finalizesIn(b, rollup.challengeWindowSec, now)}</span>}
-                      </td>
-                      <td>
-                        <code title={stateRoot}>{short(stateRoot, 6)}</code>
-                      </td>
-                      <td>{!b ? "—" : b.inboxEnd - b.inboxStart === 1 ? b.inboxEnd : b.inboxEnd > b.inboxStart ? `${b.inboxStart + 1}–${b.inboxEnd}` : "—"}</td>
-                      <td>{anchored ? <span className="chip ok">ML-DSA-87</span> : <span className="chip warn">none</span>}</td>
-                      <td className="num">{block.toLocaleString()}</td>
-                      <td>
-                        {anchored ? (
-                          <a href={`#/verify?batch=${batchIndex}`}>Verify receipt</a>
-                        ) : (
-                          <span className="note" title="Only batches from the creator's sequencer carry an ML-DSA-87 anchor. This one came from the standby or another bonded submitter, so it has no settlement receipt, and never will.">
-                            no receipt
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="panel">
-            <h2>
-              Fraud caught on chain <small>{frauds.length} upheld challenge{frauds.length === 1 ? "" : "s"}</small>
-            </h2>
-            {frauds.length === 0 ? (
-              <p className="empty">No fraud challenge has been upheld on this rollup.</p>
-            ) : (
-              <>
-                <p className="note">
-                  When a fraud proof rejects a batch, the chain drops it and the next batch submitted takes the same index, so a rejected batch's number can
-                  appear in the table above as a different, later batch.
+            <p className="note">
+              When a fraud proof rejects a batch, the chain drops it and the next batch submitted takes the same index, so a rejected batch's number can appear
+              on the beacon line and in the log as a different, later batch.
+            </p>
+          </div>
+          <ol className="fb-list">
+            {state.frauds.map((f) => (
+              <li key={f.tx}>
+                <div className="fb-figs">
+                  <p>
+                    <span className="fb-n">{qor(f.slashed)}</span>
+                    <span className="fb-k">bond slashed</span>
+                  </p>
+                  <p>
+                    <span className="fb-n">{qor(f.reward)}</span>
+                    <span className="fb-k">paid to the challenger</span>
+                  </p>
+                </div>
+                <p className="fb-text">
+                  Batch <strong>#{f.batchIndex}</strong> by <Name addr={f.submitter} /> was proven wrong; <Name addr={f.challenger} /> challenged it and was paid.
+                  {f.reusedBy && (
+                    <>
+                      {" "}
+                      Its index was then reused: batch #{f.batchIndex} in the log was submitted later, at block {f.reusedBy.block.toLocaleString()}, and is{" "}
+                      {f.reusedBy.status}.
+                    </>
+                  )}
                 </p>
-                <ul className="feed">
-                  {frauds.map((f) => (
-                    <li key={f.tx}>
-                      <span>
-                        Batch <strong>#{f.batchIndex}</strong> by <Name addr={f.submitter} /> was proven wrong. {qor(f.slashed)} bond slashed; {qor(f.reward)} paid to{" "}
-                        <Name addr={f.challenger} />.
-                        {f.reusedBy && (
-                          <>
-                            {" "}
-                            Its index was then reused: the batch #{f.batchIndex} above was submitted later, at block {f.reusedBy.block.toLocaleString()}, and is{" "}
-                            {f.reusedBy.status}.
-                          </>
-                        )}
-                      </span>
-                      <span className="when">
-                        {f.time ? utcStamp(Date.parse(f.time)) : ""} · block {f.height.toLocaleString()} · <Ext href={txUrl(f.tx)}>challenge tx</Ext>
-                      </span>
-                    </li>
+                <p className="when">
+                  {f.time ? utcStamp(Date.parse(f.time)) : ""} · block {f.height.toLocaleString()} · <Ext href={txUrl(f.tx)}>challenge tx</Ext>
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {state && rollup && (
+        <div className="cols">
+          <div>
+            <Section
+              title="Batches"
+              aside={
+                <>
+                  challenge window {rollup.challengeWindowSec ? `${Math.round(rollup.challengeWindowSec / 60)} min` : "n/a"} ·{" "}
+                  {refreshing ? "refreshing…" : `read ${utcTime(state.loadedAt)}`}
+                </>
+              }
+            >
+              <div className="table-wrap">
+                <table className="log-table">
+                  <thead>
+                    <tr>
+                      <th className="num">#</th>
+                      <th>Status</th>
+                      <th>State root</th>
+                      <th>Inbox</th>
+                      <th>Anchor</th>
+                      <th className="num">Block</th>
+                      <th>
+                        <span className="sr-only">Receipt</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.rows.map(({ key, batchIndex, status, stateRoot, batch: b, anchored, block }, i) => (
+                      <tr key={key} style={{ animationDelay: `${Math.min(i, 30) * 18}ms` }}>
+                        <td className="num idx">{batchIndex}</td>
+                        <td>
+                          <span
+                            className={`st ${status}`}
+                            title={status === "pruned" ? "The chain deleted this finalized batch's record after its retention window. Its anchor remains, so its receipt still verifies." : undefined}
+                          >
+                            {status}
+                          </span>{" "}
+                          {b && <span className="note">{finalizesIn(b, rollup.challengeWindowSec, now)}</span>}
+                        </td>
+                        <td>
+                          <code title={stateRoot}>{short(stateRoot, 6)}</code>
+                        </td>
+                        <td>{!b ? "—" : b.inboxEnd - b.inboxStart === 1 ? b.inboxEnd : b.inboxEnd > b.inboxStart ? `${b.inboxStart + 1}–${b.inboxEnd}` : "—"}</td>
+                        <td>{anchored ? <span className="anc lit">ML-DSA-87</span> : <span className="anc open">none</span>}</td>
+                        <td className="num">{block.toLocaleString()}</td>
+                        <td>
+                          {anchored ? (
+                            <a className="go" href={`#/verify?batch=${batchIndex}`}>
+                              Verify receipt
+                            </a>
+                          ) : (
+                            <span className="note" title="Only batches from the creator's sequencer carry an ML-DSA-87 anchor. This one came from the standby or another bonded submitter, so it has no settlement receipt, and never will.">
+                              no receipt
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+          </div>
+
+          <aside>
+            <Section
+              title={
+                <>
+                  <span className="listening" aria-hidden="true" /> Live
+                </>
+              }
+              aside="posts, batches and fraud as they happen · UTC"
+            >
+              {items.length === 0 ? (
+                <p className="empty">Listening to the chain. Nothing new since this page opened.</p>
+              ) : (
+                <ul className="feed log-feed">
+                  {items.map((i) => (
+                    <FeedItem key={`${i.kind}:${i.tx}:${i.height}`} item={i} />
                   ))}
                 </ul>
-              </>
-            )}
-          </section>
+              )}
+            </Section>
+            <Section title="Who runs what">
+              <dl className="kv">
+                <dt>Creator</dt>
+                <dd>
+                  <Name addr={rollup.creator} />
+                </dd>
+                <dt>Layer</dt>
+                <dd>
+                  <code>{rollup.layerId}</code>, created at block {rollup.createdHeight.toLocaleString()}
+                </dd>
+                <dt>Sequencers</dt>
+                <dd>
+                  Keel, run by the creator, batches within seconds and anchors each batch. A standby Keel with its own bonded key batches any entry that has
+                  waited 30 blocks; anyone else who bonds may do the same.
+                </dd>
+                <dt>Watchtowers</dt>
+                <dd>Two of ours (US West and EU West) plus anyone else's. Any bonded account can challenge, and the chain pays the first correct challenger.</dd>
+              </dl>
+              <ExplorerHint />
+            </Section>
+          </aside>
         </div>
-
-        <aside>
-          <section className="panel">
-            <h2>
-              Live <small>new posts, batches and fraud, as they happen (UTC)</small>
-            </h2>
-            {items.length === 0 ? (
-              <p className="empty">Listening to the chain. Nothing new since this page opened.</p>
-            ) : (
-              <ul className="feed">
-                {items.map((i) => (
-                  <FeedItem key={`${i.kind}:${i.tx}:${i.height}`} item={i} />
-                ))}
-              </ul>
-            )}
-          </section>
-          <section className="panel">
-            <h2>Who runs what</h2>
-            <dl className="kv">
-              <dt>Creator</dt>
-              <dd>
-                <Name addr={rollup.creator} />
-              </dd>
-              <dt>Layer</dt>
-              <dd>
-                <code>{rollup.layerId}</code>, created at block {rollup.createdHeight.toLocaleString()}
-              </dd>
-              <dt>Sequencers</dt>
-              <dd>
-                Keel, run by the creator, batches within seconds and anchors each batch. A standby Keel with its own bonded key batches
-                any entry that has waited 30 blocks; anyone else who bonds may do the same.
-              </dd>
-              <dt>Watchtowers</dt>
-              <dd>
-                Two of ours (US West and EU West) plus anyone else's. Any bonded account can challenge, and the chain pays the first correct challenger.
-              </dd>
-            </dl>
-            <ExplorerHint />
-          </section>
-        </aside>
-      </div>
+      )}
     </>
   );
 }
