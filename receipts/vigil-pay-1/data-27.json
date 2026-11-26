@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "kind": "vigil/data-receipt",
+  "chainId": "qorechain-diana",
+  "rollupId": "vigil-pay-1",
+  "sequence": 27,
+  "dataHash": "45a27668dd4b3d1059baf4a4f76c4340bb0031d119dfafd9a835a495c6dccc1e",
+  "batch": {
+    "batchIndex": 24,
+    "inboxStart": 26,
+    "inboxEnd": 27,
+    "dataHash": "ea1d4229b48fce4ebf4c8a6a29134f1f735061e8b4a8c83e07ffbb1eb2e2d2bb",
+    "stateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+    "status": "submitted"
+  },
+  "accFrom": "12db3216bcd52d36b34e1b0f2f5d151bbd1c1111c75e9eeb1885f782333aafa3",
+  "posts": [
+    {
+      "sequence": 27,
+      "height": 10807027,
+      "poster": "qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws",
+      "dataHash": "45a27668dd4b3d1059baf4a4f76c4340bb0031d119dfafd9a835a495c6dccc1e"
+    }
+  ],
+  "builtAt": "2026-11-26T19:53:55.666Z"
+}
