@@ -18,7 +18,7 @@ pnpm --filter @vigil/web build    # static site in apps/web/dist, servable from 
 
 ## Live
 
-https://web-production-324cc271.up.railway.app is served by [Caddy](deploy/Caddyfile) on Railway, with a strict Content-Security-Policy (scripts from the site only; network only to the site, the node's websocket and the EVM JSON-RPC endpoint). [`/version.json`](https://web-production-324cc271.up.railway.app/version.json) names the commit it was built from and the SHA-256 of every file it serves. To deploy:
+https://vigil-pq.up.railway.app is served by [Caddy](deploy/Caddyfile) on Railway, with a strict Content-Security-Policy (scripts from the site only; network only to the site, the node's websocket and the EVM JSON-RPC endpoint). [`/version.json`](https://vigil-pq.up.railway.app/version.json) names the commit it was built from and the SHA-256 of every file it serves. The app's first address, `web-production-324cc271.up.railway.app`, now sends every path to the same path here (a permanent redirect, [deploy/old-url](deploy/old-url)), so links shared before 25 Nov 2026 still work. To deploy:
 
 ```bash
 pnpm --filter @vigil/web build

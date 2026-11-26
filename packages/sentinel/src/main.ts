@@ -41,7 +41,7 @@ function vaultAddress(): Hex {
   throw new Error("no InstantExitVault in deployments/diana.json");
 }
 
-const observe = observer({ rollupId: "vigil-pay-1", vault: vaultAddress(), webUrl: "https://web-production-324cc271.up.railway.app", accounts: ACCOUNTS });
+const observe = observer({ rollupId: "vigil-pay-1", vault: vaultAddress(), webUrl: "https://vigil-pq.up.railway.app", accounts: ACCOUNTS });
 const notify = await telegram(process.env["TELEGRAM_BOT_TOKEN"], process.env["TELEGRAM_CHAT_ID"], log);
 const say = async (text: string) => {
   log("message", { text });
