@@ -46,7 +46,7 @@ One file can hold both: the `.env.exit-canary` that `new-account.ts` writes, wit
 ## Budget
 
 - **At most 2 runs in any 24 hours, 0.05 QOR each.** Each run costs each watchtower one attestation post, within their own limits (12 posts a day, 4 claims a batch, never below their 5 QOR challenge reserve; `packages/qledger-watchtower/src/cli.ts`).
-- **Fees, estimated, not yet measured for the canary:** its own post of about 3.9 KB should cost about 0.075 QOR (a 3,794-byte keep-alive post cost 73,480 uqor, EVIDENCE 118). The relayer pays its windows, `front()`, execution and `sweep()` (about 0.13 QOR an exit, `packages/exit-relayer/src/main.ts`).
+- **Fees, estimated, not yet measured for the canary:** its own post of about 3.9 KB (a withdrawal of 3,794 bytes, like inbox entries 17 and 20, plus a 68-byte notice) should cost about 0.075 QOR; a keep-alive transfer post of about 3.8 KB cost 73,480 uqor (EVIDENCE 118). The relayer pays its windows, `front()`, execution and `sweep()` (about 0.13 QOR an exit, `packages/exit-relayer/src/main.ts`).
 - **Funding:** about 1 QOR on the L1 account covers two weeks of daily posts; the L2 account needs the sum of its withdrawals (0.02 QOR a day by default). Withdrawn money comes back to the L1 account.
 
 ## Hosting
