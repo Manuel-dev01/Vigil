@@ -262,6 +262,49 @@ html.on-landing .foot-in {
   flex-wrap: wrap;
   gap: 6px 20px;
 }
+/* The "What's inside" label: a summary line in the shell; its body (Inside.tsx, inside.css) loads when opened. */
+.inside {
+  border-top: 1px solid var(--rule);
+  max-width: 78em;
+}
+.inside > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 0;
+  color: var(--chart);
+  font-weight: 600;
+}
+.inside > summary::-webkit-details-marker {
+  display: none;
+}
+.inside > summary::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--lamp);
+  border-bottom: 1.5px solid var(--lamp);
+  transform: translateY(-2px) rotate(-45deg);
+  transition: transform var(--d-micro) var(--ease-out);
+  flex: none;
+}
+.inside[open] > summary::before {
+  transform: translateY(-4px) rotate(45deg);
+}
+.inside > summary:hover {
+  color: var(--lamp);
+}
+.inside > summary:focus-visible {
+  outline: 2px solid var(--lamp);
+  outline-offset: 3px;
+}
+.inside > summary .inside-aid {
+  color: var(--sounding);
+  font-weight: 400;
+}
 
 /* ------------------------------------------------------------------ figures and panels */
 .grid {
