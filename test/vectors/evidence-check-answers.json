@@ -1,0 +1,1655 @@
+{
+ "note": "Answers from qorechain-diana for a sample of EVIDENCE.md rows, read by scripts/evidence-check.ts on 27 Nov 2026 (REST GET /cosmos/tx/v1beta1/txs/{hash}; EVM eth_getTransactionReceipt) and trimmed to the fields the check reads. Used offline by scripts/test/evidence-check.test.ts.",
+ "tip": {
+  "height": "10859709",
+  "time": "2026-11-27T16:42:57.893171090Z"
+ },
+ "answers": {
+  "2": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/4AA60750D448EA8AB96115AE6A69BBACC79097AF11A75A4C32EA603B19B8F643",
+   "fetchedAt": "2026-11-27T16:43:20.850Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/cosmos.bank.v1beta1.MsgSend"
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "36000"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "height": "10241737",
+     "txhash": "4AA60750D448EA8AB96115AE6A69BBACC79097AF11A75A4C32EA603B19B8F643",
+     "code": 10,
+     "codespace": "sdk",
+     "raw_log": "failed to execute message; message index: 0: 26000000uqor,500000000erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA: invalid coins",
+     "timestamp": "2026-11-17T07:13:04Z",
+     "gas_used": "171073",
+     "gas_wanted": "300000",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        },
+        {
+         "key": "amount",
+         "value": "36000uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "6": {
+   "url": "https://evm-testnet.qore.host",
+   "fetchedAt": "2026-11-27T16:43:25.253Z",
+   "httpStatus": 200,
+   "body": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "blockHash": "0xbe8d5480a375471dac56d2b18fb27e9496972567abc4685574939e825263a51d",
+     "blockNumber": "0x9c471f",
+     "contractAddress": "0x40b6b90d69b4a6e2277583ff7d98912c03255591",
+     "cumulativeGasUsed": "0xa6d4d",
+     "effectiveGasPrice": "0x1a3185c500",
+     "from": "0x1bc560a26898f1178170b255fa65cc7b0b603a4e",
+     "gasUsed": "0xa6d4d",
+     "logs": [],
+     "status": "0x1",
+     "to": null,
+     "transactionHash": "0x87f60392092af80d31738703c4cb913c2a67cc92a662c09dc442de69111df152",
+     "transactionIndex": "0x0",
+     "type": "0x0"
+    }
+   }
+  },
+  "13": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/02993B293296A749036459D56D2C9C4A9D84DB5AB66059F3B7F62F4771F692F0",
+   "fetchedAt": "2026-11-27T16:43:00.114Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/qorechain.rdk.v1.MsgCreateRollup"
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "91616"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "height": "10351825",
+     "txhash": "02993B293296A749036459D56D2C9C4A9D84DB5AB66059F3B7F62F4771F692F0",
+     "code": 0,
+     "codespace": "",
+     "raw_log": "",
+     "timestamp": "2026-11-19T02:53:21Z",
+     "gas_used": "436226",
+     "gas_wanted": "610773",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "amount",
+         "value": "91616uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "action",
+         "value": "/qorechain.rdk.v1.MsgCreateRollup"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "module",
+         "value": "rdk"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "amount",
+         "value": "10000000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor1sk06e3dyexuq4shw77y3dsv480xv42mqv7ss37"
+        },
+        {
+         "key": "sender",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "amount",
+         "value": "100000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "burn",
+       "attributes": [
+        {
+         "key": "burner",
+         "value": "qor1sk06e3dyexuq4shw77y3dsv480xv42mqv7ss37"
+        },
+        {
+         "key": "amount",
+         "value": "100000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "burn",
+       "attributes": [
+        {
+         "key": "source",
+         "value": "rollup_create"
+        },
+        {
+         "key": "amount",
+         "value": "100000000"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor1zlt9g9lqxk8nydpwj2y4h2s0dm3az6yv52ghjf"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "amount",
+         "value": "1000000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "sidechain_registered",
+       "attributes": [
+        {
+         "key": "layer_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "layer_type",
+         "value": "sidechain"
+        },
+        {
+         "key": "chain_id",
+         "value": "qorechain-vigil-pay-1"
+        },
+        {
+         "key": "creator",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "status",
+         "value": "proposed"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rollup_created",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "creator",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "profile",
+         "value": "nft"
+        },
+        {
+         "key": "settlement_mode",
+         "value": "optimistic"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rdk_sequencing_set",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "sequencing",
+         "value": "based"
+        },
+        {
+         "key": "set_by",
+         "value": "creator"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "16": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/E953275101D707E1D93C69216FA8B9CEA2331EF5BBCA88A6F34DEC3F33813D35",
+   "fetchedAt": "2026-11-27T16:43:35.157Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/qorechain.rdk.v1.MsgSubmitBatch"
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "151795"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "height": "10352665",
+     "txhash": "E953275101D707E1D93C69216FA8B9CEA2331EF5BBCA88A6F34DEC3F33813D35",
+     "code": 0,
+     "codespace": "",
+     "raw_log": "",
+     "timestamp": "2026-11-19T03:13:24Z",
+     "gas_used": "723012",
+     "gas_wanted": "1011965",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "amount",
+         "value": "151795uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "action",
+         "value": "/qorechain.rdk.v1.MsgSubmitBatch"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "module",
+         "value": "rdk"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rdk_inbox_consumed",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "0"
+        },
+        {
+         "key": "inbox_start",
+         "value": "0"
+        },
+        {
+         "key": "inbox_end",
+         "value": "1"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "state_anchored",
+       "attributes": [
+        {
+         "key": "layer_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "layer_height",
+         "value": "0"
+        },
+        {
+         "key": "state_root",
+         "value": "27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e"
+        },
+        {
+         "key": "main_chain_height",
+         "value": "10352665"
+        },
+        {
+         "key": "pqc_verified",
+         "value": "true"
+        },
+        {
+         "key": "transaction_count",
+         "value": "1"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "batch_submitted",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "0"
+        },
+        {
+         "key": "tx_count",
+         "value": "1"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "38": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/1775F5C71D40CD4D93F0D056CC14FBB0E89E83A85FAA7634E8C26E9CB2A32382",
+   "fetchedAt": "2026-11-27T16:44:10.233Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+        "data_hash": "o7aDJqbE5LsN4egysaHnkXhtUOVVyGwY3e2PR4Iv8yc="
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "153320"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "code": 0,
+     "codespace": "",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "amount",
+         "value": "153320uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "action",
+         "value": "/qorechain.rdk.v1.MsgSubmitBatch"
+        },
+        {
+         "key": "sender",
+         "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+         "key": "module",
+         "value": "rdk"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rdk_inbox_consumed",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "5"
+        },
+        {
+         "key": "inbox_start",
+         "value": "5"
+        },
+        {
+         "key": "inbox_end",
+         "value": "6"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "state_anchored",
+       "attributes": [
+        {
+         "key": "layer_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "layer_height",
+         "value": "5"
+        },
+        {
+         "key": "state_root",
+         "value": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561"
+        },
+        {
+         "key": "main_chain_height",
+         "value": "10368796"
+        },
+        {
+         "key": "pqc_verified",
+         "value": "true"
+        },
+        {
+         "key": "transaction_count",
+         "value": "1"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "batch_submitted",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "5"
+        },
+        {
+         "key": "tx_count",
+         "value": "1"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      }
+     ],
+     "gas_used": "730131",
+     "gas_wanted": "1022129",
+     "height": "10368796",
+     "raw_log": "",
+     "timestamp": "2026-11-19T10:23:27Z",
+     "txhash": "1775F5C71D40CD4D93F0D056CC14FBB0E89E83A85FAA7634E8C26E9CB2A32382"
+    }
+   }
+  },
+  "45": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/C4D5645FBFC6AE5F2A7EB65FDF51C6DFF1586B32B19A2DC6A82940B390BF501A",
+   "fetchedAt": "2026-11-27T16:44:17.940Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/qorechain.rdk.v1.MsgChallengeBatch"
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "240358"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "height": "10370247",
+     "txhash": "C4D5645FBFC6AE5F2A7EB65FDF51C6DFF1586B32B19A2DC6A82940B390BF501A",
+     "code": 9,
+     "codespace": "rdk",
+     "raw_log": "failed to execute message; message index: 0: batch 6 is rejected: batch already finalized",
+     "timestamp": "2026-11-19T11:03:57Z",
+     "gas_used": "177900",
+     "gas_wanted": "2002980",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+        },
+        {
+         "key": "amount",
+         "value": "240358uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "55": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915",
+   "fetchedAt": "2026-11-27T16:44:29.203Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/qorechain.rdk.v1.MsgChallengeBatch"
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "181788"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "height": "10382607",
+     "txhash": "4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915",
+     "code": 0,
+     "codespace": "",
+     "raw_log": "",
+     "timestamp": "2026-11-19T16:33:09Z",
+     "gas_used": "345265",
+     "gas_wanted": "605960",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+         "key": "amount",
+         "value": "181788uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "action",
+         "value": "/qorechain.rdk.v1.MsgChallengeBatch"
+        },
+        {
+         "key": "sender",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+         "key": "module",
+         "value": "rdk"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rdk_inbox_rolled_back",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "consumed_sequence",
+         "value": "8"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+         "key": "sender",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "amount",
+         "value": "500000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor1sk06e3dyexuq4shw77y3dsv480xv42mqv7ss37"
+        },
+        {
+         "key": "sender",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "amount",
+         "value": "500000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1qadyq99h5qtkhumcjsejh8nanfshltv3zghqsd"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "burn",
+       "attributes": [
+        {
+         "key": "burner",
+         "value": "qor1sk06e3dyexuq4shw77y3dsv480xv42mqv7ss37"
+        },
+        {
+         "key": "amount",
+         "value": "500000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "burn",
+       "attributes": [
+        {
+         "key": "source",
+         "value": "rollup_slash"
+        },
+        {
+         "key": "amount",
+         "value": "500000000"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rdk_fraud_upheld",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "8"
+        },
+        {
+         "key": "submitter",
+         "value": "qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2"
+        },
+        {
+         "key": "challenger",
+         "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+         "key": "slashed",
+         "value": "1000000000uqor"
+        },
+        {
+         "key": "challenger_reward",
+         "value": "500000000uqor"
+        },
+        {
+         "key": "burned",
+         "value": "500000000uqor"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "61": {
+   "url": "https://evm-testnet.qore.host",
+   "fetchedAt": "2026-11-27T16:44:35.810Z",
+   "httpStatus": 200,
+   "body": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "blockHash": "0xdf5a02159976df548b48641e67d56c1a01188d0b735216c359629d1a4db6097b",
+     "blockNumber": "0x9eb3fe",
+     "contractAddress": "0x2d484549b2f05c2867c8f7051951b569dab79ca6",
+     "cumulativeGasUsed": "0x1869f",
+     "effectiveGasPrice": "0x1a3185c500",
+     "from": "0x0352f370e966c2fe62f7bb53837b6039637d5256",
+     "gasUsed": "0x1869f",
+     "logs": [
+      {
+       "address": "0x2d484549b2f05c2867c8f7051951b569dab79ca6",
+       "topics": [
+        "0x6efd854b0d29e8f22ad0c4f4376fd0775bfe2f2783f72f7ea68c2a5972b0e1a8"
+       ],
+       "data": "0x00000000000000000000000000000000000000000000000000000000009eb3fe00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000002a00000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000101000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+       "blockNumber": "0x9eb3fe",
+       "transactionHash": "0x4da5f6c9f9016b86ec4edb4e80f56082347f16e4a4b76945c2c2f51bbdb52254",
+       "transactionIndex": "0x0",
+       "blockHash": "0xdf5a02159976df548b48641e67d56c1a01188d0b735216c359629d1a4db6097b",
+       "blockTimestamp": "0x6aff89b9",
+       "logIndex": "0x0",
+       "removed": false
+      }
+     ],
+     "status": "0x1",
+     "to": null,
+     "transactionHash": "0x4da5f6c9f9016b86ec4edb4e80f56082347f16e4a4b76945c2c2f51bbdb52254",
+     "transactionIndex": "0x0",
+     "type": "0x0"
+    }
+   }
+  },
+  "62": {
+   "url": "https://evm-testnet.qore.host",
+   "fetchedAt": "2026-11-27T16:43:01.215Z",
+   "httpStatus": 200,
+   "body": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "blockHash": "0xc3470d476cdf8c8a85b808250b87de783016e2991865baeacf014394a94dab88",
+     "blockNumber": "0x9eb42f",
+     "contractAddress": null,
+     "cumulativeGasUsed": "0x44578",
+     "effectiveGasPrice": "0x1a3185c500",
+     "from": "0x0352f370e966c2fe62f7bb53837b6039637d5256",
+     "gasUsed": "0x44578",
+     "logs": [
+      {
+       "address": "0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+       "topics": [
+        "0xb7b5d85ec522d702c2e4022d2d536430c34ca2970c8f6f4a080d33bbab2a10e3",
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "0x27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e",
+        "0x0000000000000000000000000352f370e966c2fe62f7bb53837b6039637d5256"
+       ],
+       "data": "0x",
+       "blockNumber": "0x9eb42f",
+       "transactionHash": "0x4cd743bf56bc4666aba64751d337e81b67e8d629506aec98d987fa7642f3de9a",
+       "transactionIndex": "0x0",
+       "blockHash": "0xc3470d476cdf8c8a85b808250b87de783016e2991865baeacf014394a94dab88",
+       "blockTimestamp": "0x6aff89fe",
+       "logIndex": "0x0",
+       "removed": false
+      }
+     ],
+     "status": "0x1",
+     "to": "0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+     "transactionHash": "0x4cd743bf56bc4666aba64751d337e81b67e8d629506aec98d987fa7642f3de9a",
+     "transactionIndex": "0x0",
+     "type": "0x0"
+    }
+   }
+  },
+  "69": {
+   "url": "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/07FF243ADEC001154ADA0B35A4850BFE5010D790AF1AB1C1EA4D5D9954929941",
+   "fetchedAt": "2026-11-27T16:44:43.518Z",
+   "httpStatus": 200,
+   "body": {
+    "tx": {
+     "body": {
+      "messages": [
+       {
+        "@type": "/qorechain.rdk.v1.MsgSubmitBatch"
+       }
+      ]
+     },
+     "auth_info": {
+      "fee": {
+       "amount": [
+        {
+         "denom": "uqor",
+         "amount": "53977"
+        }
+       ]
+      }
+     }
+    },
+    "tx_response": {
+     "height": "10433596",
+     "txhash": "07FF243ADEC001154ADA0B35A4850BFE5010D790AF1AB1C1EA4D5D9954929941",
+     "code": 0,
+     "codespace": "",
+     "raw_log": "",
+     "timestamp": "2026-11-20T12:47:35Z",
+     "gas_used": "256991",
+     "gas_wanted": "359844",
+     "events": [
+      {
+       "type": "pqc_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        },
+        {
+         "key": "key_type",
+         "value": "hybrid"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "hybrid_mode",
+         "value": "required"
+        },
+        {
+         "key": "status",
+         "value": "algorithm_active"
+        }
+       ]
+      },
+      {
+       "type": "pqc_hybrid_verify",
+       "attributes": [
+        {
+         "key": "address",
+         "value": "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        },
+        {
+         "key": "algorithm_id",
+         "value": "dilithium5"
+        },
+        {
+         "key": "status",
+         "value": "verified"
+        }
+       ]
+      },
+      {
+       "type": "transfer",
+       "attributes": [
+        {
+         "key": "recipient",
+         "value": "qor17xpfvakm2amg962yls6f84z3kell8c5lyj5r7l"
+        },
+        {
+         "key": "sender",
+         "value": "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        },
+        {
+         "key": "amount",
+         "value": "53977uqor"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "sender",
+         "value": "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        }
+       ]
+      },
+      {
+       "type": "message",
+       "attributes": [
+        {
+         "key": "action",
+         "value": "/qorechain.rdk.v1.MsgSubmitBatch"
+        },
+        {
+         "key": "sender",
+         "value": "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        },
+        {
+         "key": "module",
+         "value": "rdk"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "rdk_inbox_consumed",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "11"
+        },
+        {
+         "key": "inbox_start",
+         "value": "12"
+        },
+        {
+         "key": "inbox_end",
+         "value": "13"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "type": "batch_submitted",
+       "attributes": [
+        {
+         "key": "rollup_id",
+         "value": "vigil-pay-1"
+        },
+        {
+         "key": "batch_index",
+         "value": "11"
+        },
+        {
+         "key": "tx_count",
+         "value": "1"
+        },
+        {
+         "key": "msg_index",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "91": {
+   "url": "https://evm-testnet.qore.host",
+   "fetchedAt": "2026-11-27T16:45:07.743Z",
+   "httpStatus": 200,
+   "body": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "blockHash": "0x31ac716b298f2d5e04fc956b1e244ef9ae0b71b0917ca70bcf1b83832ee38368",
+     "blockNumber": "0xa23314",
+     "contractAddress": null,
+     "cumulativeGasUsed": "0x7344d",
+     "effectiveGasPrice": "0x1a3185c500",
+     "from": "0x0352f370e966c2fe62f7bb53837b6039637d5256",
+     "gasUsed": "0x7344d",
+     "logs": [
+      {
+       "address": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+       "topics": [
+        "0x69ef99b5dd2ece741a6127b7228f0a945cceec9ec4b01dd5e1afafe1f875f6d4",
+        "0xe0c96ab9e41df01a59b61c2a120f2d0958bcfa3810a6c9d040616b34478602be",
+        "0x0000000000000000000000007baaa4638c10dfb64d6ae593c2f019782e7773e3"
+       ],
+       "data": "0x000000000000000000000000000000000000000000000000000000000000000f000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000001617eb90b26c0000000000000000000000000000000000000000000000000000001c6bf52634000",
+       "blockNumber": "0xa23314",
+       "transactionHash": "0x9705770b52cdb3448277915a778f1e0e6ba4c8ffddcb2ae4ae6d574416637933",
+       "transactionIndex": "0x0",
+       "blockHash": "0x31ac716b298f2d5e04fc956b1e244ef9ae0b71b0917ca70bcf1b83832ee38368",
+       "blockTimestamp": "0x6b04ab5b",
+       "logIndex": "0x0",
+       "removed": false
+      }
+     ],
+     "status": "0x1",
+     "to": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+     "transactionHash": "0x9705770b52cdb3448277915a778f1e0e6ba4c8ffddcb2ae4ae6d574416637933",
+     "transactionIndex": "0x0",
+     "type": "0x0"
+    }
+   }
+  },
+  "95": {
+   "url": "https://evm-testnet.qore.host",
+   "fetchedAt": "2026-11-27T16:45:12.148Z",
+   "httpStatus": 200,
+   "body": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "blockHash": "0x671743d1a9c973dbe5b0e8ee466fca35beb87675d8d789e019a8278bfdd16c1a",
+     "blockNumber": "0xa23ab7",
+     "contractAddress": null,
+     "cumulativeGasUsed": "0x37439",
+     "effectiveGasPrice": "0x1a3185c500",
+     "from": "0x0352f370e966c2fe62f7bb53837b6039637d5256",
+     "gasUsed": "0x37439",
+     "logs": [
+      {
+       "address": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+       "topics": [
+        "0x468aeeec0e901c52363552a06c1e39331d44c3cc886eb200af127ded3f380f82",
+        "0x0000000000000000000000007baaa4638c10dfb64d6ae593c2f019782e7773e3"
+       ],
+       "data": "0x000000000000000000000000000000000000000000000000016345785d8a00000000000000000000000000000000000000000000000000000000000000000000",
+       "blockNumber": "0xa23ab7",
+       "transactionHash": "0x5e70ab419b00748387f6e32d116345f811d334f7aea8a43c43b1837311fb98b4",
+       "transactionIndex": "0x0",
+       "blockHash": "0x671743d1a9c973dbe5b0e8ee466fca35beb87675d8d789e019a8278bfdd16c1a",
+       "blockTimestamp": "0x6b04bc3b",
+       "logIndex": "0x0",
+       "removed": false
+      }
+     ],
+     "status": "0x1",
+     "to": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+     "transactionHash": "0x5e70ab419b00748387f6e32d116345f811d334f7aea8a43c43b1837311fb98b4",
+     "transactionIndex": "0x0",
+     "type": "0x0"
+    }
+   }
+  },
+  "104": {
+   "url": "https://evm-testnet.qore.host",
+   "fetchedAt": "2026-11-27T16:45:22.113Z",
+   "httpStatus": 200,
+   "body": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+     "blockHash": "0x51c8d214c886c1349785ac07f2d91b635f8e338048244e5faff540e310af947a",
+     "blockNumber": "0xa30fb1",
+     "contractAddress": null,
+     "cumulativeGasUsed": "0x73471",
+     "effectiveGasPrice": "0x1a3185c500",
+     "from": "0x6380e21e6093f4fc9f8968b3e07e7007bf0974d0",
+     "gasUsed": "0x73471",
+     "logs": [
+      {
+       "address": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+       "topics": [
+        "0x69ef99b5dd2ece741a6127b7228f0a945cceec9ec4b01dd5e1afafe1f875f6d4",
+        "0x73f5a6e66fff40bcfa053fe15cea24e6ccb3600ef86da829132e8580fa78ccfc",
+        "0x0000000000000000000000007baaa4638c10dfb64d6ae593c2f019782e7773e3"
+       ],
+       "data": "0x0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000001617eb90b26c0000000000000000000000000000000000000000000000000000001c6bf52634000",
+       "blockNumber": "0xa30fb1",
+       "transactionHash": "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f",
+       "transactionIndex": "0x1",
+       "blockHash": "0x51c8d214c886c1349785ac07f2d91b635f8e338048244e5faff540e310af947a",
+       "blockTimestamp": "0x6b05edec",
+       "logIndex": "0x9",
+       "removed": false
+      }
+     ],
+     "status": "0x1",
+     "to": "0x3a897802b62b052a102f55e021bc4668539c29b5",
+     "transactionHash": "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f",
+     "transactionIndex": "0x1",
+     "type": "0x0"
+    }
+   }
+  }
+ }
+}

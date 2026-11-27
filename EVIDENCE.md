@@ -2,6 +2,8 @@
 
 Each claim Vigil makes about the chain gets one row here. A claim without a row is not a claim. All dates and times are UTC. Network is `qorechain-diana` (testnet) unless stated.
 
+`pnpm evidence:check` reads every numbered row's transaction back from the chain and checks its height, its result, its date where the answer carries one, and the events, logs, gas and fees listed for it in `scripts/evidence/expect.ts` (read-only, no key). The last saved run, with its exact scope, is [docs/evidence-check.md](docs/evidence-check.md).
+
 | # | Date (UTC) | Network | Height | Tx hash | Explorer | What it proves | How to re-verify |
 |---|---|---|---|---|---|---|---|
 | <a id="r1"></a>1 | 2026-11-17 | testnet | 10,241,702 | `F35E658AF9778FD2339213EB7BD5ACD84F40FD300A74B5193110AFB05B174B7B` | [tx](https://explore.qore.network/tx/F35E658AF9778FD2339213EB7BD5ACD84F40FD300A74B5193110AFB05B174B7B) | Drill account `qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq` (unified eth-native, `0x9f64…5247`) registered its ML-DSA-87 key as its first transaction (`MsgRegisterPQCKeyV2`, classical-signed bootstrap). Chain reports `key_type: hybrid`, `possession_proven: true` | `GET /qorechain/pqc/v1/account/qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq` |

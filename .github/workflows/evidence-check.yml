@@ -1,0 +1,52 @@
+name: Evidence check
+
+# Once a day, read every numbered EVIDENCE.md row back from the testnet and check that its
+# transaction still says what the row claims (scripts/evidence-check.ts). The result is this run's
+# job summary and the badge in the README.
+#
+# Read-only: no key, no secrets, no transaction, and it never writes to the repository. It runs only
+# on its schedule or by hand, never on a push or a pull request, so it is never a required check.
+# The script sends at most one request a second (about 125 in all), because the public endpoints'
+# rate limit is shared with Vigil's live services.
+on:
+  schedule:
+    - cron: "17 5 * * *" # 05:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-check
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    name: EVIDENCE.md against the chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Installs the pnpm version named in package.json `packageManager`.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Fails on a row whose transaction disagrees with it, on a read that still fails after two
+      # retries, or when fewer than half the rows are re-verified. A transaction the node no longer
+      # returns is reported "not found"; only the node's own "tx not found" answer counts as that, so
+      # a proxy's 404 page is an error, and a run where nothing is found cannot pass.
+      - name: Evidence check
+        run: pnpm evidence:check --summary "$GITHUB_STEP_SUMMARY"
