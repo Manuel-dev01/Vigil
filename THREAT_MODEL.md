@@ -18,7 +18,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 - **Watchtowers:** two keys in two hosting regions, both in challenge mode (EVIDENCE 24–27, 46–47).
 - **Sealed payroll lane:** live. Three sealed payslips were posted: November's, December's and January's (EVIDENCE 28–38, 114–115, 117, 121–123). The chain deletes a posted-data record after 648,000 blocks, November's around 30 Nov (EVIDENCE 115); the web app reads each entry from the transaction that posted it, checked against the chain's inbox accumulator.
 - **Fraud drills:** two, both upheld on chain (EVIDENCE 39–45, 48–56; §7).
-- **Receipts in three places:** the CLI (`scripts/receipts-snapshot.ts`), the browser (`apps/web`, which reads one public node over its websocket with no server of ours), and Solidity: `SettlementReceiptVerifier` has verified and recorded 19 `vigil-pay-1` anchors on chain, every one through layer height 19 (EVIDENCE 57–64, 79–81, 110–113; §5, §13).
+- **Receipts in three places:** the CLI (`scripts/receipts-snapshot.ts`), the browser (`apps/web`, which reads one public node over its websocket with no server of ours), and Solidity: `SettlementReceiptVerifier` has verified and recorded 25 `vigil-pay-1` anchors on chain, every one through layer height 25 (EVIDENCE 57–64, 79–81, 110–113, 124–126; §5, §13).
 - **Instant exits:** paid by an automatic relayer before finality and repaid after it (EVIDENCE 82–109; §14).
 - **Monitoring:** a keyless sentinel alerts the team on Telegram (§8).
 
@@ -232,7 +232,7 @@ Moving one watchtower to a second provider is open work.
 
 **Differential fuzzing** (`scripts/fuzz/`, not part of `pnpm test`): the same generated rollup histories (mostly valid transactions, recipients of 1 to 90 bytes) run through qledger-v1 execution in all five RDK languages. On 10,056 cases all five gave the same state roots, withdrawals roots and withdrawals (§10). The comparator checks itself before each run.
 
-The precompiles are mocked in Foundry. Their real behaviour is measured on testnet (§10). The deployed vault accepted a real ML-DSA-87 signature through `eth_call` (EVIDENCE 1–8). The deployed receipt verifier checked and recorded 19 real anchors on chain (EVIDENCE 62–63, 80, 112), and `pnpm --filter @vigil/scripts evm:verifier status` re-checks them for free.
+The precompiles are mocked in Foundry. Their real behaviour is measured on testnet (§10). The deployed vault accepted a real ML-DSA-87 signature through `eth_call` (EVIDENCE 1–8). The deployed receipt verifier checked and recorded 25 real anchors on chain, through layer height 25 (EVIDENCE 62–63, 80, 112, 125), and `pnpm --filter @vigil/scripts evm:verifier status` re-checks them for free.
 
 **Live on testnet:**
 - the Q-Day Drill account (§6);
