@@ -9,6 +9,7 @@ import { qorWei, type ExitView } from "../exits.ts";
 import { SMALL_SAMPLE, ledgerRows, ledgerSummary, type LedgerExit, type LedgerRow, type Spread } from "../ledger.ts";
 import { ledgerExitOf } from "../ledger-exit.ts";
 import { CopyHash } from "../ui.tsx";
+import "./ledger.css";
 
 const secs = (s: number | undefined): string => (s === undefined ? "—" : dur(s));
 const spreadText = (s: Spread | undefined, worst: "max" | "min" = "max"): string =>
