@@ -5,6 +5,7 @@
  * - Which withdrawals the chain has already executed, from its `rdk_withdrawal_executed` events.
  * - For one L1 address, every withdrawal a replayed batch committed to it, and whether it is paid, can be
  *   executed now by anyone, is waiting for its batch to be final, or went with a rejected batch.
+ * - Which batches that list cannot cover, and why.
  */
 import type { QledgerWithdrawal } from "@qorechain/rdk";
 
@@ -85,4 +86,21 @@ export function nextStep(r: WithdrawalRow, rollupId: string): string {
         ? `waiting for its batch to be final (its challenge window ends ${new Date(r.finalFrom * 1000).toISOString().replace(".000Z", "Z")})`
         : "waiting for its batch to be final";
   }
+}
+
+/**
+ * The batches whose withdrawals a replay could not list, one line each: those taken from a local snapshot,
+ * and those whose records the chain has pruned (the replay applies their entries in one go, without the
+ * batch-by-batch results that carry withdrawals).
+ */
+export function unlistedBatches(o: { snapshotBatch?: number | undefined; pruned?: { fromBatchIndex: number; toBatchIndex: number } | undefined }): string[] {
+  const out: string[] = [];
+  if (o.snapshotBatch !== undefined && o.snapshotBatch > 0) {
+    out.push(`withdrawals in batches up to ${o.snapshotBatch} are in the snapshot, not listed; pass --data <empty dir> to replay from the first batch`);
+  }
+  if (o.pruned) {
+    const { fromBatchIndex: a, toBatchIndex: b } = o.pruned;
+    out.push(`withdrawals in batch${a === b ? ` ${a} are` : `es ${a} to ${b} are`} not listed: the chain no longer holds ${a === b ? "that batch record" : "those batch records"}`);
+  }
+  return out;
 }

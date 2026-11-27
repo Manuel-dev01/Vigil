@@ -5,7 +5,7 @@
  * plus made-up ones for the states the chain has not shown.
  */
 import { describe, expect, it } from "vitest";
-import { executedWithdrawals, nextStep, withdrawalsTo, type BatchWithdrawals } from "../src/escape.ts";
+import { executedWithdrawals, nextStep, unlistedBatches, withdrawalsTo, type BatchWithdrawals } from "../src/escape.ts";
 
 const EXIT = "qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy";
 const OTHER = "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s";
@@ -74,5 +74,26 @@ describe("withdrawalsTo", () => {
     expect(nextStep(rows[2]!, "vigil-1")).toBe("final: anyone can execute it now (claim.ts --batch 30 --rollup vigil-1)");
     expect(nextStep(rows[3]!, "vigil-pay-1")).toBe("waiting for its batch to be final (its challenge window ends 2026-11-27T16:00:00Z)");
     expect(nextStep(rows[4]!, "vigil-pay-1")).toContain("rejected by a fraud proof");
+  });
+});
+
+describe("unlistedBatches", () => {
+  it("lists nothing for a full replay from the first batch", () => {
+    expect(unlistedBatches({})).toEqual([]);
+    expect(unlistedBatches({ snapshotBatch: 0 })).toEqual([]);
+  });
+
+  it("says which batches the chain pruned, so a short list is not read as complete", () => {
+    expect(unlistedBatches({ pruned: { fromBatchIndex: 1, toBatchIndex: 12 } })).toEqual([
+      "withdrawals in batches 1 to 12 are not listed: the chain no longer holds those batch records",
+    ]);
+    expect(unlistedBatches({ pruned: { fromBatchIndex: 4, toBatchIndex: 4 } })).toEqual(["withdrawals in batch 4 are not listed: the chain no longer holds that batch record"]);
+  });
+
+  it("names a snapshot and a pruned range together", () => {
+    const lines = unlistedBatches({ snapshotBatch: 10, pruned: { fromBatchIndex: 11, toBatchIndex: 14 } });
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("up to 10 are in the snapshot");
+    expect(lines[1]).toContain("batches 11 to 14 are not listed");
   });
 });

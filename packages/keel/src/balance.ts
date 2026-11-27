@@ -21,7 +21,7 @@ import { bytesToHex, createRdkClient, hexToBytes, isCanonicalQorAddress } from "
 import { TESTNET } from "@vigil/core";
 import { openInboxReader } from "@vigil/core/inbox";
 import { argValue } from "./account.ts";
-import { executedWithdrawals, nextStep, withdrawalsTo, type BatchWithdrawals } from "./escape.ts";
+import { executedWithdrawals, nextStep, unlistedBatches, withdrawalsTo, type BatchWithdrawals } from "./escape.ts";
 import { loadL2Key } from "./l2-key.ts";
 import { emptyState, newestSnapshot, snapshotPaths } from "./snapshot.ts";
 import { oldestWaitingSequence } from "./standby.ts";
@@ -87,10 +87,11 @@ if (!synced.blocked) {
 }
 
 if (to) {
-  if (snap) console.log(`note        withdrawals in batches up to ${snap.state.batchIndex} are in the snapshot, not listed; pass --data <empty dir> to replay from the first batch`);
+  const unlisted = unlistedBatches({ snapshotBatch: snap?.state.batchIndex, pruned: synced.pruned });
+  for (const line of unlisted) console.log(`note        ${line}`);
   const [rollup, txs] = await Promise.all([rest.getRollup(rollupId), rest.searchTxs(`rdk_withdrawal_executed.rollup_id='${rollupId}'`)]);
   const windowSec = Number(rollup.challengeWindowSec ?? 3600);
   const rows = withdrawalsTo(to, withBatches, executedWithdrawals(txs, rollupId), windowSec);
-  console.log(`withdrawals to ${to}: ${rows.length}`);
+  console.log(`withdrawals to ${to}: ${rows.length}${unlisted.length ? " listed (see the notes above for batches not covered)" : ""}`);
   for (const r of rows) console.log(`  batch ${r.batchIndex} withdrawal ${r.index}: ${fmt(r.amount)}, ${nextStep(r, rollupId)}`);
 }
