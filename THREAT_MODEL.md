@@ -210,7 +210,7 @@ Moving one watchtower to a second provider is open work.
 
 ## 11. Exercised so far
 
-**Tests (27 Nov 2026):** 420 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 27 more vitest tests run against the live chain only when `VIGIL_LIVE=1` (one per saved `vigil-pay-1` receipt, plus two), and one only after a local Foundry build.
+**Tests (27 Nov 2026):** 456 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 27 more vitest tests run against the live chain only when `VIGIL_LIVE=1` (one per saved `vigil-pay-1` receipt, plus two), and one only after a local Foundry build.
 
 | Suite | Tests | What it pins down |
 |---|---|---|
@@ -225,7 +225,7 @@ Moving one watchtower to a second provider is open work.
 | `packages/exit-relayer/test/book.test.ts`, `packages/sentinel/test/rules.test.ts` | 8 + 17 | Claims assembled across posts, forged and outsider attestations dropped, withdrawal lists checked against the withdrawals root, window fee caps. The sentinel's alert rules |
 | `packages/qledger-watchtower/test/fast.test.ts` | 12 | Batches decoded from their submitting tx (drill 1 recording); post sequences read from events; the drill batch judged invalid on arrival with a winning proof; local signing with the cached account; one retry on a sequence mismatch; refusing a challenge the chain would not uphold; gas scaling and cap; the websocket follower. *The backup's delay and skip are exercised live only (§7)* |
 | `packages/core/test/inbox.test.ts` | 19 | The shared inbox reader: entries by sequence, deposits from events, posts nested inside other messages, accumulator and data-hash mismatches refused, archive fallback for pruned entries confirmed against a retained commitment, tampered or torn archives, 6,000 posts (beyond the old 5,000 limit), a lagging node |
-| `apps/web/test/*.test.ts` | 94 | Attestations accepted only from the member's account with a locally verified ML-DSA-87 signature (real entries 18, 19, 21, 22); out-of-range integers; repayments attributed first-in-first-out; exit addresses computed locally match the vault and the deployed code; receipt gating; the pruned-batch receipt path on the real batch-0 receipt; the landing page's exit quorum read from the vault |
+| `apps/web/test/*.test.ts` | 113 | Attestations accepted only from the member's account with a locally verified ML-DSA-87 signature (real entries 18, 19, 21, 22); out-of-range integers; repayments attributed first-in-first-out; exit addresses computed locally match the vault and the deployed code; receipt gating; the pruned-batch receipt path on the real batch-0 receipt; the landing page's exit quorum read from the vault |
 | `packages/keel/test/*.test.ts` | 45 | Standby: it leaves fresh entries to the primary, takes over once the oldest waiting entry has waited the full margin, and measures that wait from the next entry, not the last batched one (the drill's real heights). Replay from empty and from a saved state; stopping before a batch that does not reproduce, and never building on it; rolling back when a challenge drops the batches Keel followed, including at a reused index; withdrawal proofs folding to the published root; snapshots that refuse tampering or another rollup |
 | `packages/chain-ws/test/routes.test.ts`, `rpc.test.ts` | 5 + 6 | The chain's protobuf descriptor snapshot matches its recorded hash. The RDK's REST routes map to the right gRPC queries, with path and query parameters encoded into the request. gRPC NotFound becomes HTTP 404; writes and unknown routes are refused |
 | `packages/sealed/test/sealed.test.ts` | 12 | Envelopes open for every named recipient and nobody else, and not on another rollup or chain. An envelope inside a batch leaves its roots unchanged. Data receipts fail if any post, the accumulator or the payload changes. Recipient cards bind all three keys |
@@ -325,6 +325,8 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
     - first-in-first-out repayment;
     - truthful health and wording;
     - local exit-address computation.
+
+**Attack catalogue (27 Nov).** `pnpm redteam` attacks the three deployed contracts with free `eth_call`s and no real key: no transaction is sent. It replays the watchtowers' real exit attestations (EVIDENCE 88, 89, 101, 102) and the creator's real anchors, each with one change (a signed field, a signature, a signer, the block or the vault's address), adds signatures from throwaway ML-DSA-87 and secp256k1 keys made for the run, and decodes each revert to the contract's named custom error. In the run of 27 Nov 2026 at 17:38 UTC, at EVM block 10,862,041, all 23 attacks were refused with the expected error and all 3 honest controls passed. It is a small catalogue of the attacks we thought of, not a proof. The list, the blocks and how to re-run it are in [docs/REDTEAM.md](docs/REDTEAM.md).
 
 ## 13. Residual risks
 

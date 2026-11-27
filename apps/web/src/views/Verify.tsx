@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { buildSettlementReceipt, verifySettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
+import { buildSettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
 import { chain, isNotFound } from "../chain.ts";
+import { RDK_ORDER, checkReceipt, type Finality, type Verification } from "../check.ts";
 import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, short, utcStamp } from "../config.ts";
 import { RECEIPT_VERIFIER, checkInEvm, evmCovers, type EvmCheck } from "../evm.ts";
+import { FORGERIES, outcomeOf, rowNumber, tally, type ForgeryId, type Outcomes } from "../forge.ts";
 import { keyPin, type KeyPin } from "../keys.ts";
-import { prunedBatch, receiptFromOwnAnchor, verifyPrunedReceipt, type CheckKey, type PrunedVerification } from "../pruned.ts";
+import { prunedBatch, receiptFromOwnAnchor, type CheckKey } from "../pruned.ts";
 import { parseReceipt, receiptProblem } from "../receipt.ts";
 import { Ext, Mark, type Tone } from "../ui.tsx";
 import { PageHead, type Sounding } from "./Head.tsx";
 import { ReceiptDoc, SectorLight } from "./VerifyParts.tsx";
+import "./forge.css";
 
-type Verification = ReceiptVerification & Partial<Omit<PrunedVerification, keyof ReceiptVerification>>;
-
-/** The checks in the order the RDK runs them, so the first one that is false is the one that failed. */
+/** The checks in the order the RDK runs them (check.ts, RDK_ORDER), so the first one that is false is the one that failed. */
 const CHECKS: { key: keyof ReceiptVerification["checks"]; what: string; why: string }[] = [
   { key: "rollupLayerBinding", what: "Rollup and layer belong together", why: "The node says this rollup settles to the receipt's layer." },
   { key: "batchStateRoot", what: "The chain's batch carries this state root", why: "Read from the batch record, as the node reports it." },
@@ -25,7 +26,6 @@ const CHECKS: { key: keyof ReceiptVerification["checks"]; what: string; why: str
   { key: "chainBinding", what: "The receipt names this chain", why: `The receipt says ${CHAIN_ID}, the chain that was queried.` },
   { key: "pqcSignature", what: "ML-DSA-87 signature verifies", why: "Checked in this browser against that key, over the chain's canonical anchor message." },
 ];
-const RDK_ORDER = CHECKS.map((c) => c.key);
 
 /**
  * The receipt for batch `i`, bound to batch `i`'s own anchor. Several batches
@@ -78,10 +78,8 @@ const batchFromHash = (): number | undefined => {
   return Number.isSafeInteger(n) ? n : undefined;
 };
 
-function flipStateRoot(r: SettlementReceipt): SettlementReceipt {
-  const s = r.stateRoot;
-  return { ...r, stateRoot: (s[0] === "0" ? "1" : "0") + s.slice(1) };
-}
+/** A check's name as the page lists it. */
+const checkName = (key: string): string => CHECKS.find((c) => c.key === key)?.what ?? key;
 
 const errText = (e: unknown): string => String(e instanceof Error ? e.message : e);
 
@@ -102,11 +100,16 @@ export function VerifyView() {
   const [pasted, setPasted] = useState("");
   const [result, setResult] = useState<Verification>();
   const [pin, setPin] = useState<KeyPin | { error: string }>();
-  const [finality, setFinality] = useState<{ final: boolean; status: string; until?: number }>();
+  const [finality, setFinality] = useState<Finality>();
   const [took, setTook] = useState<number>();
   const [evm, setEvm] = useState<EvmCheck | { error: string }>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
+  /** The forgery on show, if the receipt is one; and which check caught each forgery tried on the built receipt. */
+  const [forgery, setForgery] = useState<ForgeryId>();
+  const [outcomes, setOutcomes] = useState<Outcomes>({});
+  /** Whether the built receipt passed every receipt check in this session. Forgeries start only from such a receipt. */
+  const [builtOk, setBuiltOk] = useState(false);
   const run = useRef(0);
 
   useEffect(() => {
@@ -146,7 +149,8 @@ export function VerifyView() {
     setPin(undefined);
   }
 
-  async function verify(r: SettlementReceipt) {
+  /** Run every check on `r`. Resolves to the verification, or undefined if it failed to run or a newer run replaced it. */
+  async function verify(r: SettlementReceipt): Promise<Verification | undefined> {
     const me = ++run.current;
     const current = () => me === run.current;
     reset("Verifying against the chain…");
@@ -156,46 +160,24 @@ export function VerifyView() {
       // The contract check runs alongside; it never decides the verdict, only adds to it.
       const evmCheck = evmCovers(r) ? checkInEvm(r).catch((e: unknown) => ({ error: errText(e) })) : Promise.resolve(undefined);
       const { rdk } = await chain();
-      const t0 = performance.now();
       // The creator's key as the node reports it, against the one pinned in this page.
       const pinP = rdk.rest
         .getRollup(r.rollupId)
         .then((rollup) => rdk.rest.getPqcAccount(rollup.creator).then((a) => (a.publicKey ? keyPin(rollup.creator, a.publicKey) : { error: "no key registered" })))
         .catch((e: unknown) => ({ error: errText(e) }));
-      let v: Verification = await verifySettlementReceipt(r, { client: rdk });
-      // The chain may prune finalized batch records after a retention window. If
-      // that is why the batch read failed, re-run every check that does not
-      // need the record (pruned.ts) instead of stopping there.
-      const pruned = !v.valid && v.checks.rollupLayerBinding && !v.checks.batchStateRoot ? await prunedBatch(rdk, r.rollupId, r.batchIndex) : undefined;
-      if (pruned) v = await verifyPrunedReceipt(rdk, r, pruned);
-      else if (!v.valid) v = { ...v, failed: RDK_ORDER.find((k) => !v.checks[k]) ?? "rollupLayerBinding" };
-      if (!current()) return;
-      setTook(Math.round(performance.now() - t0));
-      if (pruned) {
-        const p = v as PrunedVerification;
-        setFinality({ final: p.valid && p.fraudSearched, status: "pruned" });
-      } else {
-        // A receipt's anchor exists from the moment the batch is submitted. The
-        // batch is settled only once its challenge window has closed.
-        const [batch, rollup] = await Promise.all([rdk.rest.getBatch(r.rollupId, r.batchIndex).catch(() => undefined), rdk.rest.getRollup(r.rollupId)]);
-        if (!current()) return;
-        setFinality(
-          batch
-            ? {
-                final: batch.status === "finalized",
-                status: batch.status,
-                ...(batch.submittedTime && rollup.challengeWindowSec ? { until: batch.submittedTime + rollup.challengeWindowSec } : {}),
-              }
-            : { final: false, status: "not found" },
-        );
-      }
+      const { v, finality: f, ms } = await checkReceipt(rdk, r);
+      if (!current()) return undefined;
+      setTook(ms);
+      setFinality(f);
       setResult(v);
       const [p, e] = await Promise.all([pinP, evmCheck]);
-      if (!current()) return;
+      if (!current()) return undefined;
       setPin(p);
       setEvm(e);
+      return v;
     } catch (e) {
       if (current()) setError(errText(e));
+      return undefined;
     } finally {
       if (current()) setBusy(undefined);
     }
@@ -208,6 +190,9 @@ export function VerifyView() {
     }
     const me = ++run.current;
     reset(`Building the receipt for batch ${i} from the chain…`);
+    setForgery(undefined);
+    setOutcomes({});
+    setBuiltOk(false);
     try {
       const { rdk } = await chain();
       let r: SettlementReceipt;
@@ -222,7 +207,8 @@ export function VerifyView() {
       setReceipt(r);
       setBuilt(r);
       setPasted(JSON.stringify(r, null, 2));
-      await verify(r);
+      const v = await verify(r);
+      if (v) setBuiltOk(v.valid);
     } catch (e) {
       if (me !== run.current) return;
       setError(errText(e));
@@ -239,16 +225,38 @@ export function VerifyView() {
       setError(p.error);
       return;
     }
+    setForgery(undefined);
     setReceipt(p.receipt);
     await verify(p.receipt);
   }
 
-  async function tamper() {
-    if (!receipt) return;
-    const forged = flipStateRoot(receipt);
+  /** Forge the receipt built from the chain one way, verify it, and record the check that caught it. True if the run finished. */
+  async function forge(id: ForgeryId): Promise<boolean> {
+    const f = FORGERIES.find((x) => x.id === id);
+    if (!built || !builtOk || !f) return false;
+    const forged = f.forge(built);
+    setForgery(id);
     setReceipt(forged);
     setPasted(JSON.stringify(forged, null, 2));
-    await verify(forged);
+    const v = await verify(forged);
+    if (!v) return false;
+    setOutcomes((o) => ({ ...o, [id]: outcomeOf(f, v) }));
+    return true;
+  }
+
+  async function forgeAll() {
+    for (const f of FORGERIES) {
+      if (!(await forge(f.id))) return;
+    }
+  }
+
+  async function restore() {
+    if (!built) return;
+    setForgery(undefined);
+    setReceipt(built);
+    setPasted(JSON.stringify(built, null, 2));
+    const v = await verify(built);
+    if (v) setBuiltOk(v.valid);
   }
 
   function download() {
@@ -336,6 +344,12 @@ export function VerifyView() {
     rows.push({ key: "final", what: "The batch is final", why: finalLabel === "not reached" ? "Checked once the receipt itself verifies." : finalWhy, tone: finalTone, label: finalLabel });
   }
 
+  /** When the receipt on show is a forgery, the check that refused it, marked in the list. */
+  const forged = FORGERIES.find((f) => f.id === forgery);
+  const shown = forged && result && !busy ? outcomeOf(forged, result) : undefined;
+  const caughtKey = shown?.by;
+  const canForge = !busy && !!built && builtOk;
+  const forgeTally = tally(outcomes);
   const pinMismatch = !!pin && !("error" in pin) && pin.status === "mismatch";
   const ownAnchor = !!result?.anchor && !!receipt && result.anchor.layerHeight === receipt.batchIndex;
   const verdict =
@@ -431,14 +445,63 @@ export function VerifyView() {
 
             {receipt && <ReceiptDoc r={receipt} built={built} stampTone={verdict?.cls} stampText={busy ? undefined : word} />}
 
-            <div className="row forge-row">
-              <button className="forge" disabled={!!busy || !receipt} onClick={() => void tamper()} title="Change one hex digit of the state root and verify again">
-                Forge it: change one digit of the state root
-              </button>
-              <button disabled={!receipt} onClick={download}>
-                Download JSON
-              </button>
-            </div>
+            <section className="forge-menu" aria-labelledby="forge-h">
+              <h3 id="forge-h">
+                Forge it <small>one change to the receipt built from the chain, then the same checks</small>
+              </h3>
+              <ul className="forge-list">
+                {FORGERIES.map((f) => {
+                  const o = outcomes[f.id];
+                  return (
+                    <li key={f.id} className={forgery === f.id ? "on" : undefined}>
+                      <button type="button" className="forge" disabled={!canForge} onClick={() => void forge(f.id)} aria-describedby={`forge-${f.id}`}>
+                        {f.label}
+                      </button>
+                      <span className="forge-out" id={`forge-${f.id}`}>
+                        {o === undefined ? (
+                          f.change
+                        ) : o === null ? (
+                          <>
+                            <Mark tone="bad" label="not caught" /> Not caught by any check.
+                          </>
+                        ) : o.expected ? (
+                          <>
+                            <Mark tone="ok" label="caught" /> Caught by check {String(rowNumber(o.by)).padStart(2, "0")}, "{checkName(o.by)}".
+                          </>
+                        ) : (
+                          <>
+                            <Mark tone="skip" label="refused for another reason" /> Refused by check {String(rowNumber(o.by)).padStart(2, "0")}, "{checkName(o.by)}", which
+                            does not test this field{o.reason ? ` (${o.reason})` : ""}. Not counted as caught; try it again.
+                          </>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="row forge-row">
+                <button type="button" disabled={!canForge} onClick={() => void forgeAll()}>
+                  Try all {FORGERIES.length}
+                </button>
+                <button type="button" disabled={!!busy || !built || !forgery} onClick={() => void restore()}>
+                  Back to the chain's receipt
+                </button>
+                <button type="button" disabled={!receipt} onClick={download}>
+                  Download JSON
+                </button>
+              </div>
+              {!busy && built && !builtOk && (
+                <p className="note">The forgeries start from the receipt built from the chain once it verifies. It did not verify this time, so build it again first.</p>
+              )}
+              <p className="forge-tally" aria-live="polite">
+                {forgeTally.text}
+                {forgeTally.tried > 0 && <span className="note"> on batch {built?.batchIndex}'s receipt.</span>}
+              </p>
+              <p className="note">
+                The contracts face the same treatment from the command line: <code>pnpm redteam</code> sends forged exits, anchors and releases to them
+                with free <code>eth_call</code>s (<Ext href={`${REPO}/blob/main/docs/REDTEAM.md`}>the attack catalogue</Ext>).
+              </p>
+            </section>
 
             <details className="paste">
               <summary>Or paste a receipt someone gave you</summary>
@@ -468,13 +531,14 @@ export function VerifyView() {
               <>
                 <ol className="checks numbered">
                   {rows.map((c, i) => (
-                    <li key={c.key}>
+                    <li key={c.key} className={c.key === caughtKey ? "caught" : undefined}>
                       <Mark tone={c.tone} label={c.label} />
                       <span>
                         <span className="what">
                           <span className="ck-n">{String(i + 1).padStart(2, "0")}</span>
                           {c.what}
                         </span>
+                        {c.key === caughtKey && <span className="caught-tag">{shown?.expected ? "caught the forgery" : "refused the forgery"}</span>}
                         {c.label === "not reached" && <span className="note"> (not reached)</span>}
                         <br />
                         <span className="why">{c.why}</span>
@@ -554,6 +618,7 @@ export function VerifyView() {
                   </li>
                 </ul>
               )}
+              {forged?.evmNote && evm && !("error" in evm) && <p className="note forge-evm">{forged.evmNote}</p>}
               <p className="note" style={{ marginTop: 10 }}>
                 Contract <code>{short(RECEIPT_VERIFIER.address, 8)}</code> (<Ext href={`${REPO}/blob/main/contracts/src/SettlementReceiptVerifier.sol`}>source</Ext>), no owner,
                 fixed to {ROLLUP} and its creator. EVM code cannot read the rollup module, so it cannot tell whether a batch is final; that comes from
