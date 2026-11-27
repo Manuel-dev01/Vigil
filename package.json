@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "evidence:check": "tsx scripts/evidence-check.ts",
     "redteam": "pnpm --filter @vigil/scripts redteam",
+    "cbom:scan": "tsx scripts/cbom/scan.ts",
     "cbom:gate": "tsx scripts/cbom/gate.ts",
     "cbom:summary": "tsx scripts/cbom/summary.ts"
   },

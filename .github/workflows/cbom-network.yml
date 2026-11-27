@@ -1,0 +1,62 @@
+name: CBOM network scan
+
+# The full QoreScan inventory, weekly and on demand: the contracts, the testnet as the node reports it, our ten
+# L1 accounts' registered keys, and the TLS of the web app and the node. It reads only (REST through a local
+# proxy that spaces requests about a second apart, and one TLS handshake per endpoint) and never blocks
+# anything: the gate on pushes and pull requests is the contracts scan in ci.yml. The committed cbom/ is from
+# a local run (cbom/scan.json); this keeps each fresh scan as an artifact and shows what changed.
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbom-network
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: QoreScan (contracts, accounts, TLS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # A node or network hiccup marks this run, and nothing else.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Scan
+        run: pnpm cbom:scan --out-dir "$RUNNER_TEMP/cbom"
+
+      - name: Summary, and what changed since the committed scan
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/cbom/vigil.cdx.json" ]; then
+            pnpm -s cbom:summary "$RUNNER_TEMP/cbom/vigil.cdx.json" --against cbom/vigil.cdx.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Keep the CBOM and reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cbom-${{ github.run_id }}
+          path: ${{ runner.temp }}/cbom/
+          if-no-files-found: warn
+          retention-days: 30
