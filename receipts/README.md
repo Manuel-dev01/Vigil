@@ -13,9 +13,9 @@ Re-verify one yourself, with no key needed:
 pnpm install
 cd scripts
 npx tsx receipts-snapshot.ts vigil-pay-1 --from 3 --to 3   # rebuilds and verifies batch 3 against the chain
-git diff ../receipts                                        # an unchanged receipt shows no diff; summary.json is rewritten
+git diff ../receipts                                        # an unchanged receipt shows no diff
 ```
 
-The script asks the public node about once a second (`--gap-ms` sets the gap) and reads each URL once per run.
+The script asks the public node about once a second (`--gap-ms` sets the gap) and reads each URL once per run. A run limited with `--from`/`--to` leaves `summary.json` as it was; only a run over every batch rewrites it.
 
 A receipt is a claim; the verification is the evidence. `valid: true` is reported only when every field was re-read from chain state: rollup and layer binding, the batch state root, the anchor on chain, the creator's authority, the ML-DSA-87 signature and the chain binding.

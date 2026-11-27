@@ -1,9 +1,9 @@
-/** The snapshot script's helpers: a gentle, caching fetch and binding a receipt to its batch's own anchor. */
+/** The snapshot script's helpers: a gentle, caching fetch, binding a receipt to its batch's own anchor, and when to rewrite the summary. */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AnchorView, FetchLike, SettlementReceipt } from "@qorechain/rdk";
-import { bindOwnAnchor, politeFetch } from "../lib/receipts.ts";
+import { bindOwnAnchor, coversAll, politeFetch } from "../lib/receipts.ts";
 
 const RECEIPTS = resolve(import.meta.dirname, "../../receipts/vigil-pay-1");
 const batch3 = JSON.parse(readFileSync(resolve(RECEIPTS, "batch-3.json"), "utf8")) as SettlementReceipt;
@@ -79,15 +79,15 @@ describe("politeFetch", () => {
   });
 });
 
-/** Three anchors over one root at layer heights 4, 5 and 6, as when entries change no balance. */
-const ROOT = "778c8a0f".padEnd(64, "0");
+/** Synthetic anchors: several can share one root, each at its own layer height. */
+const ROOT = "ab".repeat(32);
 const anchorAt = (h: number, root = ROOT): AnchorView => ({
   layerId: "vigil-pay-1",
   layerHeight: h,
   stateRoot: root,
   validatorSetHash: "",
-  mainChainHeight: 10_368_000 + h,
-  anchoredAt: 1_795_000_000 + h,
+  mainChainHeight: 1_000 + h,
+  anchoredAt: 2_000 + h,
   pqcSignature: `sig${h}`,
   transactionCount: h,
   compressedStateProof: `proof${h}`,
@@ -106,27 +106,39 @@ describe("bindOwnAnchor", () => {
       transactionCount: batch3.transactionCount ?? 0,
       compressedStateProof: batch3.compressedStateProof ?? "",
     };
-    expect(bindOwnAnchor(batch3, [anchorAt(4), own])).toBe(batch3);
+    expect(bindOwnAnchor(batch3, [anchorAt(40), own])).toBe(batch3);
   });
 
-  it("picks the anchor whose layer height is the batch index among anchors that share the root", () => {
-    // batch-3.json as a template, given batch 5's index and root.
-    const r: SettlementReceipt = { ...batch3, batchIndex: 5, stateRoot: ROOT, batchStateRoot: ROOT };
-    const bound = bindOwnAnchor(r, [anchorAt(4), anchorAt(5), anchorAt(6)])!;
-    expect(bound.batchIndex).toBe(5);
-    expect(bound.layerHeight).toBe(5);
-    expect(bound.pqcSignature).toBe("sig5");
-    expect(bound.mainChainHeight).toBe(10_368_005);
-    expect(bound.anchoredAt).toBe(1_795_000_005);
-    expect(bound.transactionCount).toBe(5);
-    expect(bound.compressedStateProof).toBe("proof5");
+  it("binds the receipt to the anchor at its own layer height", () => {
+    const r: SettlementReceipt = { ...batch3, batchIndex: 41, stateRoot: ROOT, batchStateRoot: ROOT };
+    const bound = bindOwnAnchor(r, [anchorAt(40), anchorAt(41), anchorAt(42)])!;
+    expect(bound.batchIndex).toBe(41);
+    expect(bound.layerHeight).toBe(41);
+    expect(bound.pqcSignature).toBe("sig41");
+    expect(bound.mainChainHeight).toBe(1_041);
+    expect(bound.anchoredAt).toBe(2_041);
+    expect(bound.transactionCount).toBe(41);
+    expect(bound.compressedStateProof).toBe("proof41");
     // Same fields in the same order, so a saved file diffs cleanly.
     expect(Object.keys(bound)).toEqual(Object.keys(r));
   });
 
   it("gives nothing for a batch with no anchor of its own over its root", () => {
-    const r: SettlementReceipt = { ...batch3, batchIndex: 11, stateRoot: ROOT, batchStateRoot: ROOT };
-    expect(bindOwnAnchor(r, [anchorAt(4), anchorAt(5)])).toBeUndefined();
-    expect(bindOwnAnchor(r, [anchorAt(11, "ab".repeat(32))])).toBeUndefined();
+    const r: SettlementReceipt = { ...batch3, batchIndex: 43, stateRoot: ROOT, batchStateRoot: ROOT };
+    expect(bindOwnAnchor(r, [anchorAt(40), anchorAt(41)])).toBeUndefined();
+    expect(bindOwnAnchor(r, [anchorAt(43, "cd".repeat(32))])).toBeUndefined();
+  });
+});
+
+describe("coversAll", () => {
+  const indexes = [0, 1, 2, 3, 5];
+  it("is true for a run over every batch", () => {
+    expect(coversAll(0, 5, indexes)).toBe(true);
+    expect(coversAll(0, 9, indexes)).toBe(true);
+  });
+  it("is false for a run over some of them, so summary.json is kept", () => {
+    expect(coversAll(3, 3, indexes)).toBe(false);
+    expect(coversAll(1, 5, indexes)).toBe(false);
+    expect(coversAll(0, 4, indexes)).toBe(false);
   });
 });

@@ -84,3 +84,11 @@ export function bindOwnAnchor(r: SettlementReceipt, anchors: readonly AnchorView
     compressedStateProof: own.compressedStateProof,
   };
 }
+
+/**
+ * Whether a run over batches `from` to `to` covers every batch in `indexes`. Only such a run
+ * rewrites summary.json, so re-checking one batch leaves the record of the whole set as it was.
+ */
+export function coversAll(from: number, to: number, indexes: readonly number[]): boolean {
+  return indexes.every((i) => i >= from && i <= to);
+}

@@ -14,6 +14,9 @@
  * The public node is shared, so the script asks it about once a second
  * (--gap-ms) and reads each URL once per run.
  *
+ * Only a run over every batch rewrites summary.json; a run limited with
+ * --from/--to rewrites its receipts and leaves summary.json as it was.
+ *
  *   tsx receipts-snapshot.ts [rollupId] [--from N] [--to M] [--gap-ms 1000]
  *
  * rollupId defaults to vigil-pay-1.
@@ -23,7 +26,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildSettlementReceipt, createRdkClient, verifySettlementReceipt } from "@qorechain/rdk";
 import { REPO_ROOT } from "./lib/env.ts";
-import { bindOwnAnchor, politeFetch } from "./lib/receipts.ts";
+import { bindOwnAnchor, coversAll, politeFetch } from "./lib/receipts.ts";
 
 const args = process.argv.slice(2);
 const num = (f: string) => (args.includes(f) ? Number(args[args.indexOf(f) + 1]) : undefined);
@@ -61,8 +64,10 @@ for (const b of batches.filter((x) => x.batchIndex >= from && x.batchIndex <= to
   }
 }
 const tip = await rdk.getChainTip();
-writeFileSync(
-  resolve(outDir, "summary.json"),
-  JSON.stringify({ rollupId, checkedAt: new Date().toISOString(), height: tip.height, summary, unanchored }, null, 2) + "\n",
-);
+if (coversAll(from, to, batches.map((b) => b.batchIndex))) {
+  writeFileSync(
+    resolve(outDir, "summary.json"),
+    JSON.stringify({ rollupId, checkedAt: new Date().toISOString(), height: tip.height, summary, unanchored }, null, 2) + "\n",
+  );
+} else console.log(`batches ${from} to ${to} only: summary.json left as it was`);
 console.log(`${summary.filter((s) => s.valid).length} of ${summary.length} receipts valid at height ${tip.height}; ${unanchored.length} batches with no anchor of their own; ${fetch.requests()} requests to the node`);
