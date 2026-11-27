@@ -9,7 +9,9 @@
  *   - the front() receipt (gas used, sender) and its block time;
  *   - the batch record (submitted time, status, state root; the challenge window from the rollup);
  *   - the L2 withdrawal in the batch's inbox range (the shared inbox reader, checked against the chain's
- *     accumulator, with the committed archive for pruned entries) and the time of its block;
+ *     accumulator, with the committed archive for pruned entries) and the time of its block. Withdrawals
+ *     are numbered in inbox order, so the k-th front (by withdrawal index) of one payout and amount in a
+ *     batch is matched with the k-th such withdrawal in its range;
  *   - the Settled logs, attributed to exits first in, first out per payout (apps/web/src/settle.ts).
  * The rows and the summary come from apps/web/src/ledger.ts, the code the Exits page runs.
  *
@@ -22,7 +24,9 @@ import { dirname, resolve } from "node:path";
 import { QLEDGER_KIND_WITHDRAW, bytesToHex, createRdkClient, decodeQledgerTx, decodeWireBytes, hexToBech32, hexToBytes, isRestNotFound, type BatchView } from "@qorechain/rdk";
 import { TESTNET, restGet } from "@vigil/core";
 import { openInboxReader } from "@vigil/core/inbox";
-import { createPublicClient, encodeAbiParameters, getAddress, http, keccak256, parseAbi, parseAbiItem, type Hex } from "viem";
+import { createPublicClient, getAddress, http, parseAbi, parseAbiItem, type Hex } from "viem";
+// The vault's exit id, pinned to the id the vault emitted for batch 18 in packages/sentinel/test/judge.test.ts.
+import { exitIdOf } from "../../packages/sentinel/src/exits.ts";
 import { SMALL_SAMPLE, ledgerRows, ledgerSummary, type LedgerExit, type LedgerRow, type Spread } from "../../apps/web/src/ledger.ts";
 import { attributeRepayments } from "../../apps/web/src/settle.ts";
 import { REPO_ROOT } from "../lib/env.ts";
@@ -70,15 +74,12 @@ const EVENTS = [
 ] as const;
 const VIEWS = parseAbi(["function exitAddressOf(address payout) view returns (address)"]);
 
-const norm = (h: string): string => h.toLowerCase().replace(/^0x/, "");
 const iso = (t: number | undefined): string | undefined => (t ? new Date(t * 1000).toISOString().replace(".000Z", "Z") : undefined);
 const qorOf = (wei: bigint | undefined): string | undefined => {
   if (wei === undefined) return undefined;
   const frac = (wei % 10n ** 18n).toString().padStart(18, "0").replace(/0+$/, "");
   return `${wei / 10n ** 18n}${frac ? `.${frac}` : ""}`;
 };
-const exitIdOf = (batchIndex: number, stateRoot: string, withdrawalIndex: number): Hex =>
-  keccak256(encodeAbiParameters([{ type: "uint64" }, { type: "bytes32" }, { type: "uint64" }], [BigInt(batchIndex), `0x${norm(stateRoot)}`, BigInt(withdrawalIndex)]));
 
 // ------------------------------------------------------------------ the vault's history
 const rollup = await rdk.rest.getRollup(rollupId);
@@ -147,9 +148,11 @@ for (const f of fronts) {
   const sameExit = root !== undefined && exitIdOf(f.batchIndex, root, f.withdrawalIndex).toLowerCase() === f.exitId.toLowerCase();
   const status = !b ? "missing" : sameExit ? b.status : "replaced";
 
-  // The L2 withdrawal: in the batch's inbox range, to the payout's exit address, for the exit's amount.
+  // The L2 withdrawal: in the batch's inbox range, to the payout's exit address, for the exit's amount;
+  // the k-th such withdrawal for the k-th front of this payout and amount in the batch.
   let postedAt: number | undefined;
   const amountUqor = (f.paid + f.fee) / WEI_PER_UQOR;
+  const rank = fronts.filter((g) => g.batchIndex === f.batchIndex && g.payout === f.payout && g.paid + g.fee === f.paid + f.fee && g.withdrawalIndex < f.withdrawalIndex).length;
   if (b && sameExit && b.inboxEnd > b.inboxStart) {
     let ea = exitAddresses.get(f.payout);
     if (!ea) {
@@ -157,7 +160,7 @@ for (const f of fronts) {
       exitAddresses.set(f.payout, ea);
     }
     const entries = await reader.read(b.inboxStart, b.inboxEnd);
-    const w = entries.find((e) => {
+    const matches = entries.filter((e) => {
       try {
         const q = decodeQledgerTx(hexToBytes(e.payloadHex));
         return !!q && q.kind === QLEDGER_KIND_WITHDRAW && q.recipient === ea && q.amount === amountUqor;
@@ -165,6 +168,7 @@ for (const f of fronts) {
         return false;
       }
     });
+    const w = matches[rank];
     if (w) postedAt = await l1Time(w.height);
   }
   const r = repayments.get(f.exitId.toLowerCase());
@@ -240,8 +244,8 @@ const doc = {
     repaid: s.repaid,
     pending: s.pending,
     overdue: s.overdue,
-    lpLosses: s.lost,
-    lpLossQor: qorOf(s.lostWei),
+    frontedOnRejectedBatch: s.owed,
+    owedByExitAddressQor: qorOf(s.owedWei),
     feesEarnedQor: qorOf(s.feesWei),
     paidQor: qorOf(s.paidWei),
     latestPaidAt: iso(s.latestPaidAt) ?? null,
@@ -251,6 +255,7 @@ const doc = {
     "postToPaid: from the block of the L2 withdrawal's post to the EVM block of front(). batchToPaid: from the batch's submission block. aheadOfFinality: from front() to the earliest time the batch could be final (submitted time plus the challenge window).",
     "repaidAfter: from front() to the sweep() that completed the vault's repayment for this exit (repayments are attributed first in, first out per payout, as on the Exits page).",
     "Only fronted exits are rows. An attested exit that nobody fronted is paid in full after finality and does not appear here.",
+    "frontedOnRejectedBatch: exits fronted against a batch that was then rejected or replaced; the exit address then owes the vault, and its later withdrawals repay that first (THREAT_MODEL §14). feesEarned: fees on exits the vault has been repaid for.",
     "Recompute: pnpm --filter @vigil/scripts exit:metrics",
   ],
 };
