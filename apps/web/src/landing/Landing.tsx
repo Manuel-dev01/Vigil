@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { REPO, txUrl } from "../config.ts";
 import { listen } from "../live.ts";
-import type { Facts } from "./facts.ts";
+import type { Facts, Quorum } from "./facts.ts";
 import type { Watch } from "./scene.ts";
 import "./landing.css";
 
@@ -84,6 +84,8 @@ export function Landing() {
   const [step, setStep] = useState(0);
   const [height, setHeight] = useState<number>();
   const [facts, setFacts] = useState<Facts>();
+  // undefined while reading; null if the EVM endpoint did not answer in time.
+  const [quorum, setQuorum] = useState<Quorum | null>();
   const [noGl, setNoGl] = useState(false);
 
   useEffect(() => {
@@ -198,15 +200,23 @@ export function Landing() {
     });
     if (feed.head) setHeight(feed.head.height);
 
+    // The node's facts and the EVM's quorum load apart, so neither waits on the other.
     void import("./facts.ts")
-      .then((m) => m.loadFacts())
-      .then((f) => {
-        if (gone) return;
-        setFacts(f);
-        beacons = Math.max(beacons, f.anchors);
-        const set = () => watch?.setBeacons(beacons);
-        set();
-        setTimeout(set, 1500);
+      .then((m) => {
+        void m
+          .loadFacts()
+          .then((f) => {
+            if (gone) return;
+            setFacts(f);
+            beacons = Math.max(beacons, f.anchors);
+            const set = () => watch?.setBeacons(beacons);
+            set();
+            setTimeout(set, 1500);
+          })
+          .catch(() => undefined);
+        void m.loadQuorum().then((q) => {
+          if (!gone) setQuorum(q ?? null);
+        });
       })
       .catch(() => undefined);
 
@@ -276,7 +286,7 @@ export function Landing() {
             </div>
             <div title="Watchtowers that must sign an instant exit, of those in the quorum: InstantExitVault's threshold() and quorum(), read from QoreChain's EVM">
               <dt>Exit quorum</dt>
-              <dd>{facts ? (facts.quorum ? `${facts.quorum.threshold} of ${facts.quorum.members}` : "—") : "reading…"}</dd>
+              <dd>{quorum ? `${quorum.threshold} of ${quorum.members}` : quorum === null ? "—" : "reading…"}</dd>
             </div>
           </dl>
         </aside>
