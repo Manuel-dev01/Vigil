@@ -111,6 +111,36 @@ What this does and does not protect against, and what each hosted key could do i
 - **Instant exits whose only authority is ML-DSA-87.** Watchtowers sign exits from their own re-execution, the vault checks the signatures on chain, and the relayer that pays them can reach the EVM only through windows its post-quantum key opens for exactly its calls.
 - **Upstream work.** The qledger-v1 validator the RDK's watchtower lacked, in all five RDK languages, and a differential fuzzer across them.
 
+## How Vigil differs
+
+Every row about another project quotes or paraphrases that project's own public files, linked at the version we read on 27 Nov 2026. Where those files do not say, the cell says so.
+
+### How Vigil's exits differ
+
+Wicketgate, another Protocol Builders entry, also pays rollup withdrawals before finality.
+
+| | Vigil (`InstantExitVault`) | Wicketgate |
+|---|---|---|
+| Who signs an exit | A fixed quorum: watchtower-2 and watchtower-3 must both sign, and our team runs both, on Railway (EVIDENCE 83, [THREAT_MODEL §14](THREAT_MODEL.md#14-instant-exits-23-nov-2026)) | "Any staked watcher with a proven ML-DSA-87 key" ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L19)) |
+| If the signers lie | The LP loses up to its liquidity. A user loses at most the 0.5% fee, and without the quorum is paid in full at finality ([THREAT_MODEL §14](THREAT_MODEL.md#14-instant-exits-23-nov-2026)) | "The watchers' stake is slashed", and a pool advances no more than the stake locked behind a batch ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L20)) |
+| Keys over the exit contract | None: `InstantExitVault` has no owner, pause or upgrade path. Taking liquidity out needs the LP's ML-DSA-87 signature ([source](contracts/src/InstantExitVault.sol)) | `ExitPool` has two admin accounts that act by ML-DSA-87 signature: either can pause new instant exits, and both together change risk and lane settings ([ExitPool.sol](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/contracts/src/ExitPool.sol#L642-L675)) |
+| Signing keys and EVM windows | Watchtower keys never open an EVM window: they post their signatures into the rollup's inbox (EVIDENCE 88, [THREAT_MODEL §14](THREAT_MODEL.md#14-instant-exits-23-nov-2026)) | "Watchers open windows to work" ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L62)) |
+| Rollups served | `vigil-pay-1` | "Any QoreChain rollup", through lanes anyone can open ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L21)) |
+| Exits paid so far | 2, a small sample (EVIDENCE 91, 104; [docs/METRICS.md](docs/METRICS.md)) | 28, by their count dated 19 Nov ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L41)) |
+
+Another team's exit service paid an instant exit from `vigil-pay-1` on 19 Nov ([Wicketgate's PROOF.md](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/PROOF.md#L68)). `vigil-pay-1` is a based rollup: anyone can post to its inbox, and our sequencer batched those posts with the rest (inbox entries 10 to 12 in [our archive](data/inbox/vigil-pay-1.jsonl); the chain's batch list on 27 Nov 2026 shows them in batches 9 and 10).
+
+### How Vigil Payroll compares
+
+| | Vigil Payroll | Veil | Cista | Zama cUSDT payroll (Bron) |
+|---|---|---|---|---|
+| Source | [`packages/sealed`](packages/sealed/src/payslip.ts), EVIDENCE 28 to 38, 115, 122 | [README](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md) | [README](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md) | Zama's [post of 16 Jan 2026](https://www.zama.org/post/the-first-confidential-payroll-on-ethereum-mainnet) and [payroll page](https://www.zama.org/solutions/confidential-onchain-payroll) |
+| What is hidden | The payslip: gross pay, deductions, period and note. Also who can open it: recipient slots are anonymous | The invoice: who, what for, reference numbers ([L14](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md#L14)) | The payslip: gross pay, tax, deductions, role and personal details ([L163](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L163)) | Amounts and balances, encrypted with FHE |
+| What stays public | The payment it explains, so net pay (its L2 accounts and amount), and the envelope's size, time and poster | "Accounts, amounts and timing" ([L47](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md#L47)) | Net pay, which the public bank payment shows ([L163](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L163)) | "Sender and receiver addresses" |
+| What signs | The payment: the payer's ML-DSA-44 key. The post: the employer's hybrid secp256k1 + ML-DSA-87 transaction. The payslip itself is not signed; the chain vouches for its poster | The payer's ML-DSA-44 transfer key signs the invoice, bound to the transfer's bytes ([L56](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md#L56)) | The employer signs the pay run in QoreX (hybrid secp256k1 + ML-DSA-87); the employee signs each proof with ML-DSA-87 ([L69](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L69), [L91](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L91)) | Not stated on the pages we read |
+| Who can read it | Its three recipients, the employee, the employer and an auditor (QoreSeal: ML-KEM-1024 with X25519). Anyone can check that it sits in a final batch (a data receipt) | Two readers: the payee and an auditor named in the invoice, sealed with ML-KEM-1024 ([L14](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md#L14), [L46](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md#L46)) | The employee and the employer (ML-KEM-1024 with X25519). The employee can prove chosen fields, bands or ranges to a named recipient until an expiry, checkable on chain ([L70](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L70), [L91](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L91)) | Set role by role through an access control list; Bron's payroll was visible to sender and recipient |
+| Where the ciphertext lives | In the rollup's inbox, settled in a batch | In the rollup's inbox, posted in the same L1 transaction as the transfer ([L56](https://github.com/ryssroad/veil/blob/c9b651c5d72e38eedb93c6142bd93cf10d12ef37/README.md#L56)) | On Cista's server ([L181](https://github.com/phoenix-2203/cista/blob/0c9fd9fa91b4aabe72a03fe1228b56e3b30567ea/README.md#L181)) | On chain, as encrypted amounts |
+
 ## For jurors: where the post-quantum checks are
 
 | Check | Code | On chain |
