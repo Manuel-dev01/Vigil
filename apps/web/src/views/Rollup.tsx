@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AnchorView, BatchView, InboxView, RollupView as Rollup } from "@qorechain/rdk";
 import { chain } from "../chain.ts";
-import { CHAIN_ID, KNOWN, NODE_HOST, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
+import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
 import { listen, type Head, type LiveItem } from "../live.ts";
 import { reveal } from "../reveal.ts";
 import { Ext, ExplorerHint, useRefresh } from "../ui.tsx";
@@ -225,7 +225,8 @@ export function RollupView() {
       s: state ? `${pending ? `${pending} in the challenge window` : "all final"}${state.pruned ? ` · ${state.pruned} pruned, anchors kept` : ""}` : undefined,
     },
     { k: "Inbox", v: state?.inbox.headSequence, s: state ? `entries posted · ${state.inbox.consumedSequence} settled` : undefined },
-    { k: "Withdrawal pool", v: rollup ? qor(rollup.escrowBalance) : undefined, s: "held by the chain, paid only from final batches" },
+    { k: "Deposit pool", v: rollup ? qor(rollup.depositPool) : undefined, s: "deposited, not yet withdrawn; withdrawals are paid from it, only from final batches" },
+    { k: "Creator's stake", v: rollup ? qor(rollup.escrowBalance) : undefined, s: "staked when the rollup was created, held in escrow by the chain" },
     { k: "Sequencer bond", v: state ? qor(state.bond) : undefined, s: "slashed if a batch is proven wrong" },
   ];
 
@@ -236,7 +237,11 @@ export function RollupView() {
         title={ROLLUP}
         lede={
           <>
-            <p>A payroll rollup with no admin and no classical authority.</p>
+            <p>
+              A payroll rollup whose contracts have no owner or admin key, and where no step that moves value rests on a classical signature alone. The
+              classical keys that remain, such as the one that signs each account's first post-quantum key registration, are listed in the{" "}
+              <Ext href={`${REPO}/blob/main/THREAT_MODEL.md#9-quantum-notes`}>threat model</Ext>.
+            </p>
             <p>
               Users sign with ML-DSA-44, the creator's sequencer anchors each batch with its ML-DSA-87 signature (a bonded standby sequencer takes over,
               unanchored, if it stops), payslips are sealed with ML-KEM-1024, and independent watchtowers re-execute every batch and challenge fraud on chain.

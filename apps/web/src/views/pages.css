@@ -185,6 +185,10 @@
   .ph-sound dl > div:nth-last-child(2):nth-child(odd) {
     border-bottom: 1px solid var(--rule);
   }
+  /* An odd one out takes the whole last row, rather than leaving a gap (only the Rollup page, with seven, has one). */
+  .ph-sound dl > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 420px) {
   .ph-sound dl {
