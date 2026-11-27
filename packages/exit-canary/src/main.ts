@@ -14,8 +14,8 @@
  *                          which posts and is the payout;
  *   QLEDGER_SEED_HEX       its L2 (ML-DSA-44) account, which withdraws.
  * It refuses, by address, every team key listed in the README (the creator, keel-b, the watchtowers, the
- * keep-alive, the relayer, the deployers, employer-1), and the rollup's creator and the vault's quorum and
- * LP as the chain reports them. It never opens an EVM window.
+ * keep-alive, the relayer, the deployers, employer-1), the rollup's creator and the vault's quorum and LP
+ * as the chain reports them, and the team's two demo L2 accounts. It never opens an EVM window.
  *
  * Each run refuses to post when: the amount is outside 0.01 to 0.05 QOR; the canary already posted twice
  * in the last 24 hours; a batch awaits a challenge; entries are waiting for the sequencer; the vault's
@@ -76,15 +76,14 @@ async function main(): Promise<number> {
   const amountUqor = amount ? parseAmount(amount) : DEFAULT_UQOR;
 
   // ---------------------------------------------------------------- the vault and the rollup, from chain
+  // One read at a time: the public endpoints' rate limit is shared with our live services.
   const vault = new Vault(deployedVault(), TESTNET.evmRpc, TESTNET.evmChainId);
-  const [vaultChain, rollupId, quorum, lp, feeBps, available] = await Promise.all([
-    vault.read<string>("chainId"),
-    vault.read<string>("rollupId"),
-    vault.read<Hex[]>("quorum"),
-    vault.read<Hex>("lp"),
-    vault.read<number>("feeBps"),
-    vault.read<bigint>("available"),
-  ]);
+  const vaultChain = await vault.read<string>("chainId");
+  const rollupId = await vault.read<string>("rollupId");
+  const quorum = await vault.read<Hex[]>("quorum");
+  const lp = await vault.read<Hex>("lp");
+  const feeBps = await vault.read<number>("feeBps");
+  const available = await vault.read<bigint>("available");
   if (vaultChain !== TESTNET.chainId) throw new Error(`the vault serves ${vaultChain}, not ${TESTNET.chainId}`);
   const env = { chainId: TESTNET.chainId, rollupId };
   const rest = createRdkClient({ network: "testnet" }).rest;
@@ -105,9 +104,9 @@ async function main(): Promise<number> {
   const seed = vars["QLEDGER_SEED_HEX"];
   if (!seed || !/^[0-9a-f]{64}$/i.test(seed)) throw new Error(`${keyPath} needs QLEDGER_SEED_HEX (64 hex characters) for the canary's L2 account`);
   const account = await loadOperatorFrom(Object.fromEntries(Object.entries(vars).filter(([k]) => k !== "QLEDGER_SEED_HEX")));
-  const why = refusal({ cosmos: account.cosmos, evm: account.evm }, { creator: rollup.creator, quorum, lp });
-  if (why) throw new Error(`refusing this key: ${why}`);
   const l2 = qledgerKeypairFromSeed(seed);
+  const why = refusal({ cosmos: account.cosmos, evm: account.evm, l2: bytesToHex(l2.accountId) }, { creator: rollup.creator, quorum, lp });
+  if (why) throw new Error(`refusing this key: ${why}`);
   const poster = new HybridSender(account);
   const payout = getAddress(account.evm);
   const exitAddress = hexToBech32(await vault.read<Hex>("exitAddressOf", [payout]), "qor");
@@ -129,11 +128,15 @@ async function main(): Promise<number> {
   }
 
   // At most two runs a day, judged from the chain: the canary's own earlier posts (a notice and a
-  // withdrawal per run, in one transaction and so one block).
-  const ownHeights = [...new Set(reader.archive.range(0, reader.archive.head).filter((r) => r.poster === account.cosmos).map((r) => r.height))].sort((a, b) => b - a).slice(0, 2);
-  const times = await Promise.all(
-    ownHeights.map(async (h) => Math.floor(Date.parse((await restGet<{ block: { header: { time: string } } }>(`/cosmos/base/tendermint/v1beta1/blocks/${h}`)).block.header.time) / 1000)),
-  );
+  // withdrawal per run, in one transaction and so one block). Every entry up to the head is read through
+  // the reader, not only its archive (after a snapshot, newer entries are kept outside it); entries the
+  // sync already read cost nothing, and one that cannot be read fails the run rather than under-count.
+  const posted = await reader.read(0, head);
+  const ownHeights = [...new Set(posted.filter((r) => r.poster === account.cosmos).map((r) => r.height))].sort((a, b) => b - a).slice(0, 2);
+  const times: number[] = [];
+  for (const h of ownHeights) {
+    times.push(Math.floor(Date.parse((await restGet<{ block: { header: { time: string } } }>(`/cosmos/base/tendermint/v1beta1/blocks/${h}`)).block.header.time) / 1000));
+  }
   const soon = tooSoon(times, Math.floor(Date.now() / 1000));
   if (soon) {
     log("error", "canary_skipped", { reason: soon });
@@ -142,7 +145,9 @@ async function main(): Promise<number> {
 
   // ---------------------------------------------------------------- the posts
   const plan = planCanary({ env, ledger, l2, vault: vault.address, payout, exitAddress, amount: amountUqor });
-  const [pqc, windowOpen, balance] = await Promise.all([fetchPqcStatus({ rest: TESTNET.rest, address: poster.address }), poster.evmWindowOpen(), poster.balanceUqor()]);
+  const pqc = await fetchPqcStatus({ rest: TESTNET.rest, address: poster.address });
+  const windowOpen = await poster.evmWindowOpen();
+  const balance = await poster.balanceUqor();
   if (!pqc.registered || isRegisteredPqcKey(pqc, account.pqc.publicKey) !== true) throw new Error("the canary's ML-DSA-87 key is not its registered key");
   if (windowOpen) throw new Error("the canary has an open EVM window; its key must stay hybrid-only");
   const msgs = [postRollupDataMsg({ poster: poster.address, rollupId, data: plan.notice }), postRollupDataMsg({ poster: poster.address, rollupId, data: plan.withdrawal })];

@@ -4,10 +4,13 @@
  * here; nothing is sent.
  */
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { QLEDGER_DEPOSIT_POSTER_PREFIX, QledgerLedger, bytesToHex, decodeQledgerTx, encodeQledgerDeposit, executeQledger, hexToBech32, qledgerKeypairFromSeed } from "@qorechain/rdk";
+import { QLEDGER_DEPOSIT_POSTER_PREFIX, QLEDGER_KIND_WITHDRAW, QledgerLedger, bytesToHex, decodeQledgerTx, encodeQledgerDeposit, executeQledger, hexToBech32, hexToBytes, qledgerAccountId, qledgerKeypairFromSeed } from "@qorechain/rdk";
 import { decodePayoutNotice } from "@vigil/qledger-watchtower";
-import { DEFAULT_UQOR, MAX_PER_DAY, REFUSED, parseAmount, planCanary, refusal, tooSoon } from "../src/canary.ts";
+import { DEFAULT_UQOR, MAX_PER_DAY, REFUSED, REFUSED_L2, parseAmount, planCanary, refusal, tooSoon } from "../src/canary.ts";
 
 const env = { chainId: "qorechain-diana", rollupId: "vigil-pay-1" };
 const VAULT = "0x3a897802b62b052a102f55e021bc4668539c29b5";
@@ -42,6 +45,23 @@ describe("exit canary: whose key", () => {
     expect(refusal({ ...fresh(), evm: chain.quorum[1]!.toLowerCase() }, chain)).toMatch(/quorum/);
     expect(refusal({ ...fresh(), evm: chain.lp }, chain)).toMatch(/LP/);
     expect(refusal(fresh(), chain)).toBeUndefined();
+  });
+
+  it("refuses the team's two demo L2 accounts, whose ids come from their recorded withdrawals (inbox entries 17 and 20)", () => {
+    const archive = join(dirname(fileURLToPath(import.meta.url)), "../../../data/inbox/vigil-pay-1.jsonl");
+    const rows = readFileSync(archive, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { sequence: number; payloadHex: string });
+    const signer = (sequence: number): string => {
+      const tx = decodeQledgerTx(hexToBytes(rows.find((r) => r.sequence === sequence)!.payloadHex))!;
+      expect(tx.kind).toBe(QLEDGER_KIND_WITHDRAW);
+      return bytesToHex(qledgerAccountId(tx.publicKey)).toLowerCase();
+    };
+    const ids = [signer(17), signer(20)]; // EVIDENCE 86 (l2-oojae-1) and 99 (l2-oojae-2)
+    expect(Object.keys(REFUSED_L2).sort()).toEqual([...ids].sort());
+    for (const l2 of ids) {
+      expect(refusal({ ...fresh(), l2 }, chain)).toMatch(/demo L2 account.*L2 key of its own/);
+      expect(refusal({ ...fresh(), l2: `0x${l2.toUpperCase()}` }, chain)).toMatch(/L2 key of its own/);
+    }
+    expect(refusal({ ...fresh(), l2: bytesToHex(qledgerKeypairFromSeed(randomBytes(32)).accountId) }, chain)).toBeUndefined();
   });
 });
 

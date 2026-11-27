@@ -29,6 +29,16 @@ export const REFUSED: Readonly<Record<string, string>> = {
   qor1r0zkpgngnrc30qtskf2l5ewv0v9kqwjwn5m6yv: "the first deployer (PQGuardVault)",
 };
 
+/**
+ * The team's demo L2 (ML-DSA-44) accounts, by account id: l2-oojae-1 and l2-oojae-2 (EVIDENCE 35, 86 and
+ * 99; inbox entries 17 and 20 are their withdrawals, test/canary.test.ts derives both ids from them). A
+ * canary seeded with one of them would withdraw demo funds.
+ */
+export const REFUSED_L2: Readonly<Record<string, string>> = {
+  "6b6c0bea5e3bfbf32e6312de5c4648dd853570ac134ece008bd6d919b88dc70e": "l2-oojae-1, the demo L2 account (EVIDENCE 86)",
+  "212853123b50c98f13f20179b536f8a265a89d26c23b76d284242fe6d261360b": "l2-oojae-2, the demo L2 account (EVIDENCE 99)",
+};
+
 /** Smallest and largest canary exit: 0.01 QOR (the relayer's minimum exit) to 0.05 QOR. */
 export const MIN_UQOR = 10_000n;
 export const MAX_UQOR = 50_000n;
@@ -39,12 +49,14 @@ export const MAX_PER_DAY = 2;
 const norm = (h: string): string => h.toLowerCase().replace(/^0x/, "");
 
 /**
- * Why this key must not be the canary's, or undefined. `chain` is what the chain says now: the rollup's
- * creator, and the vault's quorum and LP (0x).
+ * Why this key must not be the canary's, or undefined. `l2` is its L2 account id (hex). `chain` is what the
+ * chain says now: the rollup's creator, and the vault's quorum and LP (0x).
  */
-export function refusal(account: { cosmos: string; evm: string }, chain: { creator: string; quorum: string[]; lp: string }): string | undefined {
+export function refusal(account: { cosmos: string; evm: string; l2?: string }, chain: { creator: string; quorum: string[]; lp: string }): string | undefined {
   const role = REFUSED[account.cosmos];
   if (role) return `${account.cosmos} is ${role}; the canary needs a key of its own`;
+  const l2Role = account.l2 === undefined ? undefined : REFUSED_L2[norm(account.l2)];
+  if (l2Role) return `its L2 account is ${l2Role}; the canary needs an L2 key of its own`;
   if (account.cosmos === chain.creator) return `${account.cosmos} is the rollup's creator`;
   if (chain.quorum.some((m) => norm(m) === norm(account.evm))) return `${account.evm} is a member of the vault's quorum`;
   if (norm(chain.lp) === norm(account.evm)) return `${account.evm} is the vault's LP`;
