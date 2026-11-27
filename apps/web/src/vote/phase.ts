@@ -15,6 +15,8 @@ export const VOTE_OVER = Date.UTC(2026, 11, 16);
 
 /** Vigil's page on the fest site. */
 export const PROJECT_PAGE = "https://build.qorechain.io/p/vigil";
+/** The fest's Rules page, where the vote's rules are. */
+export const RULES_PAGE = "https://build.qorechain.io/rules";
 
 export type VotePhase = "soon" | "open" | "over";
 
