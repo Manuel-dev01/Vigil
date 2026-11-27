@@ -28,6 +28,21 @@ Anyone can check a settlement receipt in their browser or in Solidity, against t
 
 There is no server of ours in between: the page talks straight to a public QoreChain node over its websocket, and its files reproduce byte for byte from the commit named in `/version.json`. It does trust that node to report chain state truthfully (see [Limitations](#limitations)).
 
+## Vigil in numbers
+
+<!-- metrics:start (written by pnpm --filter @vigil/scripts metrics) -->
+Read from the chain at block 10,860,329 (27 Nov 2026, 16:57 UTC) by `pnpm --filter @vigil/scripts metrics`, which makes about 28 read-only requests. Full table: [docs/METRICS.md](docs/METRICS.md).
+
+| Number | What it counts | Source |
+|---|---|---|
+| **8 days** live on testnet | vigil-pay-1 created at block 10,351,825, 19 Nov 2026 | EVIDENCE 13; chain read 27 Nov 2026 |
+| **25 of 25** anchors verify (ML-DSA-87) | checked against the creator's key as the node reports it; 25 final batches carry their own verified anchor | chain read 27 Nov 2026 |
+| **25** anchors verified in Solidity | recorded by SettlementReceiptVerifier through pqcVerify, through layer height 25; 0 conflicts | EVIDENCE 62, 63, 80, 112; chain read 27 Nov 2026 |
+| **1 block** from forged batch to upheld challenge | fraud drill 2: batch 8, our watchtower-2's challenge; 1,000 QOR bond slashed | EVIDENCE 54, 55 |
+| **2 instant exits** paid before finality | a small sample (n = 2); the fastest was paid 23 s after its withdrawal was posted; the vault is 100% repaid | EVIDENCE 91, 104; chain read 27 Nov 2026 |
+| **3** payslips sealed with ML-KEM-1024 | posted in the rollup's inbox; a payment and its payslip cost about 0.26 QOR in fees | EVIDENCE 37, 115, 122; chain read 27 Nov 2026 |
+<!-- metrics:end -->
+
 ## What is proven on chain
 
 | Claim | Evidence | Check it yourself |
