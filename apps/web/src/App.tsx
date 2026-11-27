@@ -15,11 +15,13 @@ const loaders = {
   exits: () => import("./views/Exits.tsx"),
   verify: () => import("./views/Verify.tsx"),
   payslip: () => import("./views/Payslip.tsx"),
+  trust: () => import("./views/Trust.tsx"),
 };
 const RollupView = lazy(() => loaders.rollup().then((m) => ({ default: m.RollupView })));
 const VerifyView = lazy(() => loaders.verify().then((m) => ({ default: m.VerifyView })));
 const PayslipView = lazy(() => loaders.payslip().then((m) => ({ default: m.PayslipView })));
 const ExitsView = lazy(() => loaders.exits().then((m) => ({ default: m.ExitsView })));
+const TrustView = lazy(() => loaders.trust().then((m) => ({ default: m.TrustView })));
 
 type Route = "home" | keyof typeof loaders;
 const routeOf = (hash: string): Route =>
@@ -31,12 +33,14 @@ const routeOf = (hash: string): Route =>
         ? "verify"
         : hash.startsWith("#/payslip")
           ? "payslip"
-          : "home";
+          : hash.startsWith("#/trust")
+            ? "trust"
+            : "home";
 
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Where the lamp points on each page: a page change turns it (radians; the plate eases between them).
-const HEADING: Record<Exclude<Route, "home">, number> = { rollup: 0.2, exits: 0.55, verify: -0.05, payslip: 0.38 };
+const HEADING: Record<Exclude<Route, "home">, number> = { rollup: 0.2, exits: 0.55, verify: -0.05, payslip: 0.38, trust: 0.7 };
 
 /**
  * The chart plate behind the app pages' heads (plate.ts). It sits outside the page, so a page change
@@ -152,6 +156,7 @@ export function App() {
             {tab("exits", "Instant exits", "Exits", "#/exits")}
             {tab("verify", "Verify a receipt", "Verify", "#/verify")}
             {tab("payslip", "Open a payslip", "Payslip", "#/payslip")}
+            {tab("trust", "Trust", "Trust", "#/trust")}
           </nav>
           <span className={`conn ${badge.tone}`} title={badge.detail} role="status" aria-label={`Chain connection: ${badge.label}. ${badge.detail}`}>
             <span className="dot" aria-hidden="true" />
@@ -170,6 +175,7 @@ export function App() {
               {route === "exits" && <ExitsView />}
               {route === "verify" && <VerifyView />}
               {route === "payslip" && <PayslipView />}
+              {route === "trust" && <TrustView />}
             </Suspense>
           )}
         </ErrorBoundary>
@@ -196,6 +202,7 @@ export function App() {
             <a href={`${REPO}/blob/main/THREAT_MODEL.md`} target="_blank" rel="noopener noreferrer">
               Threat model
             </a>
+            <a href="#/trust">Trust and how to leave</a>
             <a href={`${REPO}/blob/main/AI_USAGE.md`} target="_blank" rel="noopener noreferrer">
               AI usage
             </a>

@@ -72,6 +72,11 @@ if (!targets.length) {
   console.log(only === undefined ? "no batch commits a withdrawal" : `batch ${only} commits no withdrawal`);
   process.exit(0);
 }
+// What the replay found, before any key is read: a dry run with a key that cannot send still shows it.
+for (const b of targets) {
+  const total = b.withdrawals.reduce((n, w) => n + w.amount, 0n);
+  console.log(`batch ${b.batchIndex}: ${b.status}, ${b.withdrawals.length} withdrawal(s), ${fmt(total)} in all`);
+}
 
 const account = await loadOperator(envPath);
 const sender = new HybridSender(account);

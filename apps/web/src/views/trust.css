@@ -1,0 +1,225 @@
+/*
+ * The trust page (#/trust): the risk rosette, the Stages checklist, who can do what, the exit risk card and
+ * "if Vigil disappears". Loaded with the view, so the first load does not carry it. On the brand tokens:
+ * starboard green for low risk, the lamp for caution, port red for a real exposure.
+ */
+
+/* ------------------------------------------------------------------ references after a line */
+.tr-refs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-left: 2px;
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------------ the rosette */
+.tr-rosette {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+  gap: var(--s5) var(--s6);
+  align-items: start;
+  margin-top: var(--s4);
+}
+.tr-rose {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.tr-w {
+  stroke: var(--night);
+  stroke-width: 1.5;
+  transition: opacity var(--d-micro) var(--ease-out);
+}
+.tr-good {
+  fill: var(--starboard);
+}
+.tr-caution {
+  fill: var(--lamp-glow);
+}
+.tr-risk {
+  fill: var(--port);
+}
+.tr-unknown {
+  fill: var(--rule);
+}
+.tr-n {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--night);
+}
+/* The lamp is the same amber in both themes, so its number is always dark ink; the empty slice takes the page's ink. */
+.tr-n-caution {
+  fill: #0a1016;
+}
+.tr-n-unknown {
+  fill: var(--chart);
+}
+.tr-slices {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: var(--s4);
+}
+.tr-slices li::marker {
+  font-family: var(--f-mono);
+  color: var(--sounding);
+}
+.tr-sh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 2px;
+}
+.tr-name {
+  font-weight: 600;
+}
+.tr-val {
+  margin: 0 0 4px;
+  font-family: var(--f-mono);
+  font-size: 0.82rem;
+}
+@media (max-width: 640px) {
+  .tr-rosette {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tr-rose {
+    max-width: 200px;
+    margin: 0 auto;
+  }
+}
+
+/* ------------------------------------------------------------------ the Stages checklist */
+.page h3.tr-h3 {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sounding);
+  margin: var(--s5) 0 var(--s2);
+}
+.tr-stages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(28px, 4vw, 64px);
+}
+.page .tr-stages > div > h3.tr-h3:first-child {
+  margin-top: var(--s2);
+}
+@media (max-width: 860px) {
+  .tr-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.tr-checks .what {
+  margin-right: 8px;
+}
+.tr-live {
+  vertical-align: 1px;
+}
+.tr-needs {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s3);
+}
+.tr-needs li {
+  display: grid;
+  grid-template-columns: 9.5em minmax(0, 1fr);
+  gap: 4px var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--rule);
+}
+.tr-who {
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  color: var(--sounding);
+  padding-top: 2px;
+}
+@media (max-width: 640px) {
+  .tr-needs li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.tr-cite {
+  margin-top: var(--s5);
+}
+
+/* ------------------------------------------------------------------ who can do what */
+.tr-powers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(28px, 4vw, 64px);
+}
+.tr-powers li {
+  padding: var(--s3) 0;
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+.tr-act {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.tr-whoc {
+  margin: 0;
+  color: var(--sounding);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 860px) {
+  .tr-powers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------------ the exit card and the walkaway card */
+.tr-kv {
+  display: block;
+}
+.tr-kvrow {
+  display: grid;
+  grid-template-columns: 8.5em minmax(0, 1fr);
+  gap: 4px var(--s4);
+  padding: 8px 0;
+  border-top: 1px solid var(--rule);
+}
+.tr-kvrow:first-child {
+  border-top: 0;
+}
+@media (max-width: 640px) {
+  .tr-kvrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.tr-list {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.tr-list li::marker {
+  color: var(--sounding);
+}
+.tr-gone {
+  border-top: 2px solid var(--lamp-glow);
+}
+.tr-foot {
+  margin-top: var(--s7);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
