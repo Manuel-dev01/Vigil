@@ -326,6 +326,8 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
     - truthful health and wording;
     - local exit-address computation.
 
+**Attack catalogue (27 Nov).** `pnpm redteam` attacks the three deployed contracts with free `eth_call`s and no real key: no transaction is sent. It replays the watchtowers' real exit attestations (EVIDENCE 88, 89, 101, 102) and the creator's real anchors with one thing changed at a time, adds signatures from throwaway ML-DSA-87 and secp256k1 keys made for the run, and decodes each revert to the contract's named custom error. In the run of 27 Nov 2026 at EVM block 10,860,304, all 23 attacks were refused with the expected error and all 3 honest controls passed. It is a small catalogue of the attacks we thought of, not a proof. The list, the blocks and how to re-run it are in [docs/REDTEAM.md](docs/REDTEAM.md).
+
 ## 13. Residual risks
 
 - **Governance can pause a based rollup.** Its creator cannot stop it, but governance can (QoreChain's v3.2.8 rollup documentation; creators can stop their own rollups of other kinds, which we have seen on testnet). Funds then wait for governance.
