@@ -35,7 +35,13 @@ export interface LedgerExit {
   batchStatus: string | undefined;
 }
 
-export type Outcome = "repaid" | "pending" | "overdue" | "lost";
+/**
+ * repaid: a sweep() repaid the vault. pending: waiting for finality and the sweep. overdue: not repaid
+ * OVERDUE_SEC after the batch could be final. owed: fronted against a batch that was then rejected or
+ * replaced, so its exit address owes the vault, and that address's later withdrawals repay it first
+ * (THREAT_MODEL §14, "Bad claim, user debt"): not a certain loss to the LP.
+ */
+export type Outcome = "repaid" | "pending" | "overdue" | "owed";
 
 export interface LedgerRow extends LedgerExit {
   postToPaidSec: number | undefined;
@@ -69,9 +75,10 @@ export interface LedgerSummary {
   pending: number;
   /** Not repaid OVERDUE_SEC after the batch could be final: the relayer should have executed and swept. */
   overdue: number;
-  /** Fronted against a batch that was then rejected or replaced: the LP's loss. */
-  lost: number;
-  lostWei: bigint;
+  /** Fronted against a batch that was then rejected or replaced: owed to the vault by its exit address. */
+  owed: number;
+  owedWei: bigint;
+  /** Fees on exits the vault has been repaid for. */
   feesWei: bigint;
   paidWei: bigint;
   /** The newest front(), unix seconds. */
@@ -101,7 +108,7 @@ function spread(xs: (number | undefined)[]): Spread | undefined {
 }
 
 export function outcomeOf(e: LedgerExit, nowSec: number): Outcome {
-  if (e.batchStatus === "rejected" || e.batchStatus === "replaced") return "lost";
+  if (e.batchStatus === "rejected" || e.batchStatus === "replaced") return "owed";
   if (e.repaidAt !== undefined) return "repaid";
   if (e.finalFrom !== undefined && nowSec > e.finalFrom + OVERDUE_SEC) return "overdue";
   return "pending";
@@ -127,7 +134,7 @@ export function ledgerRows(exits: readonly LedgerExit[], nowSec: number): Ledger
 }
 
 export function ledgerSummary(rows: readonly LedgerRow[]): LedgerSummary {
-  const lost = rows.filter((r) => r.outcome === "lost");
+  const owed = rows.filter((r) => r.outcome === "owed");
   const sum = (xs: (bigint | undefined)[]): bigint => xs.reduce<bigint>((n, x) => n + (x ?? 0n), 0n);
   const paid = rows.map((r) => r.paidAt).filter((t): t is number => t !== undefined && t > 0);
   return {
@@ -140,9 +147,9 @@ export function ledgerSummary(rows: readonly LedgerRow[]): LedgerSummary {
     repaid: rows.filter((r) => r.outcome === "repaid").length,
     pending: rows.filter((r) => r.outcome === "pending").length,
     overdue: rows.filter((r) => r.outcome === "overdue").length,
-    lost: lost.length,
-    lostWei: sum(lost.map((r) => (r.paidWei === undefined ? undefined : r.paidWei + (r.feeWei ?? 0n)))),
-    feesWei: sum(rows.filter((r) => r.outcome !== "lost").map((r) => r.feeWei)),
+    owed: owed.length,
+    owedWei: sum(owed.map((r) => (r.paidWei === undefined ? undefined : r.paidWei + (r.feeWei ?? 0n)))),
+    feesWei: sum(rows.filter((r) => r.outcome === "repaid").map((r) => r.feeWei)),
     paidWei: sum(rows.map((r) => r.paidWei)),
     latestPaidAt: paid.length ? Math.max(...paid) : undefined,
   };

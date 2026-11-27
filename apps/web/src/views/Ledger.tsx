@@ -12,11 +12,18 @@ import { CopyHash } from "../ui.tsx";
 import "./ledger.css";
 
 const secs = (s: number | undefined): string => (s === undefined ? "—" : dur(s));
-const spreadText = (s: Spread | undefined, worst: "max" | "min" = "max"): string =>
-  !s ? "—" : s.n === 1 ? dur(s.median) : `median ${dur(s.median)} · ${worst} ${dur(s[worst])}`;
+/** A lead over finality: negative means paid after the batch could be final (dur() drops the sign). */
+const lead = (s: number): string => (s >= 0 ? dur(s) : `${dur(-s)} after`);
+const spreadText = (s: Spread | undefined, worst: "max" | "min" = "max", fmt: (n: number) => string = dur): string =>
+  !s ? "—" : s.n === 1 ? fmt(s.median) : `median ${fmt(s.median)} · ${worst} ${fmt(s[worst])}`;
 
 function Repaid({ r }: { r: LedgerRow }) {
-  if (r.outcome === "lost") return <span className="chip bad">LP loss: batch {r.batchStatus}</span>;
+  if (r.outcome === "owed")
+    return (
+      <span className="chip bad" title="Its exit address owes the vault; that address's later withdrawals repay it first">
+        batch {r.batchStatus}: owed
+      </span>
+    );
   if (r.outcome === "overdue") return <span className="chip warn">overdue</span>;
   if (r.outcome === "pending") return <span className="chip pending">after finality</span>;
   return (
@@ -86,7 +93,7 @@ export function Ledger({ exits, nowSec, total }: { exits: ExitView[]; nowSec: nu
                   </td>
                   <td className="num">{secs(r.postToPaidSec)}</td>
                   <td className="num">{secs(r.batchToPaidSec)}</td>
-                  <td className="num">{r.aheadOfFinalitySec === undefined ? "—" : r.aheadOfFinalitySec >= 0 ? dur(r.aheadOfFinalitySec) : `${dur(-r.aheadOfFinalitySec)} after`}</td>
+                  <td className="num">{r.aheadOfFinalitySec === undefined ? "—" : lead(r.aheadOfFinalitySec)}</td>
                   <td>
                     <Repaid r={r} />
                   </td>
@@ -109,7 +116,7 @@ export function Ledger({ exits, nowSec, total }: { exits: ExitView[]; nowSec: nu
                 </th>
                 <td className="num">{spreadText(s.postToPaid)}</td>
                 <td className="num">{spreadText(s.batchToPaid)}</td>
-                <td className="num">{spreadText(s.aheadOfFinality, "min")}</td>
+                <td className="num">{spreadText(s.aheadOfFinality, "min", lead)}</td>
                 <td>
                   repaid {s.repaid} of {s.n}
                 </td>
@@ -122,8 +129,9 @@ export function Ledger({ exits, nowSec, total }: { exits: ExitView[]; nowSec: nu
       {rows.length > 0 && (
         <p className="note ledger-sum">
           Repaid {s.repaid} of {s.n}
-          {s.pending ? `, ${s.pending} waiting for finality` : ""}. Overdue: {s.overdue}. LP losses: {s.lost}
-          {s.lost ? ` (${qorWei(s.lostWei)})` : ""}. Fees earned: {qorWei(s.feesWei)}.
+          {s.pending ? `, ${s.pending} waiting for finality` : ""}. Overdue: {s.overdue}. Fronted on a rejected batch: {s.owed}
+          {s.owed ? ` (${qorWei(s.owedWei)}, owed to the vault by the exit address and repaid first from its later withdrawals)` : ""}. Fees earned on repaid
+          exits: {qorWei(s.feesWei)}.
           {s.latestPaidAt ? ` Latest: ${dur(Math.max(0, nowSec - s.latestPaidAt))} ago.` : ""}
           {paidLater ? ` ${paidLater} attested exit${paidLater === 1 ? " was" : "s were"} not fronted and paid in full after finality instead.` : ""}{" "}
           A snapshot is kept in <a href={`${REPO}/blob/main/docs/exits-metrics.json`} target="_blank" rel="noopener noreferrer">docs/exits-metrics.json</a>.

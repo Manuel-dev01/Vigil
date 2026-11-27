@@ -65,7 +65,7 @@ describe("the instant-exit ledger", () => {
     expect(s.batchToPaid).toEqual({ median: 95, max: 175, min: 15, n: 2 });
     expect(s.aheadOfFinality).toMatchObject({ median: 3505, min: 3425 });
     expect(s.frontGas).toMatchObject({ median: 472_159, n: 2 });
-    expect([s.repaid, s.pending, s.overdue, s.lost]).toEqual([2, 0, 0, 0]);
+    expect([s.repaid, s.pending, s.overdue, s.owed]).toEqual([2, 0, 0, 0]);
     expect(s.feesWei).toBe(QOR / 1000n);
     expect(s.paidWei).toBe((QOR * 199n) / 1000n);
     expect(s.latestPaidAt).toBe(b18.paidAt);
@@ -77,14 +77,17 @@ describe("the instant-exit ledger", () => {
     expect(ledgerRows([open], b18.finalFrom! + OVERDUE_SEC + 1)[0]!.outcome).toBe("overdue");
     const s = ledgerSummary(ledgerRows([open, b15], b18.finalFrom! + OVERDUE_SEC + 1));
     expect([s.repaid, s.overdue]).toEqual([1, 1]);
+    // Its fee is not earned until the vault is repaid.
+    expect(s.feesWei).toBe(b15.feeWei);
+    expect(ledgerSummary(ledgerRows([open], b18.paidAt! + 60)).feesWei).toBe(0n);
   });
 
-  it("counts a front against a rejected or replaced batch as the LP's loss, and not as fees", () => {
+  it("counts a front against a rejected or replaced batch as owed by its exit address, and not as fees", () => {
     const rows = ledgerRows([{ ...b18, batchStatus: "rejected", repaidAt: undefined }, { ...b15, batchStatus: "replaced", repaidAt: undefined }, { ...b18, id: "0xok" }], NOW);
-    expect(rows.map((r) => r.outcome).sort()).toEqual(["lost", "lost", "repaid"]);
+    expect(rows.map((r) => r.outcome).sort()).toEqual(["owed", "owed", "repaid"]);
     const s = ledgerSummary(rows);
-    expect(s.lost).toBe(2);
-    expect(s.lostWei).toBe(2n * (QOR / 10n));
+    expect(s.owed).toBe(2);
+    expect(s.owedWei).toBe(2n * (QOR / 10n));
     expect(s.feesWei).toBe((QOR * 5n) / 10_000n);
   });
 
@@ -160,7 +163,7 @@ describe("the instant-exit ledger", () => {
       frontGas: spread(s.frontGas),
       repaid: s.repaid,
       overdue: s.overdue,
-      lpLosses: s.lost,
+      frontedOnRejectedBatch: s.owed,
     });
     expect(ledgerRows(exits, t(doc.readAt)).map((r) => r.postToPaidSec)).toEqual(doc.exits.map((e) => e["postToPaidSec"]));
   });
