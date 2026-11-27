@@ -1,0 +1,4734 @@
+{
+  "ledger": {
+    "file": "EVIDENCE.md",
+    "sha256": "84c4fe52d89fb232390bb123828cf53ec7741d61bcd979b4f23cb75e36ec6635",
+    "rows": 123,
+    "readOnlyRows": 6
+  },
+  "chain": {
+    "network": "qorechain-diana",
+    "rest": "https://api-testnet.qore.host",
+    "evmRpc": "https://evm-testnet.qore.host",
+    "tipHeight": 10859709,
+    "tipTime": "2026-11-27T16:42:57.893171090Z"
+  },
+  "run": {
+    "firstRead": "2026-11-27T16:42:58.949Z",
+    "lastRead": "2026-11-27T16:45:43.882Z",
+    "minGapMs": 1000
+  },
+  "summary": {
+    "rows": 123,
+    "verified": 123,
+    "mismatch": 0,
+    "not found": 0,
+    "error": 0,
+    "claimsListed": 123,
+    "checks": 709,
+    "checksPassed": 709
+  },
+  "headline": "123 of 123 rows re-verified at height 10,859,709 (27 Nov 2026, 16:42 UTC), as the node reports",
+  "rows": [
+    {
+      "n": 1,
+      "kind": "native",
+      "hash": "F35E658AF9778FD2339213EB7BD5ACD84F40FD300A74B5193110AFB05B174B7B",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241702"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq, key_type=hybrid"
+        },
+        {
+          "what": "event pqc_hybrid_classical_only",
+          "ok": true,
+          "expected": "address=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "kind": "native",
+      "hash": "4AA60750D448EA8AB96115AE6A69BBACC79097AF11A75A4C32EA603B19B8F643",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241737"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "failed, sdk code 10"
+        },
+        {
+          "what": "log",
+          "ok": true,
+          "expected": "contains \"invalid coins\""
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "kind": "native",
+      "hash": "57B91C50128801AC247940B089DFF698597216B977884BBB25B9A66921181629",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241765"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1r0zkpgngnrc30qtskf2l5ewv0v9kqwjwn5m6yv, amount=500000000erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA,26000000uqor, sender=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "kind": "native",
+      "hash": "41187205D401A69114E1E9E0DD4A9B4CF706A9B8F1E0FA38050F4260477A2310",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241787"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1r0zkpgngnrc30qtskf2l5ewv0v9kqwjwn5m6yv"
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "kind": "native",
+      "hash": "EAE6D99E7460FF0835D34D653488D472474B9C2E3971AC28B1F5E05096B3AE66",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241808"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1r0zkpgngnrc30qtskf2l5ewv0v9kqwjwn5m6yv, expiry_height=10241928, max_txs=1, max_value=250000, no allowed_targets"
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "kind": "evm",
+      "hash": "0x87f60392092af80d31738703c4cb913c2a67cc92a662c09dc442de69111df152",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241823"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "contract created",
+          "ok": true,
+          "expected": "0x40b6b90d69b4a6e2277583ff7d98912c03255591"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "683341"
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "kind": "native",
+      "hash": "5172970F3757B12B8B006C4BF592DB1B85B7288A20480EF5591ECD99DCB812A4",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241833"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1r0zkpgngnrc30qtskf2l5ewv0v9kqwjwn5m6yv"
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "kind": "native",
+      "hash": "0711C05E139D02D5DAB93128541E6031E5EC714B29ED780B6AB1A85C1BBE1EDE",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241852"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1gzmtjrtfkjnwyfm4s0lhmxy39spj24v3za82j6, amount=500000000erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA,25000000uqor"
+        }
+      ]
+    },
+    {
+      "n": 9,
+      "kind": "native",
+      "hash": "DA8AA1B491CDB2716155B2C82762DEFFAB4541EEC3EA9AB4765313A1AC943D62",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10241987"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "failed, erc20 code 12"
+        },
+        {
+          "what": "log",
+          "ok": true,
+          "expected": "contains \"failed to retrieve balance: EVM call unexpected error\""
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgConvertCoin"
+        }
+      ]
+    },
+    {
+      "n": 10,
+      "kind": "native",
+      "hash": "FE3518DD8F24A5E6341AC372DC5BFDB712FAA20DAF5700309090A655BD425F67",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10320716"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-18"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq, amount=100000uqor, sender=qor1naj0qh80tjhfufdvpmg5szd7dmnsg5j88tagaq"
+        }
+      ]
+    },
+    {
+      "n": 11,
+      "kind": "native",
+      "hash": "B0BF173D5FC523BEE83665B09709F4AB8251952431B2EB2AB33E41E7B565055A",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10266300"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-17"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 12,
+      "kind": "native",
+      "hash": "A49757DEFF579BB0BE3071E0C62E137ABA1CFC0939C5DDCF9330B34C0014A0C3",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10320624"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-18"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 13,
+      "kind": "native",
+      "hash": "02993B293296A749036459D56D2C9C4A9D84DB5AB66059F3B7F62F4771F692F0",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10351825"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCreateRollup"
+        },
+        {
+          "what": "fee (uqor)",
+          "ok": true,
+          "expected": "91616"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event rollup_created",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, creator=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, profile=nft, settlement_mode=optimistic"
+        },
+        {
+          "what": "event rdk_sequencing_set",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequencing=based"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, amount=10000000000uqor"
+        },
+        {
+          "what": "event burn",
+          "ok": true,
+          "expected": "source=rollup_create, amount=100000000"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, amount=1000000000uqor"
+        },
+        {
+          "what": "event sidechain_registered",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, creator=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, status=proposed"
+        }
+      ]
+    },
+    {
+      "n": 14,
+      "kind": "native",
+      "hash": "91120000B45D41FAD86FB505AD46442DAD35061E36E3C33F848295ABDBC8BD39",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10351849"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgBondRollupSubmitter"
+        },
+        {
+          "what": "fee (uqor)",
+          "ok": true,
+          "expected": "41577"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event rdk_submitter_bonded",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, submitter=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, bond=1000000000uqor"
+        }
+      ]
+    },
+    {
+      "n": 15,
+      "kind": "native",
+      "hash": "D3D286368E74B6A3566639083EA5EACB026051A89C62113DA86CB900B898AF39",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10352631"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgDepositToRollup"
+        },
+        {
+          "what": "fee (uqor)",
+          "ok": true,
+          "expected": "54185"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event rdk_rollup_deposit",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, depositor=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, account=6b6c0bea…c70e, amount=1000000uqor, sequence=1"
+        }
+      ]
+    },
+    {
+      "n": 16,
+      "kind": "native",
+      "hash": "E953275101D707E1D93C69216FA8B9CEA2331EF5BBCA88A6F34DEC3F33813D35",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10352665"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=0"
+        },
+        {
+          "what": "event rdk_inbox_consumed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=0, inbox_start=0, inbox_end=1"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=0, pqc_verified=true, state_root=27cc2491…959e"
+        }
+      ]
+    },
+    {
+      "n": 17,
+      "kind": "native",
+      "hash": "BA80C85C2224FC249FA1930311038DFA7DC6FDBBA3A1CCE4736E0971E61084E2",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10353638"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=2, size=3783, poster=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 18,
+      "kind": "native",
+      "hash": "E901295BAED5236F130BC7A0D9D6811E6243516E0D45F71CC87538348AF65709",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10353644"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=1"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=1, pqc_verified=true, state_root=2930bd63…caa8"
+        }
+      ]
+    },
+    {
+      "n": 19,
+      "kind": "native",
+      "hash": "66DEC0ACB9688FFD4350549432F21CB0D31CE25FAEE1DF44F30CB22D8F17F4FF",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10353670"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=3"
+        }
+      ]
+    },
+    {
+      "n": 20,
+      "kind": "native",
+      "hash": "214990B1A363C72393332D79927DC3B622CB835CFCB2CB2BA2382A5B56E89B1B",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10353676"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=2"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=2, pqc_verified=true, state_root=c818db2b…5c6e"
+        }
+      ]
+    },
+    {
+      "n": 21,
+      "kind": "native",
+      "hash": "FD1C8D24DC743039D9CD4CAD608B92066FE9B5E7E414FE835FC9B0751C5CBD66",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10356232"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgExecuteWithdrawal"
+        },
+        {
+          "what": "event rdk_withdrawal_executed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=2, recipient=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s, amount=250000uqor"
+        }
+      ]
+    },
+    {
+      "n": 22,
+      "kind": "native",
+      "hash": "B231E5F50B90294E97D584725EE09676F93983DC36225728C1AC9D2321A804A3",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10362301"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=4, size=3783, poster=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 23,
+      "kind": "native",
+      "hash": "ABB46E2B8629868BE9DCF99D491045E199079D116DFCC9D8337A0D9495625BA9",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10362305"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=3"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=3, pqc_verified=true, state_root=08984124…c384"
+        }
+      ]
+    },
+    {
+      "n": 24,
+      "kind": "native",
+      "hash": "C6161113066F11ED44C983BC269D1366490A24FF5151E8BCB63FA867F1A5E3F6",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10363146"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m, amount=5000000uqor"
+        }
+      ]
+    },
+    {
+      "n": 25,
+      "kind": "native",
+      "hash": "85B83F9FA427EB5975617A99B9A7695B50C2512CECB19F337F8BBF3075B44B2C",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10363158"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+        }
+      ]
+    },
+    {
+      "n": 26,
+      "kind": "native",
+      "hash": "18BF71BFB5674D6361953F37E8E978E4121D88D079A49E8ECEAC2B94792AE90C",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10363995"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd, amount=5000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 27,
+      "kind": "native",
+      "hash": "03D85B5BB815217B733B7AF93346A947AA1475136C6E65FFC982C2D3B2134002",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10364019"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        }
+      ]
+    },
+    {
+      "n": 28,
+      "kind": "native",
+      "hash": "D634E0212F8830A824F618CA170E02CFFF4EB3DA75F4F5C10247507BE601284D",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368595"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend, MsgSend, MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, amount=1000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1caz97rcllrw3q4agg8rp69mfve9ar6tygzczry, amount=1000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1u7tkkkd56h27lcl3qgzzcavaukuj74mjvxqf9d, amount=1000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 29,
+      "kind": "native",
+      "hash": "DFEC20D077E33F44FBB5B46FB6C9012587EFE1DCC351CEDF383BE6CF34382842",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368629"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws"
+        }
+      ]
+    },
+    {
+      "n": 30,
+      "kind": "native",
+      "hash": "4C89A89B11020D7D0899B97EE41A69DDC42AC18DFC280BA952386ECCDA137C0B",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368637"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1caz97rcllrw3q4agg8rp69mfve9ar6tygzczry"
+        }
+      ]
+    },
+    {
+      "n": 31,
+      "kind": "native",
+      "hash": "5DD51E69BC6DDDE3C404159056C86263249DFFD0760F71E7A09DF6192AB3C9F4",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368645"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1u7tkkkd56h27lcl3qgzzcavaukuj74mjvxqf9d"
+        }
+      ]
+    },
+    {
+      "n": 32,
+      "kind": "native",
+      "hash": "59CBE64AD8A69E78404A201B78CDF9281AA089746B23719F7FE426BD63938078",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368699"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterKEMKey"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws"
+        },
+        {
+          "what": "event pqc_kem_key_registered",
+          "ok": true,
+          "expected": "address=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, algorithm_id=mlkem1024"
+        }
+      ]
+    },
+    {
+      "n": 33,
+      "kind": "native",
+      "hash": "A24198A62789688189427D11DAD2879B6B93C2198CB13211A7E2675F5411E494",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368709"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterKEMKey"
+        },
+        {
+          "what": "event pqc_kem_key_registered",
+          "ok": true,
+          "expected": "address=qor1caz97rcllrw3q4agg8rp69mfve9ar6tygzczry, algorithm_id=mlkem1024"
+        }
+      ]
+    },
+    {
+      "n": 34,
+      "kind": "native",
+      "hash": "450B5B74CEADBAC099F1363959DE11790FA31CD39F2347646A48E32CCEC56E14",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368719"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterKEMKey"
+        },
+        {
+          "what": "event pqc_kem_key_registered",
+          "ok": true,
+          "expected": "address=qor1u7tkkkd56h27lcl3qgzzcavaukuj74mjvxqf9d, algorithm_id=mlkem1024"
+        }
+      ]
+    },
+    {
+      "n": 35,
+      "kind": "native",
+      "hash": "73287A6BDDF3363C0D4BD8FEF9A428B7DC1D7A14386DB72ECAE5152432C58C22",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368748"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=5, data_hash=84eeba7e…6a65"
+        }
+      ]
+    },
+    {
+      "n": 36,
+      "kind": "native",
+      "hash": "C63A384348804B05EBE13B3082AA1845A9DFF68664E01D9DDCE9733570CA45A8",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368751"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=4"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=4, pqc_verified=true, state_root=778c8a0f…d561"
+        }
+      ]
+    },
+    {
+      "n": 37,
+      "kind": "native",
+      "hash": "0B70265B742B431607B01A423E1AF1CE5AA915C948373F5AFAED780753B18B9B",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368790"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=6, size=5822, poster=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, data_hash=44bc6d02…1077"
+        }
+      ]
+    },
+    {
+      "n": 38,
+      "kind": "native",
+      "hash": "1775F5C71D40CD4D93F0D056CC14FBB0E89E83A85FAA7634E8C26E9CB2A32382",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10368796"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=5"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=5, state_root=778c8a0f…d561"
+        }
+      ]
+    },
+    {
+      "n": 39,
+      "kind": "native",
+      "hash": "35E1AE51F4FA48A9998CF9697B27F9E6AA823EE0A99A84740A3E91D6ADC9D731",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10369219"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk, amount=1005000000uqor, sender=qor10w42…k6k"
+        }
+      ]
+    },
+    {
+      "n": 40,
+      "kind": "native",
+      "hash": "AB45FA3F716478A6E82619A790CD7667E57C88C22A754D2E59205C642347A0E1",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370133"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk"
+        }
+      ]
+    },
+    {
+      "n": 41,
+      "kind": "native",
+      "hash": "DF4F66490E0FE93261D4CE35E1F62C59A4FA2F6048A280A5A9B15540EE2E54E6",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370217"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgBondRollupSubmitter"
+        },
+        {
+          "what": "event rdk_submitter_bonded",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, submitter=qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk, bond=1000000000uqor"
+        }
+      ]
+    },
+    {
+      "n": 42,
+      "kind": "native",
+      "hash": "A35F57A2ABB4542DBA99D6901110E63DB5E3A509B1B566B8ABFACF931F191914",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370236"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=7, size=52, poster=qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk"
+        }
+      ]
+    },
+    {
+      "n": 43,
+      "kind": "native",
+      "hash": "E3E71FB6BFE0A2102C9490A11F18205913926513DA524E225B59CB931DF7D11E",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370239"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=6"
+        },
+        {
+          "what": "event rdk_inbox_consumed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=6, inbox_start=6, inbox_end=7"
+        }
+      ]
+    },
+    {
+      "n": 44,
+      "kind": "native",
+      "hash": "1BF5B717F658DCD923D9860322DA21C901C608C2F6E7FA359A6439BBA114EBC4",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370243"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgChallengeBatch"
+        },
+        {
+          "what": "event rdk_fraud_upheld",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=6, submitter=qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk, challenger=qor1ua2dl0nuf3qxr5yfhr3x9ah5cdh9vw7qczvdj5, slashed=1000000000uqor, challenger_reward=500000000uqor, burned=500000000uqor"
+        },
+        {
+          "what": "event burn",
+          "ok": true,
+          "expected": "source=rollup_slash, amount=500000000"
+        },
+        {
+          "what": "event rdk_inbox_rolled_back",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, consumed_sequence=6"
+        }
+      ]
+    },
+    {
+      "n": 45,
+      "kind": "native",
+      "hash": "C4D5645FBFC6AE5F2A7EB65FDF51C6DFF1586B32B19A2DC6A82940B390BF501A",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370247"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "failed, rdk code 9"
+        },
+        {
+          "what": "log",
+          "ok": true,
+          "expected": "contains \"batch 6 is rejected: batch already finalized\""
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgChallengeBatch"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "address=qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+        }
+      ]
+    },
+    {
+      "n": 46,
+      "kind": "native",
+      "hash": "D0CE7C0D2D95277A178DD7FE73B536E43D8D55C27347EBF353518811E9B6078C",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10372830"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend, MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33, amount=10000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd, amount=10000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 47,
+      "kind": "native",
+      "hash": "8382B95D186028A0E04DF9535BF54EA6B55B3A4C463A7A42CBE72DCF02993A84",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10372838"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33"
+        }
+      ]
+    },
+    {
+      "n": 48,
+      "kind": "native",
+      "hash": "33C5360C7579DF33A847C192A56A35C9608B63FC4FB0E25BABB64F3512878F8F",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10381914"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2, amount=1005000000uqor, sender=qor10w42…k6k"
+        }
+      ]
+    },
+    {
+      "n": 49,
+      "kind": "native",
+      "hash": "C68CE517ACB14253EC5E1020E00A27443BD2E1B0A8B6F1CE8F5ACEDD35041682",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382441"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=8, poster=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 50,
+      "kind": "native",
+      "hash": "05500EE9DB40E316002B9E522A18988936D669D334CBA905DCD1719D09D78333",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382449"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=7"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=7, state_root=2c891f7a…c663"
+        }
+      ]
+    },
+    {
+      "n": 51,
+      "kind": "native",
+      "hash": "7B359431FC8E645740A88FD7C209CDF4E91DE5EE961FE0CDD26F680459FC7813",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382498"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2"
+        }
+      ]
+    },
+    {
+      "n": 52,
+      "kind": "native",
+      "hash": "87042BE3B0373D3B2A68B4E434E3DDFAB240B2788803642714DF19E17DE65EC7",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382534"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgBondRollupSubmitter"
+        },
+        {
+          "what": "event rdk_submitter_bonded",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, submitter=qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2, bond=1000000000uqor"
+        }
+      ]
+    },
+    {
+      "n": 53,
+      "kind": "native",
+      "hash": "E2B1A430363E9CAE7B4C80EFA34998021DC1B0D6220FE45B0D8F085AFDEFB989",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382596"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=9, size=52, poster=qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2"
+        }
+      ]
+    },
+    {
+      "n": 54,
+      "kind": "native",
+      "hash": "6802887DBC277445377D70C1D2474AEC30ED3C00059F08943DF16DFB8E1D1A9A",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382606"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=8"
+        },
+        {
+          "what": "event rdk_inbox_consumed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=8, inbox_start=8, inbox_end=9"
+        }
+      ]
+    },
+    {
+      "n": 55,
+      "kind": "native",
+      "hash": "4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382607"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgChallengeBatch"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "345265"
+        },
+        {
+          "what": "gas limit",
+          "ok": true,
+          "expected": "605960"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        },
+        {
+          "what": "event rdk_fraud_upheld",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=8, submitter=qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2, challenger=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd, slashed=1000000000uqor, challenger_reward=500000000uqor, burned=500000000uqor"
+        },
+        {
+          "what": "event burn",
+          "ok": true,
+          "expected": "source=rollup_slash, amount=500000000"
+        },
+        {
+          "what": "event rdk_inbox_rolled_back",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, consumed_sequence=8"
+        }
+      ]
+    },
+    {
+      "n": 56,
+      "kind": "native",
+      "hash": "5E4A2898EB0D4E11DE965411AC5D2A64884997E13311424A9C36DFBA2431915B",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10382647"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=8"
+        },
+        {
+          "what": "event rdk_inbox_consumed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=8, inbox_start=8, inbox_end=9"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=8, state_root=2c891f7a…"
+        }
+      ]
+    },
+    {
+      "n": 57,
+      "kind": "native",
+      "hash": "0A4D9302C2BF3683C3BB7C3B442364C71EE010466592EB60F584DAF2D337D41A",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400686"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, amount=3000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 58,
+      "kind": "native",
+      "hash": "A6B8602E1A7180284C3C6373D6D35F4552886A1D82007DFA900808D7809B0661",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400715"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 59,
+      "kind": "native",
+      "hash": "91BAEDBC949C1D3DF6520C152F1EBD1BF8B81D1DE0F623131C94B6928F32D238",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400739"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, expiry_height=10401339, max_txs=6, max_value=1500000, no allowed_targets"
+        }
+      ]
+    },
+    {
+      "n": 60,
+      "kind": "evm",
+      "hash": "0x1d07350d2354cd32bac5c16ec3732407c3e9e2369d99e5bd38409ea3bcafeed5",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400754"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "contract created",
+          "ok": true,
+          "expected": "0xc87c7680b70e21464aac4e2308a9caa5324e4590"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "1133962"
+        }
+      ]
+    },
+    {
+      "n": 61,
+      "kind": "evm",
+      "hash": "0x4da5f6c9f9016b86ec4edb4e80f56082347f16e4a4b76945c2c2f51bbdb52254",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400766"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "contract created",
+          "ok": true,
+          "expected": "0x2d484549b2f05c2867c8f7051951b569dab79ca6"
+        },
+        {
+          "what": "log Probe from 0x2d484549b2f05c2867c8f7051951b569dab79ca6",
+          "ok": true,
+          "expected": "Probe: BLOCKHASH is zero at depths 1, 2, 10, 100, 256 and 257, and the EIP-2935 call returns empty data"
+        }
+      ]
+    },
+    {
+      "n": 62,
+      "kind": "evm",
+      "hash": "0x4cd743bf56bc4666aba64751d337e81b67e8d629506aec98d987fa7642f3de9a",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400815"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "279928"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=0, stateRoot=0x27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e)"
+        }
+      ]
+    },
+    {
+      "n": 63,
+      "kind": "evm",
+      "hash": "0xd8aa432fb492d3eab077d90cc026d0f43e90ec44a647dd8716b72f98fa7a5486",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400831"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "2305444"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=1)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=2)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=3)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=4)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=5)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=6)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=7)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=8)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=9)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=10)"
+        }
+      ]
+    },
+    {
+      "n": 64,
+      "kind": "native",
+      "hash": "B7B9C0A1381D14889119025DEEBF5D183F963C9BBABA9AF07E8ADCA875FFD7B8",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10400845"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 65,
+      "kind": "native",
+      "hash": "19F8D3E42A85C9D6E2C378937D973E132E2EBA214DBA3956AA8AA0F4446A1606",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10432994"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft, amount=1010000000uqor, sender=qor10w42…k6k"
+        }
+      ]
+    },
+    {
+      "n": 66,
+      "kind": "native",
+      "hash": "8F5C8FC1AC1B65E1A4500810F16E5F8C5C1A0EEFF727C0AE1ABDA5C278A1C0E0",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10433160"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        }
+      ]
+    },
+    {
+      "n": 67,
+      "kind": "native",
+      "hash": "A219B92F6FCA4C171E9B0FE6942CF72B01A5AEFA5700281E6782EE384482CB52",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10433202"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgBondRollupSubmitter"
+        },
+        {
+          "what": "event rdk_submitter_bonded",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, submitter=qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft, bond=1000000000uqor"
+        }
+      ]
+    },
+    {
+      "n": 68,
+      "kind": "native",
+      "hash": "B8DA65A7FA6A3200272F9B9B5D3435F821E635CABE77636BFB58318A842CC237",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10433589"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=13, poster=qor1caz97rcllrw3q4agg8rp69mfve9ar6tygzczry"
+        }
+      ]
+    },
+    {
+      "n": 69,
+      "kind": "native",
+      "hash": "07FF243ADEC001154ADA0B35A4850BFE5010D790AF1AB1C1EA4D5D9954929941",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10433596"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "address=qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=11"
+        },
+        {
+          "what": "event rdk_inbox_consumed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=11, inbox_start=12, inbox_end=13"
+        },
+        {
+          "what": "no state_anchored event",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "n": 70,
+      "kind": "native",
+      "hash": "F13324A4320AE3004445871DFF38769104758192419C0C16F2BB46D6EFCBFFD8",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10433891"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=14"
+        }
+      ]
+    },
+    {
+      "n": 71,
+      "kind": "native",
+      "hash": "2B7C50D856A5C0EC2E6A6514AA8660B09DBCC814A4F17A2C483603C65AA466EA",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10433896"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=12"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=12, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 72,
+      "kind": "native",
+      "hash": "660F744F553596BC80E2F294BAB65A5C3285B5E683D0387283E0055E3F30E65D",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10447357"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-20"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgExecuteWithdrawal"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft"
+        },
+        {
+          "what": "event rdk_withdrawal_executed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=11, recipient=qor10w42…k6k, amount=100000uqor, withdrawal_index=2"
+        }
+      ]
+    },
+    {
+      "n": 73,
+      "kind": "native",
+      "hash": "07373862C92A3D8B45A9D805B7AA6244B707B82B2105387D142B50716AF90601",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10624052"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l, amount=3000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 74,
+      "kind": "native",
+      "hash": "1897E04A73C3D2A54448F4E178A4E7363432E45A67C9B0A5CCFF144BF5D844E4",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10624059"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l, key_type=hybrid"
+        },
+        {
+          "what": "event pqc_hybrid_classical_only",
+          "ok": true,
+          "expected": "address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        }
+      ]
+    },
+    {
+      "n": 75,
+      "kind": "native",
+      "hash": "C7C3531337A6E3068C7F45EC20048F29BDE7E67FAEDEEDF8B7285A748CAED0D0",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10624079"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=15, poster=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        }
+      ]
+    },
+    {
+      "n": 76,
+      "kind": "native",
+      "hash": "2CDCC877C920232EB247D064A792B419853527633C2C6E418B5AFC1A2A3AC156",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10624083"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=13"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=13, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 77,
+      "kind": "native",
+      "hash": "E2CE64CD4AC64DDBF0EC7336C2E7754070E6677AFF5EE2DB9E114DB8C2E88C1D",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10624212"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=16, poster=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        }
+      ]
+    },
+    {
+      "n": 78,
+      "kind": "native",
+      "hash": "1E909D64EEACF87F1FD91177C257CA71F4D01BD2E379677C349E54DAD0B0E12B",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10624215"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=14"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=14, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 79,
+      "kind": "native",
+      "hash": "54F35CEB71697CB36680E1C20B44E8E5B5A4185E3796DA8F38AFA7F9F4527229",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10627884"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, expiry_height=10628084, max_txs=2, max_value=250000, allowed_targets=0xc87c7680b70e21464aac4e2308a9caa5324e4590"
+        }
+      ]
+    },
+    {
+      "n": 80,
+      "kind": "evm",
+      "hash": "0x28073a2cb4a17e9e9bc690c86be46645e93af27a3e3f63a323367a5154c407b4",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10627892"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "712745"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=12)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=13)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=14, stateRoot=0x9a3e20ba101649bcf52cefa56577cb86d8acec74c4ce8558d56623e47e36fe07)"
+        }
+      ]
+    },
+    {
+      "n": 81,
+      "kind": "native",
+      "hash": "E22FD3A6C128E46F25090FAAE211FE8EFC12BBB40A65F6DBC9CE33F15647DDAC",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10627899"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 82,
+      "kind": "native",
+      "hash": "DD9ECAEFD5FD1667A6CB73054BE843E758E6B5A7C1DFD3F2EC2CA0B05C287650",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629378"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, expiry_height=10629678, max_txs=2, max_value=800000, no allowed_targets"
+        }
+      ]
+    },
+    {
+      "n": 83,
+      "kind": "evm",
+      "hash": "0x6998fd1e51c35d90c84921de641d7d8c5ea78a27162b484d920d985a6513bc26",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629388"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "contract created",
+          "ok": true,
+          "expected": "0x3a897802b62b052a102f55e021bc4668539c29b5"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "1960643"
+        }
+      ]
+    },
+    {
+      "n": 84,
+      "kind": "native",
+      "hash": "70A33C46E550BA6EE64F3F263F789A4ACE023D78638A4678D0775629227FD60E",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629406"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 85,
+      "kind": "native",
+      "hash": "C981A8888B83523EBDD373854E1B5C7FCD1F8F2C8FCE293D5719AC597848E252",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629585"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor182yhsq4k9vzj5yp02hszr0zxdpfec2d4nhyfj6, amount=1000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 86,
+      "kind": "native",
+      "hash": "76667A74E7257700551D7E22E5894B1AF29F17DFE139F5DAF63016A25DBDCC8E",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629836"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=17"
+        }
+      ]
+    },
+    {
+      "n": 87,
+      "kind": "native",
+      "hash": "C77FD038C9B802A0614ECBBA88CEFDD5097A9E49670969235A00B52BEE354444",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629840"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=15"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=15, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 88,
+      "kind": "native",
+      "hash": "63E5B82BA6C76972F8D8390E26EA63BBE872338E0CB2D48843FD96CC68AAEE8D",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629842"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=18, size=4781, poster=qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33"
+        }
+      ]
+    },
+    {
+      "n": 89,
+      "kind": "native",
+      "hash": "62718841364B3ED8500FB8957C8D6ADB9749854566E65FEED076BA18AB215A71",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629844"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=19, poster=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        }
+      ]
+    },
+    {
+      "n": 90,
+      "kind": "native",
+      "hash": "46E969C0675152C05B11D2CADD2A075569776A97D15D6E2B2B3640AF37270EDB",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629898"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, allowed_targets=0x3a897802b62b052a102f55e021bc4668539c29b5"
+        }
+      ]
+    },
+    {
+      "n": 91,
+      "kind": "evm",
+      "hash": "0x9705770b52cdb3448277915a778f1e0e6ba4c8ffddcb2ae4ae6d574416637933",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629908"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "472141"
+        },
+        {
+          "what": "log Fronted from 0x3a897802b62b052a102f55e021bc4668539c29b5",
+          "ok": true,
+          "expected": "Fronted(payout=0x7baaa4638c10dfb64d6ae593c2f019782e7773e3, batchIndex=15, withdrawalIndex=3, paid=99500000000000000)"
+        }
+      ]
+    },
+    {
+      "n": 92,
+      "kind": "native",
+      "hash": "223E3BBA4EBE1F2030DEF2D11F41507F69306015C5B6EC8B254E67BCACDACD21",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10629920"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 93,
+      "kind": "native",
+      "hash": "AEEE2C7A0543DC8E8F25D7A5F0D76BE6067B1E2953F0BED3E4A4CB5CF1C3D217",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10631836"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgExecuteWithdrawal"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        },
+        {
+          "what": "event rdk_withdrawal_executed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=15, recipient=qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy, amount=100000uqor, withdrawal_index=3"
+        }
+      ]
+    },
+    {
+      "n": 94,
+      "kind": "native",
+      "hash": "CE0822744CAF72AA90C5C2B19FDFEB0B6039A65F220929A592904799748F2A5A",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10631854"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, allowed_targets=0x3a897802b62b052a102f55e021bc4668539c29b5"
+        }
+      ]
+    },
+    {
+      "n": 95,
+      "kind": "evm",
+      "hash": "0x5e70ab419b00748387f6e32d116345f811d334f7aea8a43c43b1837311fb98b4",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10631863"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "226361"
+        },
+        {
+          "what": "log Settled from 0x3a897802b62b052a102f55e021bc4668539c29b5",
+          "ok": true,
+          "expected": "Settled(payout=0x7baaa4638c10dfb64d6ae593c2f019782e7773e3, repaid=100000000000000000, stillOwed=0)"
+        }
+      ]
+    },
+    {
+      "n": 96,
+      "kind": "native",
+      "hash": "E29A713E866027FEF2465692A8912488E391AB2FF4827F9BC17E1266A7364A59",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10631871"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-23"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 97,
+      "kind": "native",
+      "hash": "D27A1AE0E35378B95987406649CACD9743F0B9685ACEA6D6ED69508C9AE40F14",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10683830"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn, amount=3000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 98,
+      "kind": "native",
+      "hash": "E1ABAF7C98F8B5BEC5F5DFCF8817806401A8CE85F800611F6932F06ADAE922B0",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10683877"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgRegisterPQCKeyV2"
+        },
+        {
+          "what": "event pqc_key_registered",
+          "ok": true,
+          "expected": "address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn, key_type=hybrid"
+        },
+        {
+          "what": "event pqc_hybrid_classical_only",
+          "ok": true,
+          "expected": "address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn"
+        }
+      ]
+    },
+    {
+      "n": 99,
+      "kind": "native",
+      "hash": "E69AF8A5E65799BFBF44E8D4F9B5842ABFC63764934C1C8734F720F4265AE8AC",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686369"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=20, poster=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        }
+      ]
+    },
+    {
+      "n": 100,
+      "kind": "native",
+      "hash": "E3D16C6D3C2CC1665DAB6F355A1AE5DBBCD5899AF38AD7B4CE39D4E3E7DCB30A",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686374"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=18"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=18, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 101,
+      "kind": "native",
+      "hash": "2F1CE158B82B8BAA2D41E12DF73AE522133647AA756B6084999FC89C3C85AA4F",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686377"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=21, poster=qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33"
+        }
+      ]
+    },
+    {
+      "n": 102,
+      "kind": "native",
+      "hash": "4CB8076FB73018574C863F6C229EB3F381E9BB1C1B6DE5E07DEBBF1844775952",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686377"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=22, poster=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        }
+      ]
+    },
+    {
+      "n": 103,
+      "kind": "native",
+      "hash": "97DA6D2E974CB958282564C93698DF9955E77EC43043C1414DEABD780A17F1BF",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686382"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn, expiry_height=10686532, max_txs=1, max_value=69379, allowed_targets=0x3a897802b62b052a102f55e021bc4668539c29b5"
+        }
+      ]
+    },
+    {
+      "n": 104,
+      "kind": "evm",
+      "hash": "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686385"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "sender",
+          "ok": true,
+          "expected": "0x6380e21e6093f4fc9f8968b3e07e7007bf0974d0"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "472177"
+        },
+        {
+          "what": "log Fronted from 0x3a897802b62b052a102f55e021bc4668539c29b5",
+          "ok": true,
+          "expected": "Fronted(payout=0x7baaa4638c10dfb64d6ae593c2f019782e7773e3, batchIndex=18, withdrawalIndex=4, paid=99500000000000000)"
+        }
+      ]
+    },
+    {
+      "n": 105,
+      "kind": "native",
+      "hash": "3C4B1D086E94EA50716B06ECB74D9F53EEC0BD7E5F274BD0761D3E9BED187B38",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10686387"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn"
+        }
+      ]
+    },
+    {
+      "n": 106,
+      "kind": "native",
+      "hash": "258430D7FA0F4DB3CA8D2ABFF50C3247B1FF66058D02AFB293775ADDBD51A21C",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10688902"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgExecuteWithdrawal"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn"
+        },
+        {
+          "what": "event rdk_withdrawal_executed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=18, recipient=qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy, amount=100000uqor, withdrawal_index=4"
+        }
+      ]
+    },
+    {
+      "n": 107,
+      "kind": "native",
+      "hash": "4E6B4C2C65231B18E10B861AB7561B6761EB9D8F13CF359286FA83F0D4F0F917",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10688906"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn, max_txs=1, max_value=7190, allowed_targets=0x3a897802b62b052a102f55e021bc4668539c29b5"
+        }
+      ]
+    },
+    {
+      "n": 108,
+      "kind": "evm",
+      "hash": "0x08b645d1225ff366b60f2b8db982f0ed08d451999a0107b637a1338fd4464ba7",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10688909"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "sender",
+          "ok": true,
+          "expected": "0x6380e21e6093f4fc9f8968b3e07e7007bf0974d0"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "39233"
+        },
+        {
+          "what": "log Settled from 0x3a897802b62b052a102f55e021bc4668539c29b5",
+          "ok": true,
+          "expected": "Settled(payout=0x7baaa4638c10dfb64d6ae593c2f019782e7773e3, repaid=100000000000000000, stillOwed=0)"
+        }
+      ]
+    },
+    {
+      "n": 109,
+      "kind": "native",
+      "hash": "4D4DA3018F4C9AF744EE55204A68FC48D1B4D6F536843946ABEA8AC5E9A9D702",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10688911"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn"
+        }
+      ]
+    },
+    {
+      "n": 110,
+      "kind": "native",
+      "hash": "7D36C92016EB50EA85DC66F15A4CFA2588EB5B5E7651F75D7D7F46B3017121B1",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691002"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 111,
+      "kind": "native",
+      "hash": "C00CEC894D6E5BC6D18D32C7D4CA6E663B4252C0F34FE1CFD512CACE2E66F1AA",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691040"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgOpenEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_opened",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6, expiry_height=10691240, max_txs=2, max_value=250000, allowed_targets=0xc87c7680b70e21464aac4e2308a9caa5324e4590"
+        }
+      ]
+    },
+    {
+      "n": 112,
+      "kind": "evm",
+      "hash": "0x955c7de35c8a384efb72a762627f1aa098210810dea512bfaceb586ed59d056c",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691054"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (status 1)"
+        },
+        {
+          "what": "gas used",
+          "ok": true,
+          "expected": "1163793"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=15)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=16)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=17)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=18)"
+        },
+        {
+          "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
+          "ok": true,
+          "expected": "Attested(layerHeight=19)"
+        }
+      ]
+    },
+    {
+      "n": 113,
+      "kind": "native",
+      "hash": "F7C860A552346B2F261264CB994050513E815404E3A4183B4809FA5D08C73852",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691062"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgCloseEVMWindow"
+        },
+        {
+          "what": "event pqc_evm_window_closed",
+          "ok": true,
+          "expected": "address=qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6"
+        }
+      ]
+    },
+    {
+      "n": 114,
+      "kind": "native",
+      "hash": "4C279045078423757280BFE453B112413AE2698E7E972FB6D18855B65051FD66",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691329"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=23, poster=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, data_hash=0854763a…a9a1"
+        }
+      ]
+    },
+    {
+      "n": 115,
+      "kind": "native",
+      "hash": "8ADA7C5E04F5A1CB66C3372A4DA3C8A81CD7B3094DFF0BED6D7A17F0068A1739",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691360"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=24, size=5905, poster=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws"
+        }
+      ]
+    },
+    {
+      "n": 116,
+      "kind": "native",
+      "hash": "B3310E74C77E5F3005A52B0303A7E66C784DC30056B8E7DD9176A06276EA8269",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10370243"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-19"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "failed, rdk code 9"
+        },
+        {
+          "what": "log",
+          "ok": true,
+          "expected": "contains \"batch 6 is rejected: batch already finalized\""
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgChallengeBatch"
+        },
+        {
+          "what": "fee (uqor)",
+          "ok": true,
+          "expected": "240358"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "address=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+        }
+      ]
+    },
+    {
+      "n": 117,
+      "kind": "native",
+      "hash": "65D0DE12C98A1B23F39BD6C5508C27A850B4F8548D39BB6AB7550AF226005465",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10691365"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-24"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=21"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=21, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 118,
+      "kind": "native",
+      "hash": "19460460522CC18D3A60CA9E559E7BD3B66C2B80BAB919A9114C117322A1BD42",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10719110"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-25"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "fee (uqor)",
+          "ok": true,
+          "expected": "73480"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, poster=qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l"
+        }
+      ]
+    },
+    {
+      "n": 119,
+      "kind": "native",
+      "hash": "BB5C1DF0CC2B4E7579249D27ABD3D1930112A2E2EBC221FABCBA054BD40CD11F",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10719113"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-25"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=22"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=22, pqc_verified=true"
+        }
+      ]
+    },
+    {
+      "n": 120,
+      "kind": "native",
+      "hash": "0C138E72371BBD2416D58C9CB58BD5F81A77841D24E96BE89FA1BA4C74B2FA10",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10801899"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-26"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSend"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        },
+        {
+          "what": "event transfer",
+          "ok": true,
+          "expected": "recipient=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, amount=2000000uqor, sender=qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+        }
+      ]
+    },
+    {
+      "n": 121,
+      "kind": "native",
+      "hash": "F82CF360FB8294E00872E0605EB7C3C3586A1F26CD0FF9A1760E50F6ABED6814",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10806982"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-26"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event pqc_hybrid_verify",
+          "ok": true,
+          "expected": "status=verified, address=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=26, poster=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, data_hash=c0266bd1…1ba3"
+        }
+      ]
+    },
+    {
+      "n": 122,
+      "kind": "native",
+      "hash": "013F7B58409CF2FF39099F9CA301E4EEA82BC941EC8FA3DB89C8CF37B7F7B982",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10807027"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-26"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgPostRollupData"
+        },
+        {
+          "what": "event rdk_data_posted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, sequence=27, size=5901, poster=qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws, data_hash=45a27668…cc1e"
+        }
+      ]
+    },
+    {
+      "n": 123,
+      "kind": "native",
+      "hash": "8D82F801984D73F79E4A6540402375A5B05484603D2A18858736450583374A56",
+      "claimsListed": true,
+      "status": "verified",
+      "checks": [
+        {
+          "what": "height",
+          "ok": true,
+          "expected": "10807031"
+        },
+        {
+          "what": "date (UTC)",
+          "ok": true,
+          "expected": "2026-11-26"
+        },
+        {
+          "what": "result",
+          "ok": true,
+          "expected": "succeeded (code 0)"
+        },
+        {
+          "what": "messages",
+          "ok": true,
+          "expected": "MsgSubmitBatch"
+        },
+        {
+          "what": "event batch_submitted",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=24"
+        },
+        {
+          "what": "event rdk_inbox_consumed",
+          "ok": true,
+          "expected": "rollup_id=vigil-pay-1, batch_index=24, inbox_start=26, inbox_end=27"
+        },
+        {
+          "what": "event state_anchored",
+          "ok": true,
+          "expected": "layer_id=vigil-pay-1, layer_height=24, pqc_verified=true"
+        }
+      ]
+    }
+  ],
+  "readOnly": [
+    {
+      "index": 1,
+      "date": "2026-11-19",
+      "height": "~10,362,910",
+      "status": "by command",
+      "command": "cd packages/qledger-watchtower && npx tsx src/cli.ts --rollup all --once",
+      "why": "it replays batches from chain data, which takes far more reads than this check makes at one a second"
+    },
+    {
+      "index": 2,
+      "date": "2026-11-16",
+      "height": "~10,212,550",
+      "status": "by command",
+      "command": "pnpm --filter @vigil/scripts spike:a <rollupId>; pnpm test",
+      "why": "it replays batches from chain data, which takes far more reads than this check makes at one a second"
+    },
+    {
+      "index": 3,
+      "date": "2026-11-16",
+      "height": "~10,212,600",
+      "status": "by command",
+      "command": "pnpm --filter @vigil/scripts exec tsx kit-gap-check.ts",
+      "why": "it replays batches from chain data, which takes far more reads than this check makes at one a second"
+    },
+    {
+      "index": 4,
+      "date": "2026-11-18",
+      "height": "~10,320,830",
+      "status": "by command",
+      "command": "spike:a vigil-1; tsx scripts/receipts-snapshot.ts vigil-1",
+      "why": "it replays batches from chain data, which takes far more reads than this check makes at one a second"
+    },
+    {
+      "index": 5,
+      "date": "2026-11-17",
+      "height": "~10,241,900",
+      "status": "by command",
+      "command": "pnpm --filter @vigil/scripts exec tsx drill/deploy-vault.ts verify",
+      "why": "it signs a test message, so it needs a key this check does not hold"
+    },
+    {
+      "index": 6,
+      "date": "2026-11-16",
+      "height": "see vector",
+      "status": "by command",
+      "command": "pnpm --filter @vigil/scripts spike:b",
+      "why": "it calls the PQC precompiles with crafted inputs: a separate probe, not a read-back of a transaction"
+    }
+  ]
+}
