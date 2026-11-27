@@ -14,7 +14,7 @@ Anyone can check a settlement receipt in their browser or in Solidity, against t
 
 > **Build Before Q-Day**, QoreChain Developer Fest, category **Protocol Builders**. Testnet only. Every claim below links to a row in [EVIDENCE.md](EVIDENCE.md): a transaction hash, an explorer link and a way to re-check it yourself.
 
-**Web app: https://vigil-pq.up.railway.app** (its landing page follows one batch from signature to final, in 3D) · [Evidence ledger](EVIDENCE.md) · [Threat model](THREAT_MODEL.md) · [AI usage](AI_USAGE.md) · [Project page](https://build.qorechain.io/p/vigil)
+**Web app: https://vigil-pq.up.railway.app** (its landing page follows one batch from signature to final, in 3D) · [Evidence ledger](EVIDENCE.md) · [Threat model](THREAT_MODEL.md) · [Stages self-assessment](docs/STAGES.md) · [Leave without us](docs/ESCAPE_HATCH.md) · [AI usage](AI_USAGE.md) · [Project page](https://build.qorechain.io/p/vigil)
 
 ## The six Protocol Builders requirements
 
@@ -158,6 +158,7 @@ Another team's exit service paid an instant exit from `vigil-pay-1` on 19 Nov ([
 - **The web app trusts the node it reads.** Reads come from one public QoreChain node and its EVM endpoint, without proofs. A dishonest node could show a false chain state, including a false key and anchors. Signatures marked "in your browser" are verified locally, but against what the node says.
 - **The instant-exit quorum is two keys run by one team on one host.** Stealing both, or the LP key (the rollup creator's), could drain the vault's liquidity, never a user's withdrawal. The relayer serves only payouts it is told about (configured, or announced with a payout notice).
 - **The Solidity verifier proves a signature, not finality.** It shows that the creator signed a state root. Whether that batch is final is chain state, which the browser check covers.
+- **L1 governance can change the rules.** QoreChain governance can change the rollup module's rules, or pause a based rollup, after a 4-hour vote (1 hour if expedited), as the node reported on 27 Nov. With a 1-hour testnet challenge window, that leaves users about 3 hours to exit, so by our own reading Vigil does not meet Stage 1 of L2BEAT's framework. Our self-assessment, which claims no stage, is in [docs/STAGES.md](docs/STAGES.md); how to leave without us is in [docs/ESCAPE_HATCH.md](docs/ESCAPE_HATCH.md).
 - **Classical dependencies remain below us:** QoreChain's consensus keys (Ed25519), TLS to the node, and the first, classical-signed PQ key registration of each account. The full list is in the [threat model](THREAT_MODEL.md).
 
 ## Run it yourself
@@ -173,6 +174,7 @@ pnpm --filter @vigil/web dev   # the web app, reading the live chain
 
 - Re-check every numbered [EVIDENCE](EVIDENCE.md) row against the chain, read-only and at one request a second (about three minutes): `pnpm evidence:check`. On 27 Nov it re-verified 123 of 123 rows at height 10,863,256, as the node reports ([docs/evidence-check.md](docs/evidence-check.md)); a scheduled workflow repeats it daily (the badge above).
 - Replay `vigil-pay-1` from chain data and compare the state roots: `packages/qledger-watchtower`.
+- Read any L2 balance by replay, with no key: `pnpm --filter @vigil/keel balance -- --account <hex>` ([docs/ESCAPE_HATCH.md](docs/ESCAPE_HATCH.md)).
 - Re-run the differential fuzzer: [`scripts/fuzz/README.md`](scripts/fuzz/README.md).
 - Check the Solidity verifier without spending anything: `pnpm --filter @vigil/scripts evm:verifier status`.
 

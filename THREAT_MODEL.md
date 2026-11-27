@@ -330,7 +330,7 @@ The precompiles are mocked in Foundry. Their real behaviour is measured on testn
 
 ## 13. Residual risks
 
-- **Governance can pause a based rollup.** Its creator cannot stop it, but governance can (QoreChain's v3.2.8 rollup documentation; creators can stop their own rollups of other kinds, which we have seen on testnet). Funds then wait for governance.
+- **Governance can pause a based rollup.** Its creator cannot stop it, but governance can (QoreChain's v3.2.8 rollup documentation; creators can stop their own rollups of other kinds, which we have seen on testnet). Funds then wait for governance. Governance can also change the rollup module's parameters. On 27 Nov the node reported a voting period of 4 h (1 h if expedited), and no circuit-breaker account able to switch off a rollup message without a vote (EVIDENCE, read-only checks). Our Stages self-assessment and the exit window this leaves are in [docs/STAGES.md](docs/STAGES.md); the commands to leave without us are in [docs/ESCAPE_HATCH.md](docs/ESCAPE_HATCH.md).
 - **Metadata is public.** QoreSeal hides content, not sizes, timing, recipient count or the poster's address.
 - **Removed group members keep the keys of their old epochs.** Epoch keys protect only future messages.
 - **Data availability depends on node indexing and retention.**
