@@ -47,6 +47,13 @@ export const PINNED_KEYS: Record<string, string> = {
   qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33: "f2ca62830747775b3a2dd2c3147f194c2153fa7f6d2b7f84c320899aaaaf16c7",
 };
 
+/**
+ * Where the page fetches a demo reader's seal key (same origin), for the "Open as the demo reader" button.
+ * The key would be published on purpose: a testnet key that opens only envelopes sealed to demo-reader
+ * and cannot sign or spend. None is published yet: while this is null, the button is not shown.
+ */
+export const DEMO_READER_KEY_URL: string | null = null;
+
 export const qor = (uqor: string | number | bigint): string => {
   const n = BigInt(String(uqor).replace(/uqor$/, "") || "0");
   const whole = n / 1_000_000n;

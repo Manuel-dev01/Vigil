@@ -1,0 +1,173 @@
+/*
+ * The payslip page's share links, disclosures and printing. Loaded with the Payslip view (not on the
+ * first load), after styles.css and pages.css, on the same brand tokens.
+ */
+
+/* ------------------------------------------------------------------ a payslip shared with you */
+.panel.disclosed {
+  border-top: 2px solid var(--lamp-glow);
+}
+.panel.disclosed > .note {
+  max-width: 72ch;
+}
+.pdoc.forged {
+  border-top-color: var(--port);
+}
+tr.pdoc-forged td {
+  background: var(--port-wash);
+  color: var(--port);
+}
+.pdoc .checks {
+  margin-top: var(--s4);
+}
+
+/* ------------------------------------------------------------------ key alternatives and the result line */
+.key-alts {
+  margin-top: var(--s4);
+  display: grid;
+  gap: var(--s2);
+}
+.key-alts .note {
+  margin: 0;
+}
+.opened-result {
+  margin: var(--s4) 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid currentColor;
+  border-radius: var(--r);
+  font-family: var(--f-mono);
+  font-size: 0.82rem;
+  animation: vg-arrive 600ms var(--ease-out) both;
+}
+.opened-result.some {
+  color: var(--starboard);
+  background: var(--starboard-wash);
+}
+.opened-result.none {
+  color: var(--sounding);
+  background: color-mix(in srgb, var(--rule) 35%, transparent);
+}
+
+/* ------------------------------------------------------------------ the salary's instant exit */
+.salary-exit {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--lamp-glow);
+  background: var(--lamp-wash);
+  border-radius: var(--r);
+  font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------------ the share link */
+.share {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--rule);
+}
+.share-box {
+  margin-top: var(--s3);
+  display: grid;
+  gap: var(--s3);
+  animation: vg-arrive 500ms var(--ease-out) both;
+}
+.share-box p {
+  margin: 0;
+}
+.share-warn {
+  font-size: 0.86rem;
+  padding: 10px 14px;
+  border-left: 3px solid var(--lamp-glow);
+  background: var(--lamp-wash);
+  border-radius: var(--r);
+}
+.share-qr {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: var(--s4);
+  align-items: center;
+}
+.qr {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border: 1px solid var(--rule);
+}
+.share-print-link {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 420px) {
+  .share-qr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.print-only {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ printing one payslip */
+@media print {
+  html.printing,
+  html.printing body {
+    background: #fff;
+  }
+  /* Only the payslip being printed: everything that neither is it, holds it nor sits inside it goes. */
+  html.printing body *:not(.print-me):not(.print-me *):not(:has(.print-me)) {
+    display: none !important;
+  }
+  /* The boxes that hold it lose their layout, so it prints full width from the top of the page. */
+  html.printing body *:has(.print-me) {
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    max-width: none !important;
+    background: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  html.printing .print-me {
+    /* Light ink on paper, whatever the screen's theme. */
+    --night: #fff;
+    --swell: #fff;
+    --rule: #9aa5ad;
+    --chart: #0c1319;
+    --sounding: #3b4650;
+    --lamp: #8a5400;
+    --lamp-glow: #b07a1c;
+    --lamp-wash: #fff;
+    --port: #b3301b;
+    --port-wash: #fff;
+    --starboard: #1c764b;
+    --starboard-wash: #fff;
+    margin: 0;
+    color: var(--chart);
+    background: #fff;
+    box-shadow: none;
+    border: 1px solid var(--rule);
+    break-inside: avoid;
+  }
+  html.printing .print-me *,
+  html.printing .print-me *::before,
+  html.printing .print-me *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  html.printing .print-me .no-print {
+    display: none;
+  }
+  html.printing .print-me .print-only {
+    display: block;
+  }
+  html.printing .print-me .qr {
+    width: 38mm;
+    height: 38mm;
+  }
+  html.printing .print-me .share-qr {
+    grid-template-columns: 40mm minmax(0, 1fr);
+  }
+}
