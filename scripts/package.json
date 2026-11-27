@@ -15,6 +15,7 @@
     "evm:vectors": "tsx evm/anchor-vectors.ts",
     "evm:verifier": "tsx evm/receipt-verifier.ts",
     "metrics": "tsx metrics.ts",
+    "exit:metrics": "tsx exit/metrics.ts",
     "fuzz:setup": "bash fuzz/setup.sh",
     "fuzz:gen": "tsx fuzz/gen.ts",
     "fuzz:diff": "tsx fuzz/diff.ts"

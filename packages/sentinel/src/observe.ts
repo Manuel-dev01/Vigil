@@ -1,30 +1,81 @@
 /**
  * One look at the chain: balances, EVM windows, the rollup's inbox and batches, the instant-exit vault
  * and the web app. Read-only (REST GETs, eth_call, an HTTP GET); the sentinel holds no key.
+ *
+ * It also re-executes every new batch with the watchtower's core (judge.ts), reading only the inbox
+ * entries it has not read yet (the committed archive supplies pruned ones), and asks the vault whether
+ * each withdrawal the exit relayer serves has been fronted (exits.ts).
  */
-import { createRdkClient } from "@qorechain/rdk";
+import { createRdkClient, hexToBech32 } from "@qorechain/rdk";
 import { TESTNET, restGet } from "@vigil/core";
-import { createPublicClient, http, parseAbi, type Hex } from "viem";
+import { openInboxReader } from "@vigil/core/inbox";
+import { createPublicClient, getAddress, http, parseAbi, type Hex } from "viem";
+import { DEFAULT_EXIT_RULES, exitsToWatch, payoutsIn, type ExitRules } from "./exits.ts";
+import { BatchJudge, readerSource, type ChainBatch } from "./judge.ts";
 import type { Account, Observation } from "./rules.ts";
 
-const VAULT_ABI = parseAbi(["function totalOwed() view returns (uint256)"]);
+const VAULT_ABI = parseAbi([
+  "function totalOwed() view returns (uint256)",
+  "function fronted(bytes32 exitId) view returns (bool)",
+  "function exitAddressOf(address payout) view returns (address)",
+]);
 
 export interface ObserverConfig {
   rollupId: string;
   vault: Hex;
   webUrl: string;
   accounts: Account[];
+  /** Payouts the exit relayer is configured with (EXIT_PAYOUTS), 0x; contracts are watched only if listed here. */
+  payouts?: string[];
+  exitRules?: ExitRules;
+  log?: (event: string, fields?: Record<string, unknown>) => void;
 }
 
 /** State carried between looks, so "for how long" questions can be answered. */
 export interface Memory {
   windowSince: Map<string, number>;
   owedSince?: number;
+  /** Consecutive looks on which re-executing the batches failed. */
+  judgeFailures?: { count: number; error: string };
 }
 
 export function observer(cfg: ObserverConfig) {
   const rdk = createRdkClient({ network: "testnet" });
   const evm = createPublicClient({ transport: http(TESTNET.evmRpc, { timeout: 30_000, retryCount: 2 }) });
+  const env = { chainId: TESTNET.chainId, rollupId: cfg.rollupId };
+  const log = cfg.log ?? (() => {});
+  // The inbox, read once by sequence and kept in memory; the committed archive covers what the chain pruned.
+  const reader = openInboxReader(env, { log: (event, fields) => log(`inbox-${event}`, fields) });
+  const judge = new BatchJudge(env, readerSource(reader));
+  const configured = new Set((cfg.payouts ?? []).map((p) => p.toLowerCase()));
+  /** exit address (qor1) → payout (0x); payouts already looked up; the last `fronted` read for each exit id. */
+  const exitToPayout = new Map<string, string>();
+  const looked = new Set<string>();
+  const frontedKnown = new Map<string, boolean>();
+  let payoutsThrough = 0;
+  let windowSec: number | undefined;
+
+  /** Learn the payouts announced in batched entries the sentinel has not scanned yet. */
+  async function learnPayouts(through: number): Promise<void> {
+    if (through <= payoutsThrough) return;
+    const entries = await reader.entries(payoutsThrough, through);
+    for (const p of [...payoutsIn(entries, cfg.vault), ...configured]) {
+      if (looked.has(p)) continue;
+      const address = getAddress(p);
+      // Like the relayer: a payout that is a contract is served only if configured.
+      if (!configured.has(p)) {
+        const code = await evm.getCode({ address });
+        if (code && code !== "0x") {
+          looked.add(p);
+          continue;
+        }
+      }
+      const ea = await evm.readContract({ address: cfg.vault, abi: VAULT_ABI, functionName: "exitAddressOf", args: [address] });
+      exitToPayout.set(hexToBech32(ea, "qor"), p);
+      looked.add(p);
+    }
+    payoutsThrough = through;
+  }
   const blockTime = new Map<number, number>();
   const timeOf = async (height: number): Promise<number> => {
     const hit = blockTime.get(height);
@@ -68,6 +119,35 @@ export function observer(cfg: ObserverConfig) {
       .filter((b) => (b.status === "challenged" || b.status === "rejected") && (b.submittedTime ?? 0) > now - 2 * 86_400)
       .map((b) => `${b.batchIndex}:${b.status}`);
 
+    // Re-execute every batch not judged yet; a failure here must not stop the other checks. When it fails,
+    // `judged` or `exits` stay undefined and rules.ts `unseen` keeps their alerts active rather than resolved.
+    windowSec ??= await rdk.rest.getRollup(cfg.rollupId).then(
+      (r) => r.challengeWindowSec,
+      () => undefined,
+    );
+    let judged: Observation["judged"];
+    let exits: Observation["exits"];
+    try {
+      judged = await judge.sync(batches as ChainBatch[]);
+      await learnPayouts(batchedThrough);
+      exits = exitsToWatch(judged, exitToPayout, cfg.exitRules ?? DEFAULT_EXIT_RULES);
+      for (const x of exits) {
+        if (x.exempt) continue;
+        let f = frontedKnown.get(x.exitId);
+        if (f !== true) {
+          // A failed read keeps the last value read (or none: then nothing is said either way).
+          const read = await evm.readContract({ address: cfg.vault, abi: VAULT_ABI, functionName: "fronted", args: [x.exitId] }).catch(() => undefined);
+          if (read !== undefined) frontedKnown.set(x.exitId, (f = read));
+        }
+        if (f !== undefined) x.fronted = f;
+      }
+      delete mem.judgeFailures;
+    } catch (e) {
+      const error = (e as Error).message.slice(0, 200);
+      mem.judgeFailures = { count: (mem.judgeFailures?.count ?? 0) + 1, error };
+      log("judge-failed", { failures: mem.judgeFailures.count, error });
+    }
+
     const [liquidityWei, totalOwedWei] = await Promise.all([
       evm.getBalance({ address: cfg.vault }),
       evm.readContract({ address: cfg.vault, abi: VAULT_ABI, functionName: "totalOwed" }),
@@ -91,6 +171,10 @@ export function observer(cfg: ObserverConfig) {
       rollup: { inboxHead, batchedThrough, ...(oldestUnbatchedAt !== undefined && { oldestUnbatchedAt }), newestBatchAt: newest?.submittedTime ?? now, disputed },
       vault: { liquidityWei, totalOwedWei, ...(mem.owedSince !== undefined && { owedSince: mem.owedSince }) },
       web,
+      ...(windowSec !== undefined && { challengeWindowSec: windowSec }),
+      ...(judged && { judged }),
+      ...(mem.judgeFailures && { judgeFailures: mem.judgeFailures }),
+      ...(exits && { exits }),
     };
   };
 }

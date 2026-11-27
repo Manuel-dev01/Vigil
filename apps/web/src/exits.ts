@@ -248,6 +248,8 @@ export interface EvmEvent {
   logIndex: number;
   time: number;
   from: Hex | undefined;
+  /** Gas the transaction used, from its receipt (undefined if the receipt could not be read). */
+  gasUsed: bigint | undefined;
 }
 
 export interface FrontedView extends EvmEvent {
@@ -396,9 +398,17 @@ const blockTimes = new Map<number, Promise<number>>();
 const evmBlockTime = (n: number): Promise<number> =>
   cached(blockTimes, n, async () => Number((await twice(() => evmRpc<{ timestamp: Hex }>("eth_getBlockByNumber", [toHex(n), false]))).timestamp));
 
-const senders = new Map<string, Promise<Hex | undefined>>();
-const txSender = (hash: Hex): Promise<Hex | undefined> =>
-  cached(senders, hash, async () => (await evmRpc<{ from?: Hex } | null>("eth_getTransactionByHash", [hash]))?.from);
+/**
+ * The sender and gas used of a vault transaction, from its receipt: one request per transaction, as the
+ * sender alone took before. A receipt the endpoint does not have yet is asked again next refresh.
+ */
+const receipts = new Map<string, Promise<{ from: Hex | undefined; gasUsed: bigint | undefined }>>();
+const txReceipt = (hash: Hex): Promise<{ from: Hex | undefined; gasUsed: bigint | undefined }> =>
+  cached(receipts, hash, async () => {
+    const r = await evmRpc<{ from?: Hex; gasUsed?: Hex } | null>("eth_getTransactionReceipt", [hash]);
+    if (!r) throw new Error(`no receipt for ${hash} yet`);
+    return { from: r.from, gasUsed: r.gasUsed ? BigInt(r.gasUsed) : undefined };
+  });
 
 const sigChecks = new Map<Hex, Promise<SigCheck>>();
 
@@ -692,8 +702,8 @@ export async function loadExits(limit = EXITS_PAGE): Promise<ExitsState> {
   // ---- the vault's events
   const evm = async (l: RawLog): Promise<EvmEvent> => {
     const block = Number(l.blockNumber);
-    const [time, from] = await Promise.all([evmBlockTime(block).catch(() => 0), txSender(l.transactionHash).catch(() => undefined)]);
-    return { tx: l.transactionHash, block, logIndex: Number(l.logIndex), time, from };
+    const [time, rcpt] = await Promise.all([evmBlockTime(block).catch(() => 0), txReceipt(l.transactionHash).catch(() => undefined)]);
+    return { tx: l.transactionHash, block, logIndex: Number(l.logIndex), time, from: rcpt?.from, gasUsed: rcpt?.gasUsed };
   };
   const fronts: FrontedView[] = [];
   const settles: SettledView[] = [];

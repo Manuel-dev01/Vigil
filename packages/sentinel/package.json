@@ -2,7 +2,7 @@
   "name": "@vigil/sentinel",
   "version": "0.1.0",
   "private": true,
-  "description": "Watches Vigil from the outside and alerts a human on Telegram: EVM windows on keys that must never open one, low balances, a stuck sequencer, disputes, an unrepaid vault, the web app down. Holds no key.",
+  "description": "Watches Vigil from the outside and alerts a human on Telegram: EVM windows on keys that must never open one, low balances, a stuck sequencer, disputes, a bad batch nobody has challenged (it re-executes every batch), an exit not fronted, an unrepaid vault, the web app down. Holds no key.",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
