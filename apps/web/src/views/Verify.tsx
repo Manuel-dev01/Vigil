@@ -4,7 +4,7 @@ import { chain, isNotFound } from "../chain.ts";
 import { RDK_ORDER, checkReceipt, type Finality, type Verification } from "../check.ts";
 import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, short, utcStamp } from "../config.ts";
 import { RECEIPT_VERIFIER, checkInEvm, evmCovers, type EvmCheck } from "../evm.ts";
-import { FORGERIES, caughtBy, rowNumber, tally, type ForgeryId, type Outcomes } from "../forge.ts";
+import { FORGERIES, outcomeOf, rowNumber, tally, type ForgeryId, type Outcomes } from "../forge.ts";
 import { keyPin, type KeyPin } from "../keys.ts";
 import { prunedBatch, receiptFromOwnAnchor, type CheckKey } from "../pruned.ts";
 import { parseReceipt, receiptProblem } from "../receipt.ts";
@@ -108,6 +108,8 @@ export function VerifyView() {
   /** The forgery on show, if the receipt is one; and which check caught each forgery tried on the built receipt. */
   const [forgery, setForgery] = useState<ForgeryId>();
   const [outcomes, setOutcomes] = useState<Outcomes>({});
+  /** Whether the built receipt passed every receipt check in this session. Forgeries start only from such a receipt. */
+  const [builtOk, setBuiltOk] = useState(false);
   const run = useRef(0);
 
   useEffect(() => {
@@ -190,6 +192,7 @@ export function VerifyView() {
     reset(`Building the receipt for batch ${i} from the chain…`);
     setForgery(undefined);
     setOutcomes({});
+    setBuiltOk(false);
     try {
       const { rdk } = await chain();
       let r: SettlementReceipt;
@@ -204,7 +207,8 @@ export function VerifyView() {
       setReceipt(r);
       setBuilt(r);
       setPasted(JSON.stringify(r, null, 2));
-      await verify(r);
+      const v = await verify(r);
+      if (v) setBuiltOk(v.valid);
     } catch (e) {
       if (me !== run.current) return;
       setError(errText(e));
@@ -229,14 +233,14 @@ export function VerifyView() {
   /** Forge the receipt built from the chain one way, verify it, and record the check that caught it. True if the run finished. */
   async function forge(id: ForgeryId): Promise<boolean> {
     const f = FORGERIES.find((x) => x.id === id);
-    if (!built || !f) return false;
+    if (!built || !builtOk || !f) return false;
     const forged = f.forge(built);
     setForgery(id);
     setReceipt(forged);
     setPasted(JSON.stringify(forged, null, 2));
     const v = await verify(forged);
     if (!v) return false;
-    setOutcomes((o) => ({ ...o, [id]: caughtBy(v) ?? null }));
+    setOutcomes((o) => ({ ...o, [id]: outcomeOf(f, v) }));
     return true;
   }
 
@@ -251,7 +255,8 @@ export function VerifyView() {
     setForgery(undefined);
     setReceipt(built);
     setPasted(JSON.stringify(built, null, 2));
-    await verify(built);
+    const v = await verify(built);
+    if (v) setBuiltOk(v.valid);
   }
 
   function download() {
@@ -340,8 +345,10 @@ export function VerifyView() {
   }
 
   /** When the receipt on show is a forgery, the check that refused it, marked in the list. */
-  const caughtKey = forgery && result && !busy ? caughtBy(result) : undefined;
   const forged = FORGERIES.find((f) => f.id === forgery);
+  const shown = forged && result && !busy ? outcomeOf(forged, result) : undefined;
+  const caughtKey = shown?.by;
+  const canForge = !busy && !!built && builtOk;
   const forgeTally = tally(outcomes);
   const pinMismatch = !!pin && !("error" in pin) && pin.status === "mismatch";
   const ownAnchor = !!result?.anchor && !!receipt && result.anchor.layerHeight === receipt.batchIndex;
@@ -447,7 +454,7 @@ export function VerifyView() {
                   const o = outcomes[f.id];
                   return (
                     <li key={f.id} className={forgery === f.id ? "on" : undefined}>
-                      <button type="button" className="forge" disabled={!!busy || !built} onClick={() => void forge(f.id)} aria-describedby={`forge-${f.id}`}>
+                      <button type="button" className="forge" disabled={!canForge} onClick={() => void forge(f.id)} aria-describedby={`forge-${f.id}`}>
                         {f.label}
                       </button>
                       <span className="forge-out" id={`forge-${f.id}`}>
@@ -457,9 +464,14 @@ export function VerifyView() {
                           <>
                             <Mark tone="bad" label="not caught" /> Not caught by any check.
                           </>
+                        ) : o.expected ? (
+                          <>
+                            <Mark tone="ok" label="caught" /> Caught by check {String(rowNumber(o.by)).padStart(2, "0")}, "{checkName(o.by)}".
+                          </>
                         ) : (
                           <>
-                            <Mark tone="ok" label="caught" /> Caught by check {String(rowNumber(o)).padStart(2, "0")}, "{checkName(o)}".
+                            <Mark tone="skip" label="refused for another reason" /> Refused by check {String(rowNumber(o.by)).padStart(2, "0")}, "{checkName(o.by)}", which
+                            does not test this field{o.reason ? ` (${o.reason})` : ""}. Not counted as caught; try it again.
                           </>
                         )}
                       </span>
@@ -468,7 +480,7 @@ export function VerifyView() {
                 })}
               </ul>
               <div className="row forge-row">
-                <button type="button" disabled={!!busy || !built} onClick={() => void forgeAll()}>
+                <button type="button" disabled={!canForge} onClick={() => void forgeAll()}>
                   Try all {FORGERIES.length}
                 </button>
                 <button type="button" disabled={!!busy || !built || !forgery} onClick={() => void restore()}>
@@ -478,6 +490,9 @@ export function VerifyView() {
                   Download JSON
                 </button>
               </div>
+              {!busy && built && !builtOk && (
+                <p className="note">The forgeries start from the receipt built from the chain once it verifies. It did not verify this time, so build it again first.</p>
+              )}
               <p className="forge-tally" aria-live="polite">
                 {forgeTally.text}
                 {forgeTally.tried > 0 && <span className="note"> on batch {built?.batchIndex}'s receipt.</span>}
@@ -523,7 +538,7 @@ export function VerifyView() {
                           <span className="ck-n">{String(i + 1).padStart(2, "0")}</span>
                           {c.what}
                         </span>
-                        {c.key === caughtKey && <span className="caught-tag">caught the forgery</span>}
+                        {c.key === caughtKey && <span className="caught-tag">{shown?.expected ? "caught the forgery" : "refused the forgery"}</span>}
                         {c.label === "not reached" && <span className="note"> (not reached)</span>}
                         <br />
                         <span className="why">{c.why}</span>

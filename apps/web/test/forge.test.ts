@@ -6,9 +6,9 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRdkClient, type AnchorView, type RdkClient, type SettlementReceipt } from "@qorechain/rdk";
+import { CHAIN_IDS, createRdkClient, type AnchorView, type RdkClient, type SettlementReceipt } from "@qorechain/rdk";
 import { describe, expect, it } from "vitest";
-import { FORGERIES, ROW_ORDER, caughtBy, changedFields, rowNumber, tally, type ForgeryId } from "../src/forge.ts";
+import { FORGERIES, ROW_ORDER, caughtBy, changedFields, outcomeOf, rowNumber, tally, type ForgeryId } from "../src/forge.ts";
 import { checkReceipt } from "../src/check.ts";
 import type { CheckKey } from "../src/pruned.ts";
 
@@ -32,7 +32,7 @@ const network = createRdkClient({ network: "testnet" }).network;
 const notFound = () => Object.assign(new Error("not found"), { status: 404 });
 
 /** The chain as the node would report it: one rollup, its batch 0 (or none, once pruned) and its anchor. */
-function fakeChain(pruned: boolean): RdkClient {
+function fakeChain(pruned: boolean, anchorsFail = false): RdkClient {
   const rest = {
     getRollup: async (id: string) => {
       if (id !== receipt.rollupId) throw notFound();
@@ -42,7 +42,10 @@ function fakeChain(pruned: boolean): RdkClient {
       if (pruned || id !== receipt.rollupId || i !== receipt.batchIndex) throw notFound();
       return { stateRoot: receipt.stateRoot, status: "finalized" };
     },
-    getAnchors: async () => [anchor],
+    getAnchors: async () => {
+      if (anchorsFail) throw new Error("socket closed");
+      return [anchor];
+    },
     getPqcAccount: async () => ({ publicKey: creator.publicKey }),
     getLatestBatch: async () => ({ batchIndex: 24 }),
     getLatestHeight: async () => receipt.mainChainHeight + 700_000,
@@ -61,6 +64,12 @@ describe("the forgeries", () => {
     for (const f of FORGERIES) {
       expect([...changedFields(f.forge(receipt), receipt)], f.id).toEqual([field[f.id]]);
     }
+  });
+
+  it("name QoreChain's mainnet, from the RDK's chain ids, as the other chain", () => {
+    expect(receipt.chainId).toBe(CHAIN_IDS.testnet);
+    expect(forgery("chainId").forge(receipt).chainId).toBe(CHAIN_IDS.mainnet);
+    expect(forgery("chainId").forge({ ...receipt, chainId: CHAIN_IDS.mainnet }).chainId).toBe(CHAIN_IDS.testnet);
   });
 
   it("change one hex digit of the root and one bit of the signature, nothing more", () => {
@@ -97,10 +106,21 @@ describe("each forgery is caught, and the page names the check", () => {
           const { v } = await checkReceipt(rdk, f.forge(receipt));
           expect(v.valid).toBe(false);
           expect(caughtBy(v)).toBe(expected[mode][f.id]);
+          expect(outcomeOf(f, v)).toMatchObject({ by: expected[mode][f.id], expected: true });
         });
       }
     });
   }
+
+  it("does not count a refusal by a check that does not test the changed field: a node that stops answering is not a catch", async () => {
+    // The anchors cannot be read, so the chain-id forgery fails at the anchor check, before the chain check.
+    const f = forgery("chainId");
+    const { v } = await checkReceipt(fakeChain(false, true), f.forge(receipt));
+    expect(v.valid).toBe(false);
+    const o = outcomeOf(f, v);
+    expect(o).toMatchObject({ by: "anchorOnChain", expected: false });
+    expect(tally({ chainId: o })).toMatchObject({ tried: 1, caught: 0, other: 1, text: "1 forgery tried, 0 caught, 1 refused for another reason" });
+  });
 
   it("names each check by its number on the page", () => {
     expect(ROW_ORDER).toHaveLength(9);
@@ -110,11 +130,25 @@ describe("each forgery is caught, and the page names the check", () => {
 
 describe("the tally", () => {
   it("counts the forgeries tried on this receipt and those caught", () => {
+    const caught = (by: CheckKey) => ({ by, expected: true });
     expect(tally({}).text).toBe("No forgery tried yet.");
-    expect(tally({ stateRoot: "batchStateRoot" }).text).toBe("1 forgery tried, 1 caught");
+    expect(tally({ stateRoot: caught("batchStateRoot") }).text).toBe("1 forgery tried, 1 caught");
     expect(
-      tally({ stateRoot: "batchStateRoot", signature: "anchorOnChain", chainId: "chainBinding", creator: "creatorAuthority", rollupId: "rollupLayerBinding" }).text,
+      tally({
+        stateRoot: caught("batchStateRoot"),
+        signature: caught("anchorOnChain"),
+        chainId: caught("chainBinding"),
+        creator: caught("creatorAuthority"),
+        rollupId: caught("rollupLayerBinding"),
+      }).text,
     ).toBe("5 forgeries tried, 5 caught");
-    expect(tally({ stateRoot: "batchStateRoot", signature: null })).toMatchObject({ tried: 2, caught: 1 });
+    expect(tally({ stateRoot: caught("batchStateRoot"), signature: null })).toMatchObject({ tried: 2, caught: 1, other: 0 });
+  });
+
+  it("lists, for every forgery, the checks that test the field it changes", () => {
+    for (const f of FORGERIES) expect(f.refusedBy.length, f.id).toBeGreaterThan(0);
+    // No forgery in the menu is aimed at the page's last two checks.
+    expect(FORGERIES.flatMap((f) => f.refusedBy)).not.toContain("ownAnchor");
+    expect(FORGERIES.flatMap((f) => f.refusedBy)).not.toContain("final");
   });
 });
