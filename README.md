@@ -167,7 +167,7 @@ Requires Node 20+, pnpm, and Foundry for `contracts/`.
 
 ```bash
 pnpm install
-pnpm test                      # 522 TypeScript tests (28 more are skipped: 27 need a live chain, 1 a Foundry build)
+pnpm test                      # 533 TypeScript tests (28 more are skipped: 27 need a live chain, 1 a Foundry build)
 (cd contracts && forge test)   # 110 Foundry tests, including invariant fuzzing of the vault
 pnpm --filter @vigil/web dev   # the web app, reading the live chain
 ```
