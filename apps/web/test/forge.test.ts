@@ -6,10 +6,11 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRdkClient, verifySettlementReceipt, type AnchorView, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
+import { createRdkClient, type AnchorView, type RdkClient, type SettlementReceipt } from "@qorechain/rdk";
 import { describe, expect, it } from "vitest";
 import { FORGERIES, ROW_ORDER, caughtBy, changedFields, rowNumber, tally, type ForgeryId } from "../src/forge.ts";
-import { prunedBatch, verifyPrunedReceipt, type CheckKey } from "../src/pruned.ts";
+import { checkReceipt } from "../src/check.ts";
+import type { CheckKey } from "../src/pruned.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const receipt = JSON.parse(readFileSync(join(here, "..", "..", "..", "receipts", "vigil-pay-1", "batch-0.json"), "utf8")) as SettlementReceipt;
@@ -51,14 +52,6 @@ function fakeChain(pruned: boolean): RdkClient {
   return { rest, network } as unknown as RdkClient;
 }
 
-/** What Verify.tsx does with a receipt: the RDK's check, then the pruned-record path when that explains a missing batch. */
-async function pageVerify(rdk: RdkClient, r: SettlementReceipt) {
-  let v: ReceiptVerification & { failed?: CheckKey } = await verifySettlementReceipt(r, { client: rdk });
-  const pruned = !v.valid && v.checks.rollupLayerBinding && !v.checks.batchStateRoot ? await prunedBatch(rdk, r.rollupId, r.batchIndex) : undefined;
-  if (pruned) v = await verifyPrunedReceipt(rdk, r, pruned);
-  return v;
-}
-
 const forgery = (id: ForgeryId) => FORGERIES.find((f) => f.id === id)!;
 
 describe("the forgeries", () => {
@@ -90,16 +83,18 @@ describe("each forgery is caught, and the page names the check", () => {
     describe(mode === "live" ? "with the batch record on chain" : "with the batch record pruned", () => {
       const rdk = fakeChain(mode === "pruned");
 
-      it("the honest receipt passes every receipt check", async () => {
-        const v = await pageVerify(rdk, receipt);
+      it("the honest receipt passes every receipt check, and its batch reads as final", async () => {
+        const { v, finality } = await checkReceipt(rdk, receipt);
         expect(v.reason).toBeUndefined();
         expect(v.valid).toBe(true);
         expect(caughtBy(v)).toBeUndefined();
+        expect(finality).toMatchObject({ final: true, status: mode === "live" ? "finalized" : "pruned" });
       });
 
       for (const f of FORGERIES) {
         it(`${f.label}: caught by ${expected[mode][f.id]}`, async () => {
-          const v = await pageVerify(rdk, f.forge(receipt));
+          // The page's own run of the checks: it must finish (no throw) so the page can name the check.
+          const { v } = await checkReceipt(rdk, f.forge(receipt));
           expect(v.valid).toBe(false);
           expect(caughtBy(v)).toBe(expected[mode][f.id]);
         });

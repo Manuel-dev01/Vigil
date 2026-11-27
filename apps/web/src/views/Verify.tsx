@@ -1,20 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { buildSettlementReceipt, verifySettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
+import { buildSettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
 import { chain, isNotFound } from "../chain.ts";
+import { RDK_ORDER, checkReceipt, type Finality, type Verification } from "../check.ts";
 import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, short, utcStamp } from "../config.ts";
 import { RECEIPT_VERIFIER, checkInEvm, evmCovers, type EvmCheck } from "../evm.ts";
 import { FORGERIES, caughtBy, rowNumber, tally, type ForgeryId, type Outcomes } from "../forge.ts";
 import { keyPin, type KeyPin } from "../keys.ts";
-import { prunedBatch, receiptFromOwnAnchor, verifyPrunedReceipt, type CheckKey, type PrunedVerification } from "../pruned.ts";
+import { prunedBatch, receiptFromOwnAnchor, type CheckKey } from "../pruned.ts";
 import { parseReceipt, receiptProblem } from "../receipt.ts";
 import { Ext, Mark, type Tone } from "../ui.tsx";
 import { PageHead, type Sounding } from "./Head.tsx";
 import { ReceiptDoc, SectorLight } from "./VerifyParts.tsx";
 import "./forge.css";
 
-type Verification = ReceiptVerification & Partial<Omit<PrunedVerification, keyof ReceiptVerification>>;
-
-/** The checks in the order the RDK runs them, so the first one that is false is the one that failed. */
+/** The checks in the order the RDK runs them (check.ts, RDK_ORDER), so the first one that is false is the one that failed. */
 const CHECKS: { key: keyof ReceiptVerification["checks"]; what: string; why: string }[] = [
   { key: "rollupLayerBinding", what: "Rollup and layer belong together", why: "The node says this rollup settles to the receipt's layer." },
   { key: "batchStateRoot", what: "The chain's batch carries this state root", why: "Read from the batch record, as the node reports it." },
@@ -27,7 +26,6 @@ const CHECKS: { key: keyof ReceiptVerification["checks"]; what: string; why: str
   { key: "chainBinding", what: "The receipt names this chain", why: `The receipt says ${CHAIN_ID}, the chain that was queried.` },
   { key: "pqcSignature", what: "ML-DSA-87 signature verifies", why: "Checked in this browser against that key, over the chain's canonical anchor message." },
 ];
-const RDK_ORDER = CHECKS.map((c) => c.key);
 
 /**
  * The receipt for batch `i`, bound to batch `i`'s own anchor. Several batches
@@ -102,7 +100,7 @@ export function VerifyView() {
   const [pasted, setPasted] = useState("");
   const [result, setResult] = useState<Verification>();
   const [pin, setPin] = useState<KeyPin | { error: string }>();
-  const [finality, setFinality] = useState<{ final: boolean; status: string; until?: number }>();
+  const [finality, setFinality] = useState<Finality>();
   const [took, setTook] = useState<number>();
   const [evm, setEvm] = useState<EvmCheck | { error: string }>();
   const [busy, setBusy] = useState<string>();
@@ -160,39 +158,15 @@ export function VerifyView() {
       // The contract check runs alongside; it never decides the verdict, only adds to it.
       const evmCheck = evmCovers(r) ? checkInEvm(r).catch((e: unknown) => ({ error: errText(e) })) : Promise.resolve(undefined);
       const { rdk } = await chain();
-      const t0 = performance.now();
       // The creator's key as the node reports it, against the one pinned in this page.
       const pinP = rdk.rest
         .getRollup(r.rollupId)
         .then((rollup) => rdk.rest.getPqcAccount(rollup.creator).then((a) => (a.publicKey ? keyPin(rollup.creator, a.publicKey) : { error: "no key registered" })))
         .catch((e: unknown) => ({ error: errText(e) }));
-      let v: Verification = await verifySettlementReceipt(r, { client: rdk });
-      // The chain may prune finalized batch records after a retention window. If
-      // that is why the batch read failed, re-run every check that does not
-      // need the record (pruned.ts) instead of stopping there.
-      const pruned = !v.valid && v.checks.rollupLayerBinding && !v.checks.batchStateRoot ? await prunedBatch(rdk, r.rollupId, r.batchIndex) : undefined;
-      if (pruned) v = await verifyPrunedReceipt(rdk, r, pruned);
-      else if (!v.valid) v = { ...v, failed: RDK_ORDER.find((k) => !v.checks[k]) ?? "rollupLayerBinding" };
+      const { v, finality: f, ms } = await checkReceipt(rdk, r);
       if (!current()) return undefined;
-      setTook(Math.round(performance.now() - t0));
-      if (pruned) {
-        const p = v as PrunedVerification;
-        setFinality({ final: p.valid && p.fraudSearched, status: "pruned" });
-      } else {
-        // A receipt's anchor exists from the moment the batch is submitted. The
-        // batch is settled only once its challenge window has closed.
-        const [batch, rollup] = await Promise.all([rdk.rest.getBatch(r.rollupId, r.batchIndex).catch(() => undefined), rdk.rest.getRollup(r.rollupId)]);
-        if (!current()) return undefined;
-        setFinality(
-          batch
-            ? {
-                final: batch.status === "finalized",
-                status: batch.status,
-                ...(batch.submittedTime && rollup.challengeWindowSec ? { until: batch.submittedTime + rollup.challengeWindowSec } : {}),
-              }
-            : { final: false, status: "not found" },
-        );
-      }
+      setTook(ms);
+      setFinality(f);
       setResult(v);
       const [p, e] = await Promise.all([pinP, evmCheck]);
       if (!current()) return undefined;
