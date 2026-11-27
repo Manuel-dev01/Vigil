@@ -24,9 +24,9 @@ It only reads. One read took the latest height; after a pause, QoreScan's 25 RES
 
 Chain facts are as the node reports them; they come without proofs.
 
-- **Contracts.** All three verify signatures through the `pqcVerify` precompile and read keys through `pqcKeyStatus` (ML-DSA-87), and hash with Keccak-256. There is no `ecrecover`, no ECDSA, P-256 or RSA verification, and no import of a library that provides one. `PQGuardVault.sol` names ECDSA in a doc comment (line 12); QoreScan blanks comments and strings before it matches, so that is not a use.
+- **Contracts.** All three verify signatures through the `pqcVerify` precompile and read keys through `pqcKeyStatus` (ML-DSA-87). `InstantExitVault` and `SettlementReceiptVerifier` also hash with Keccak-256 (`PQGuardVault` does not). There is no `ecrecover`, no ECDSA, P-256 or RSA verification, and no import of a library that provides one. `PQGuardVault.sol` names ECDSA in a doc comment (line 12); QoreScan blanks comments and strings before it matches, so that is not a use.
 - **Accounts.** Each of the 10 accounts holds a hybrid key: its secp256k1 key plus a registered ML-DSA-87 key (`dilithium5` in the chain's naming). employer-1's ML-KEM-1024 key is in the chain's KEM registry.
-- **Chain.** Hybrid signatures are `required`, with classical fallback off and a minimum security level of 5. The `pqcVerify` and `pqcKeyStatus` precompiles are active. The 4 active validators have Ed25519 consensus keys: classical, below Vigil (see [THREAT_MODEL §9](../THREAT_MODEL.md#9-quantum-notes)). The EVM lane signs transactions with ECDSA secp256k1, as every EVM does; ours run only inside windows that an ML-DSA-87 key opens.
+- **Chain.** Hybrid signatures are `required`, with classical fallback off and a minimum security level of 5. The `pqcVerify` and `pqcKeyStatus` precompiles are active. The 4 active validators (the latest validator set) have Ed25519 consensus keys: classical, below Vigil (see [THREAT_MODEL §9](../THREAT_MODEL.md#9-quantum-notes), which counted 6 in the staking list on 16 Nov). The EVM lane signs transactions with ECDSA secp256k1, as every EVM does; ours run only inside windows that an ML-DSA-87 key opens.
 - **TLS.** `rpc-testnet.qore.host`, `evm-testnet.qore.host` and `api-testnet.qore.host` negotiated **X25519MLKEM768**, a hybrid group (ML-KEM-768 is post-quantum, X25519 is classical). The web app's host, `vigil-pq.up.railway.app`, negotiated **X25519**, which is classical. Every certificate in these chains is signed with ECDSA or RSA. One handshake shows what a server picks for a modern client, not everything it accepts.
 
 ## What it does not see
@@ -41,14 +41,23 @@ The web app's footer has a one-screen label, "What's inside", that lists each of
 
 ## The gate in CI
 
-On every push and pull request, the `CBOM gate` job in [`ci.yml`](../.github/workflows/ci.yml) scans `contracts/src` with QoreScan and runs [`scripts/cbom/gate.ts`](../scripts/cbom/gate.ts), which fails if any Solidity source uses a public-key primitive that QoreScan does not class as post-quantum, or imports a library that provides one. The job then checks the gate itself on two canaries in [`test/vectors/cbom/`](../test/vectors/cbom): one contract that calls `ecrecover` must fail, and one that names ECDSA and `ecrecover` only in comments and strings must pass. Only this Solidity scan can fail CI. The network scans run weekly in [`cbom-network.yml`](../.github/workflows/cbom-network.yml), never block, and report what changed since this scan.
+On every push and pull request, the `CBOM gate` job in [`ci.yml`](../.github/workflows/ci.yml) scans `contracts/src` with QoreScan and runs [`scripts/cbom/gate.ts`](../scripts/cbom/gate.ts). It fails if:
+- QoreScan finds that a contract uses a public-key primitive it does not class as post-quantum (`ecrecover`, ECDSA, P-256 or RSA verification), or imports a library that provides one;
+- a contract names the address of a classical public-key precompile: ecrecover, P-256, modexp (the usual base of RSA verification), or the BN254 and BLS12-381 curve operations. QoreScan 0.1.0 does not flag a call through a constant written as a full 20-byte address (`0x…0001`), so the gate reads the sources itself for this ([`scripts/cbom/precompiles.ts`](../scripts/cbom/precompiles.ts)), with comments and strings blanked.
+
+Both are pattern checks on the source, not a proof: an address computed at run time is not seen. The job then checks the gate itself on three canaries in [`test/vectors/cbom/`](../test/vectors/cbom):
+- a contract that calls `ecrecover` must fail;
+- one that calls the ecrecover precompile through a 20-byte address constant must fail;
+- one that names ECDSA and `ecrecover` only in comments and strings must pass.
+
+Only this Solidity scan can fail CI. The network scans run weekly in [`cbom-network.yml`](../.github/workflows/cbom-network.yml), never block, and report what changed since this scan.
 
 ## Re-run it
 
 ```bash
 pnpm install
-pnpm cbom:gate cbom/vigil.cdx.json        # the gate on the committed CBOM (no network)
-pnpm cbom:scan --offline                  # a fresh contracts scan into a temporary directory (downloads QoreScan once)
+pnpm cbom:scan --offline                  # a fresh contracts scan and the gate, into a temporary directory (downloads QoreScan once)
+pnpm cbom:gate cbom/vigil.cdx.json --sources contracts/src   # the gate on the committed 27 Nov CBOM and today's sources (no network)
 pnpm cbom:scan                            # the full scan into cbom/ (reads the testnet, paced; about a minute)
 pnpm cbom:summary cbom/vigil.cdx.json     # a Markdown summary
 ```
