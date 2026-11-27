@@ -62,7 +62,7 @@ cast call 0x3a897802b62b052a102f55e021bc4668539c29b5 "threshold()(uint256)" --rp
 | Does the project provide data availability on L1? | Yes, with a caveat: the inbox is on L1, but the chain deletes posted-data records after 648,000 blocks, so older entries are read from L1 transaction history or our archive | [THREAT_MODEL §13](../THREAT_MODEL.md#13-residual-risks) |
 | Is software that can reconstruct the state source-available? | Yes: the watchtower and Keel replay the rollup from chain data and check every root (Apache-2.0). `pnpm --filter @vigil/keel balance` reads any balance that way, checked from a fresh clone on 27 Nov | [ESCAPE_HATCH.md](ESCAPE_HATCH.md) |
 | Does the project use a proper proof system? | Yes: fraud proofs the chain itself re-executes; two upheld | EVIDENCE 44, 55 |
-| Are there at least 5 external actors that can submit a fraud proof? | Yes: anyone can, with no bond, only the fee (about 0.18 QOR). Another team's watcher won our first drill | EVIDENCE 24, 44, 55 |
+| Are there at least 5 external actors that can submit a fraud proof? | Yes: anyone can; there is no allowlist, and our upheld challenge posted no bond, only its fee (about 0.18 QOR). Another team's watcher won our first drill | EVIDENCE 24, 44, 55 |
 
 ## Stage 1: what blocks it
 

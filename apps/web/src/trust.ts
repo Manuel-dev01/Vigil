@@ -354,7 +354,7 @@ export function stage0(f: TrustFacts): Item[] {
     {
       q: "Are there at least 5 external actors that can submit a fraud proof?",
       status: "met",
-      text: "Anyone can: a challenge needs no bond, only its fee (about 0.18 QOR). Another team's watcher won our first fraud drill.",
+      text: "Anyone can: there is no allowlist, and our upheld challenge posted no bond, only its fee (about 0.18 QOR). Another team's watcher won our first fraud drill.",
       refs: [ev("24, 44, 55")],
     },
   ];
@@ -401,7 +401,7 @@ export function stage1(f: TrustFacts): Item[] {
 export function stage2(f: TrustFacts): Item[] {
   const m = exitMargin(f);
   return [
-    { q: "Is the fraud proof system permissionless?", status: "met", text: "Yes: no bond and no allowlist, only the fee.", refs: [ev("24, 44")] },
+    { q: "Is the fraud proof system permissionless?", status: "met", text: "Yes: there is no allowlist. Our watchtower's challenge and another team's watcher's were both upheld; ours posted no bond.", refs: [ev("24, 44, 55")] },
     {
       q: "Do users have at least 30 days to exit in case of unwanted upgrades?",
       status: m ? (m.normal >= FRAMEWORK.stage2MinExitWindowSec ? "met" : "not met") : "unknown",
