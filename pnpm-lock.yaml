@@ -44,6 +44,9 @@ importers:
       '@vigil/chain-ws':
         specifier: workspace:*
         version: link:../../packages/chain-ws
+      '@vigil/qledger-watchtower':
+        specifier: workspace:*
+        version: link:../../packages/qledger-watchtower
       '@vigil/sealed':
         specifier: workspace:*
         version: link:../../packages/sealed

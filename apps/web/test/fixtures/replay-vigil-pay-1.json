@@ -1,0 +1,2887 @@
+{
+ "note": "vigil-pay-1 as the public node reported it on 27 Nov 2026 (read-only REST reads): the rollup's deposit pool, the inbox head, inbox entry 28 (entries 1 to 27 are in data/inbox/vigil-pay-1.jsonl), the batch list, the anchors (roots only), every batch submission (MsgSubmitBatch and its rdk_inbox_consumed event; the two fraud-drill batches among them), the upheld fraud proofs and the paid withdrawals. Transaction answers are trimmed to the fields the browser watchtower reads.",
+ "recordedAt": "2026-11-27T16:43:03Z",
+ "chainId": "qorechain-diana",
+ "rollupId": "vigil-pay-1",
+ "rollup": {
+  "layerId": "vigil-pay-1",
+  "depositPool": "2450000",
+  "escrowBalance": "9900000000"
+ },
+ "inbox": {
+  "headSequence": 28,
+  "headAcc": "ff3d45c3ae126c96bdcb5e080e42b4cbb5dc9c9ae3e9dbb8e0db1acd64543c78",
+  "consumedSequence": 28
+ },
+ "entries": [
+  {
+   "sequence": 28,
+   "height": 10840325,
+   "poster": "qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l",
+   "payloadHex": "01010e63426497722b5f4c3864bd481d3244156f2575af406dff201ac1dc39cc900e0fb946526ad64ba73bdfa7c15883e78ab35abf6bf10c9aa0dc006f25ce291b6017abcbfbcb990473748c92b222d99888de2a2daf57ec729d62857410229face41761f4c2f54a7f7774db5fdcc3166b452729b85a95c6e44614c6d693562c4e0fdd9ed24f643e8f58e76155464fd0f1011a747dc9b1733271446d484536af8cdf6254d317bd9a4e9b354d84a1d8c682edff319f4943ce4bf27a96f97e8f3e318e322adb423b9c12e9932e1de5ff470f895ea865c72e8633bfe0290f8b77e425f8b315dcecbc64665fa8f03f9e84b70028bb85913daeb86864ddb7968baa79ac157a47cfbe0770fb07cfed88499d8cf84326bf86e5f7eaf2a6066f9e70ee9637e22e9948045edb39f8cf886dc5f2397b6094d55a9dca13f24dd1649945c91a235083840d65b66c16ea0c76b34f0c6b61e82b7977037a2539e78782d40e5cfa15506846678d8ba2d0380f9ff7951c228466caa52049ddad744d108bc5f81f13924df510c74b2bbb3a02d7c6b5116db8f83bafbb04dda3e9a11fe5ed83096d17c6bc1f71ae1a8cf18f7f42c0f3230dc5dc714b2f7e1ed0e606812b04986644d7cc7428f52bc7f641f2fba0979624ab16b967f44a87c003a47732f50ac2cc7d2def078e67225a7240cc286e79ad4e6f738828714297e03f315485a0fe601848a5d2d547dd124d49bfb38c4c0eaac45a17e2b941a465d8715b1b49df5d4906fdde3af097c4a9c05ac5b7c10095d603ce0145b936bf64e131c7564577aba7a172a7c674813a359a1d9b836067876c8d4eb71ee49468d920ac98453b0f118ddcf2476b16c7fed2f83c8356a39622bc1ad71568f52c3217d89052ae34dafe31eb779e50185898584d33362ae264d9835d8e78fbfad720b9cfaf65b06603c6bc4d9ca10b1f6675967e790b0022cd3674d9fe5fd0268476d3a2d6638bbaca2cad7297f1e09dcad19fc3bb09df5b25af39ca423ade64f26d7cd17a47f88d6dcb0019a390a5881e1b249a3e4239daeb63e4cf5be7f3f57caf8d59651872f9516b709d9426a297dca24fffdef0a43522beb237ec7bb63f61419b20de176fc526ebc6b1a74f9f4bf23cdb83319920abdda2a5d5ee6b128e2b2b85de9a0e074968b4c88403d46776eb93229fb1d1ee64c0f0db5671813524c1e7905879f74df0e5f61d12d74741a8e66e101442254b41334eebb963fee2bb36dabe87ccfdc9ddc6d16a577f140fda2b0dab62490b063680256781dc70555c5165621df1aa4db5669df487f9ce92809e70362a9afa51bcd36c5f051c452d232a68e84322685fdf36021272430340bd988b7e6572ce27c8b3344b0cf4c09652dbe8f8e5053815cfc9f8d940e45a86b9a88a716d844f1f2f5ea6c282211baea7d48ce37284e3394b68dc13a7092d3eb9e505c3dccec7aa0817c30b94ae2b516ba11ef72b60afb9a522b4637b2401799adcdd285eb3f2c3dc90508a2268a3debfd5f772a0a7686c477d5029e55ab638d27cd46a771f8d0408c55536b8b6d6f283b1ffd6947e7f8b28bab41927b62dcc8452c2dddb35b3b7f26c3e9c794f5f0c35b6db156d1e28afdd69a029e1fe637f2a1185aadb3bbabce6bef0fef8e97ea002a864cbef89cb10ace346d6c13f0ba1afd8467d12d65e7260d14081ce354451e609d3c19808ee9d0071ca4892a7d23503e7d474e4bf20b7092e143ab25caa5d013b4e2fc92eacc3f0e8cd5e3d91102d16d53d519b3b785c928490cd40b7286a5b2c7c6839463c0325fbe4984af41d436665dfd45007aa98ccc06f0c188193ea869e9e20d665a2ce24d816740d904cab0e010000000000000006212853123b50c98f13f20179b536f8a265a89d26c23b76d284242fe6d261360b0000000000002710d044aaaf8f853ae758455970d4c672d160e6ece4406aca39aae8f68d635aa40a8fa99b980d0f0723d509be289357cbe8e5a7e11a3a6133ffd3c8992e3fb675fdd564ddb73031bb7f499d8a14008eeed9366a669348c777c79e7d446788efc57eef90caa54397cbac0176a447c066fe6eb9ecea7d9f1f1de837eddebd07715f69bcc987bbcde80119f01a02f39877a869433b17cd1cab15513d8046f86039250d0a4dde837af9f2ac32f6a159dbba750d8590483b2a36338045db47ba22cbdeda1dfc3d46a38d77ed2f8700a8a614b91de013a2bcc08e13103e4d7a4b9b16f6bc8aada5268395d6a440683a7a6c66794d4e383036fa92112552393dc0c20ff7622de42f5770808f62e2a207f4834b216959e3aacd765660858342f8b50f61ec75c5a34b3c59ff6e9ec696064890a1819385914a3b993385e22686214958b3f08be24665220e49ea21f103c1ddf475959f1d9f59ea9a48c6f1dd394bd9b22396b8349a0a07297478924202e5079591edf66c0fd515008640fe6a1cbfc00bb5ef93fb6e4dc720ec22b38ccc324853893bea35a6a50aac266a4cd2f84d57fd7017fef3d7d951615bb89f565ae7bcbabdebf6b5607279ba274cb912ce48de30a13c6642438162cfe40b9f1b9493bd5c2ee89611e9f84f02685312245fb2e9a098171e4ff5c30003fe1fc0990e81b04455c7d002ee79ba7e045a5dec6cdec4aff2afcb2e554aa8f9d8eecbccaed447589d9e406e25055141f55f259e7796cfdc5695cb8b76fee0e41d5cf117957680ab535695e03d932ccdfdcf1fee1986ccc2097a06908f6df7433c608521731651d604ba84df1aeb0afa0cdb5666c9044a4d2d0d590b5f04531062928e7689906477a0f64b75177b1132f433d8d6948b4051dbb9b53d3a1cadd54e26f8d2fbdaec619ca96eec3e8a149aaa292e30cd5edf5d7b7f2fde31f7162cbcccd549a509fb1390c7c80ab75791db6299287d1903c8f42853ca56dd7b294eada0b9150423571037b1cf833a0a765fbaceb3ad48954fdf0abad288c5661691c0f3316e73c8dcd81ae64a668638cce304ef1e51fa668d339a8ce326bc155ff6e3e6e5e46e4e4ada127b5eb13edb991ffcbe8597cff4b54fe5c67f2dd2ca6bc0125e8fd6d920aed67c97c870f2aca4e181db96efb34a0212ea8b88497524ad4399696e961e9e3f12add4a63cfdebc3450b4d5fa28eeba3417e1efa3dad628c017ca178e0b48b235422e0452e32bf49f7a91fe766a160eb310813408d54a270085ca5dc3f9e7175faf9265283b6938630f16243db40adc2fe1c73ec870d6d68057129c823ea173c28f452854701687368951c525ffa02231dd89849f4e79016461147b816ae83fdd9878da07eab36615510ddf8a220e9d8e262993a0fc4464221f080378a94cd91013eada8c0aeac33e164ad1d6bc3f48f69a079a7fe01c9428e7b406f68356367a832ba2f8884313ffb36f99365c2c9cd4c9abf2995a0e08c3bed1ba332f5dc99fdba573665393e17200d8b2c10e168f95020f43df1882b3be91a8dc47e63dd9833a49a22cfce5331d8dda291e2b4a9bdb04fa82f97185a8ae5b01deb3c827c93dcdae8818488213afd32798b6de7a7691ddc048d3a2af79ab19410de6eb9056905bed9616e46ea7fa3085e2abd5ceb55ea288a026a5ae247df207949b6a87673bbe747ffbeb0547e4cf4e53cf9e4e13d9d3e06af10d4f1959fba014629974ad363e67a33aa56502abbbc5fa3381fc08a0a21c9708f0919cb7aef96b6ed825ee6353a6f05a76c77e08a2415afb1b2bfb817168756d7ef8974241c2ef7011c635e75fa5aac52a3dc6ba81d4c37a6a0d28f5c71e385cb03ed9915ded3f21e8b6d134c9f03960814592221def28f57def1539c7a7d3c73b5ce8a0a1b2ff67febc8ac23eef627970fc47aa9920344c1a3ccaf0ca5cf85afdb15721d0085ff509441d3f952fb499726c68cf2ed9b1a6b2f38ff82bfb4968862fe63cc1dc0e8453200c2963dcec1a0e454b455f93d2ceb4708441af639d485ce51ad226de6e8b17a1242e8e0733b9ae95fc285e8ea8804c8b2f490c8b59ea9479f712ad3dba9b3ec4767b003ba85fa6148845ba40f0dc414083857ed4e448a7da216ab9276f4f505bd452bf9308696ae323c14274c78673096c3db902ee316810a1c7ea251b4aaeb7f4bcfdef23f04c155f97a6913255e957e5f318da0864b59db0157dede5cecca81ab6ab6d1109df22401d22de1f6a21faeebd3ee02dff46458b9747f769e594229d3165b8749675d2248a734c0336915366045aade28545e6dfef835c0aa87a8e0206c64720bfbd0a751e83d167f2b1161204e44d1bfdba4aa9daee0d57c4f9bd499a8d0f282dc791b40b59e23f6077a2e3cf8ec63959eaa19687f7f2f419115f0fe1c1cacab1d71d8e9be7e8b4b1ad2ef4cab829efa3f4cb98ca0db95a2af8dde0ee54637a12cb3c744826ecc7e13bc73faaf7d48769ba65916f7144b8bea635affb5e1a108999a6f394221135ae8fbf5783103e6a30afd73e6ed04f2c351067865d0f60ad4e8c8af467953289bb7daa1d4dad51c592f9e932b7bbbdff58749bcf49a15f480f6d08695b2c45a444f022280d674daa77d06eb800415a17e85bd4bef55032bacccf2ce4290e398b4bc5d6a7838859bfc8192f3511a79b670229a4f4f4641d78502d4c01e36ef94fdaabd5daf4e3d74fb042215a00f0581b61ff16a48154bab4bb99b3b9b8e58c282f5842fd51239af38bec6bb6b258194ef40b3b29130c2a662b13d27aa35977ec54ad6ccb0425f8663c88390abcb3cbb524ba6979f5e0214bebc109e96e18d2bac84e3f6f8d590e9f4df350a6759f970db65a9e680571dbef67d865f9c5e4e1bda8640cb71574800314ee3af5f65117fd906ee993c0a776dc02c8f9c5858c636054b851aab2f12ae54714a232847d0b56b3507ebae6d5edc28a3a53108e574d33cb61de4c715a1bfa55afeaa62bc884e4cde6f8c46625d6cb7891be67ca9bd50847cf16f293be156ffab24b491eade52210de79e64f4e10d5dab4c348b1a0078b5e5cd2e391eefdfb493dda4fe90a718f4f8587f8cafd958867487dae1685b630e06af64db7ac795544e160ea05b318fcab84b6e430a3fdb5aac43701295f19a55352fb919450524c4a6c00b242ca33fa0bc9c93d7c30de66eea63a74b76fa47bc0325e7edd2ffea8fcc77f6a080f7ae732bc9404715409ae106fdbade64a09d8e3bef075fadf401aeb0010851a839fb9a713ca23213dd9341d84030991017ce4eca5b89fc328a2503122b31363949667b859ba8b6c9cbceeaf7022b343c5c70858a8b8c8ea8ccd50708131a2937385f6b79bed2d3dde00e113a5f6f888c8f96999ea9eef50000000000000000000000000000000000000000111f2e3c",
+   "tx": "2E77202BC2B59DE94BC800992F2E027B5C633A4671F7BD05F07915B9C4C92339"
+  }
+ ],
+ "batches": [
+  {
+   "batchIndex": 0,
+   "status": "finalized",
+   "inboxStart": 0,
+   "inboxEnd": 1,
+   "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+   "stateRoot": "27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e",
+   "withdrawalsRoot": "",
+   "dataHash": "f1df115ef1208c4d2204da9afbba80281327322f21cb514f171a12dac561acac",
+   "submittedAt": 10352665
+  },
+  {
+   "batchIndex": 1,
+   "status": "finalized",
+   "inboxStart": 1,
+   "inboxEnd": 2,
+   "prevStateRoot": "27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e",
+   "stateRoot": "2930bd639767aa38650c4138d57f0c407c76b010119823b885dd7bedee3acaa8",
+   "withdrawalsRoot": "",
+   "dataHash": "48341e43ec9a7284489110b4f918efcf8ef0609822b443c5f83d90a02c2a98e2",
+   "submittedAt": 10353644
+  },
+  {
+   "batchIndex": 2,
+   "status": "finalized",
+   "inboxStart": 2,
+   "inboxEnd": 3,
+   "prevStateRoot": "2930bd639767aa38650c4138d57f0c407c76b010119823b885dd7bedee3acaa8",
+   "stateRoot": "c818db2b63a6091fa0f5ed26f5ee74952d3430314b66b3947867e1a0a44f5c6e",
+   "withdrawalsRoot": "2409c7711565ea98c874baccff069ea0bb06b5288d457dc82f24599ed44d22b8",
+   "dataHash": "4bf7916d44ef05800c59fec36b274785cb66721928b8cc92ac042eeb05aafa85",
+   "submittedAt": 10353676
+  },
+  {
+   "batchIndex": 3,
+   "status": "finalized",
+   "inboxStart": 3,
+   "inboxEnd": 4,
+   "prevStateRoot": "c818db2b63a6091fa0f5ed26f5ee74952d3430314b66b3947867e1a0a44f5c6e",
+   "stateRoot": "0898412400fd57fcaa71a2766fc47eb5d8d597f13432fe83c94c73bd8027c384",
+   "withdrawalsRoot": "",
+   "dataHash": "25d40ed95832502b60baa99783d27708a47b3b56ea67327d91ec8c472d557a37",
+   "submittedAt": 10362305
+  },
+  {
+   "batchIndex": 4,
+   "status": "finalized",
+   "inboxStart": 4,
+   "inboxEnd": 5,
+   "prevStateRoot": "0898412400fd57fcaa71a2766fc47eb5d8d597f13432fe83c94c73bd8027c384",
+   "stateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "withdrawalsRoot": "",
+   "dataHash": "16fb1f908889ef497c7f60ef5ca0706aed10c5cfe647c5ab533ddf6b0ef96496",
+   "submittedAt": 10368751
+  },
+  {
+   "batchIndex": 5,
+   "status": "finalized",
+   "inboxStart": 5,
+   "inboxEnd": 6,
+   "prevStateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "stateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "withdrawalsRoot": "",
+   "dataHash": "a3b68326a6c4e4bb0de1e832b1a1e791786d50e555c86c18dded8f47822ff327",
+   "submittedAt": 10368796
+  },
+  {
+   "batchIndex": 6,
+   "status": "finalized",
+   "inboxStart": 6,
+   "inboxEnd": 7,
+   "prevStateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "stateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "withdrawalsRoot": "",
+   "dataHash": "f42020b1a85caad070fa2239f85f9b8e3f1fdefcd4f557441a1c80cb74b23418",
+   "submittedAt": 10370263
+  },
+  {
+   "batchIndex": 7,
+   "status": "finalized",
+   "inboxStart": 7,
+   "inboxEnd": 8,
+   "prevStateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "stateRoot": "2c891f7a3cfde1ca7a2e267a15dc19e5d2b6f9bd430a3e48eab2f3b3fc2ec663",
+   "withdrawalsRoot": "",
+   "dataHash": "9f56914a4d9b6e16e29e83d58e90f13ab22dc0caef1ac98eff7616db892f582a",
+   "submittedAt": 10382449
+  },
+  {
+   "batchIndex": 8,
+   "status": "finalized",
+   "inboxStart": 8,
+   "inboxEnd": 9,
+   "prevStateRoot": "2c891f7a3cfde1ca7a2e267a15dc19e5d2b6f9bd430a3e48eab2f3b3fc2ec663",
+   "stateRoot": "2c891f7a3cfde1ca7a2e267a15dc19e5d2b6f9bd430a3e48eab2f3b3fc2ec663",
+   "withdrawalsRoot": "",
+   "dataHash": "98b9012c77acfec13248d2c462f65b803521007dbfa27172648f5669dd7ba5bb",
+   "submittedAt": 10382647
+  },
+  {
+   "batchIndex": 9,
+   "status": "finalized",
+   "inboxStart": 9,
+   "inboxEnd": 10,
+   "prevStateRoot": "2c891f7a3cfde1ca7a2e267a15dc19e5d2b6f9bd430a3e48eab2f3b3fc2ec663",
+   "stateRoot": "fd8acfa8269d9369c9eded7b0215302d81ce5d05d4b4a90a4c7d54d72ba39841",
+   "withdrawalsRoot": "",
+   "dataHash": "2a5d3aadc2865cc104a4d879687ab81042cb719e224a46af27a41b145bae5697",
+   "submittedAt": 10393099
+  },
+  {
+   "batchIndex": 10,
+   "status": "finalized",
+   "inboxStart": 10,
+   "inboxEnd": 12,
+   "prevStateRoot": "fd8acfa8269d9369c9eded7b0215302d81ce5d05d4b4a90a4c7d54d72ba39841",
+   "stateRoot": "a3d7d717c0ed2da5d2c477c71907d02a72ca3f9d614909f1f2ede9b78ba55cb1",
+   "withdrawalsRoot": "a515998ba3822cd1c263c211544bd68f15c472fa939b1ca8cd220763d19006c2",
+   "dataHash": "c782cc990aec9b7ea46007a925937cf5360ae6ef9745fd2f6b7d35c5ea731672",
+   "submittedAt": 10393105
+  },
+  {
+   "batchIndex": 11,
+   "status": "finalized",
+   "inboxStart": 12,
+   "inboxEnd": 13,
+   "prevStateRoot": "a3d7d717c0ed2da5d2c477c71907d02a72ca3f9d614909f1f2ede9b78ba55cb1",
+   "stateRoot": "cb76f9e3f601ebf610f3a205fac6a040141939d43072c66c0758b611e77be85b",
+   "withdrawalsRoot": "93d53b7a110b9c8e5f47573309e2b1d45a4d8e610135641429ab10369ac88ba2",
+   "dataHash": "d42d164a9b5ce75e2455400a4843e0b6be0c9d8273168f2eae623f166eaf1725",
+   "submittedAt": 10433596
+  },
+  {
+   "batchIndex": 12,
+   "status": "finalized",
+   "inboxStart": 13,
+   "inboxEnd": 14,
+   "prevStateRoot": "cb76f9e3f601ebf610f3a205fac6a040141939d43072c66c0758b611e77be85b",
+   "stateRoot": "522eb3af9a9c842453d00683f3e9800754dc91b7486f8db6d10ee8123790e492",
+   "withdrawalsRoot": "",
+   "dataHash": "8cb41b969656a3874bdafea12f2743938d36427a43cc4cffd801b61f190a1522",
+   "submittedAt": 10433896
+  },
+  {
+   "batchIndex": 13,
+   "status": "finalized",
+   "inboxStart": 14,
+   "inboxEnd": 15,
+   "prevStateRoot": "522eb3af9a9c842453d00683f3e9800754dc91b7486f8db6d10ee8123790e492",
+   "stateRoot": "6b58748d6d21fe4eae9c3bf4a80030c61c41340e82cd5bae95609dc7e6057468",
+   "withdrawalsRoot": "",
+   "dataHash": "143281c085b10865845c55771e7607bc00f8b2484079096715aec94c900ae474",
+   "submittedAt": 10624083
+  },
+  {
+   "batchIndex": 14,
+   "status": "finalized",
+   "inboxStart": 15,
+   "inboxEnd": 16,
+   "prevStateRoot": "6b58748d6d21fe4eae9c3bf4a80030c61c41340e82cd5bae95609dc7e6057468",
+   "stateRoot": "9a3e20ba101649bcf52cefa56577cb86d8acec74c4ce8558d56623e47e36fe07",
+   "withdrawalsRoot": "",
+   "dataHash": "07e4ae8ead165199b1f30c731cbdb4ea251b3a05aa8ed5bc9a7ce7de34db1fda",
+   "submittedAt": 10624215
+  },
+  {
+   "batchIndex": 15,
+   "status": "finalized",
+   "inboxStart": 16,
+   "inboxEnd": 17,
+   "prevStateRoot": "9a3e20ba101649bcf52cefa56577cb86d8acec74c4ce8558d56623e47e36fe07",
+   "stateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "withdrawalsRoot": "b4dfbaa5a61a396743f010454605101412846e976298651f7ef86af723c2afc3",
+   "dataHash": "4063d4e06e93dd460ebcac6d24e33c4b0cd4350f9700883655ac7f29b8301754",
+   "submittedAt": 10629840
+  },
+  {
+   "batchIndex": 16,
+   "status": "finalized",
+   "inboxStart": 17,
+   "inboxEnd": 18,
+   "prevStateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "stateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "withdrawalsRoot": "",
+   "dataHash": "6fa9043f4b362eb9baeb2bc916a2dfc8683ff71130c06d72cbd99f8f7167a05d",
+   "submittedAt": 10629844
+  },
+  {
+   "batchIndex": 17,
+   "status": "finalized",
+   "inboxStart": 18,
+   "inboxEnd": 19,
+   "prevStateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "stateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "withdrawalsRoot": "",
+   "dataHash": "045b7ab9bce6e1b42f25f9da7353ab9320b276b08f54d8522521000cd918b9b1",
+   "submittedAt": 10629848
+  },
+  {
+   "batchIndex": 18,
+   "status": "finalized",
+   "inboxStart": 19,
+   "inboxEnd": 20,
+   "prevStateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "stateRoot": "e7a18f24df1884b1015e16501bcc866b07a421921b9d841b82d6fa4d3e8c569d",
+   "withdrawalsRoot": "1d9aced63d7cd49de224f17c3c1f80739bfc40b40aa336b3767fe58ac9f185bd",
+   "dataHash": "f481a1ec5bd807bbec460991c89c74cb2657f00870baea698792de5150de6f1f",
+   "submittedAt": 10686374
+  },
+  {
+   "batchIndex": 19,
+   "status": "finalized",
+   "inboxStart": 20,
+   "inboxEnd": 22,
+   "prevStateRoot": "e7a18f24df1884b1015e16501bcc866b07a421921b9d841b82d6fa4d3e8c569d",
+   "stateRoot": "e7a18f24df1884b1015e16501bcc866b07a421921b9d841b82d6fa4d3e8c569d",
+   "withdrawalsRoot": "",
+   "dataHash": "bc2076562663e11c8a78e522ddabb5a5055e19877abb3a10202c5b7a96131a12",
+   "submittedAt": 10686380
+  },
+  {
+   "batchIndex": 20,
+   "status": "finalized",
+   "inboxStart": 22,
+   "inboxEnd": 23,
+   "prevStateRoot": "e7a18f24df1884b1015e16501bcc866b07a421921b9d841b82d6fa4d3e8c569d",
+   "stateRoot": "91b0fa6a5d88a8e6e2ef2cd0aaecf91cc9dfa62e95142a1355b47351bd0ca318",
+   "withdrawalsRoot": "",
+   "dataHash": "88a81235cef524542f193daa14e7666a319ffe860690a58860a6d10fb63823b3",
+   "submittedAt": 10691336
+  },
+  {
+   "batchIndex": 21,
+   "status": "finalized",
+   "inboxStart": 23,
+   "inboxEnd": 24,
+   "prevStateRoot": "91b0fa6a5d88a8e6e2ef2cd0aaecf91cc9dfa62e95142a1355b47351bd0ca318",
+   "stateRoot": "91b0fa6a5d88a8e6e2ef2cd0aaecf91cc9dfa62e95142a1355b47351bd0ca318",
+   "withdrawalsRoot": "",
+   "dataHash": "b7474dce308540632aa6c75f8c18ff620e2418735dc1cb8adacb114100a17988",
+   "submittedAt": 10691365
+  },
+  {
+   "batchIndex": 22,
+   "status": "finalized",
+   "inboxStart": 24,
+   "inboxEnd": 25,
+   "prevStateRoot": "91b0fa6a5d88a8e6e2ef2cd0aaecf91cc9dfa62e95142a1355b47351bd0ca318",
+   "stateRoot": "5d5c2daa5b24083f6144014193fbafba908780ad3dc01e3b5556746b80f92ccc",
+   "withdrawalsRoot": "",
+   "dataHash": "1cb71575b87e9126df0a91ed3a0c27d58e65a1e13b7a5e899cecbb92d86d0f4f",
+   "submittedAt": 10719113
+  },
+  {
+   "batchIndex": 23,
+   "status": "finalized",
+   "inboxStart": 25,
+   "inboxEnd": 26,
+   "prevStateRoot": "5d5c2daa5b24083f6144014193fbafba908780ad3dc01e3b5556746b80f92ccc",
+   "stateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+   "withdrawalsRoot": "",
+   "dataHash": "3f351b7c1eb4e3eaee7bbb026d620672c22993c6de48abed7fd7282b5b81915a",
+   "submittedAt": 10806988
+  },
+  {
+   "batchIndex": 24,
+   "status": "finalized",
+   "inboxStart": 26,
+   "inboxEnd": 27,
+   "prevStateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+   "stateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+   "withdrawalsRoot": "",
+   "dataHash": "ea1d4229b48fce4ebf4c8a6a29134f1f735061e8b4a8c83e07ffbb1eb2e2d2bb",
+   "submittedAt": 10807031
+  },
+  {
+   "batchIndex": 25,
+   "status": "finalized",
+   "inboxStart": 27,
+   "inboxEnd": 28,
+   "prevStateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+   "stateRoot": "997d7d233847123be8c83c426e2cc05da490dadc95399da70ea5fdea0a32ee6c",
+   "withdrawalsRoot": "",
+   "dataHash": "530a38212df05b25a9a4516fd4160b3ff471721bc98762f07f98234517d8de99",
+   "submittedAt": 10840331
+  }
+ ],
+ "anchors": [
+  {
+   "layerHeight": 0,
+   "stateRoot": "27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e",
+   "mainChainHeight": 10352665
+  },
+  {
+   "layerHeight": 1,
+   "stateRoot": "2930bd639767aa38650c4138d57f0c407c76b010119823b885dd7bedee3acaa8",
+   "mainChainHeight": 10353644
+  },
+  {
+   "layerHeight": 2,
+   "stateRoot": "c818db2b63a6091fa0f5ed26f5ee74952d3430314b66b3947867e1a0a44f5c6e",
+   "mainChainHeight": 10353676
+  },
+  {
+   "layerHeight": 3,
+   "stateRoot": "0898412400fd57fcaa71a2766fc47eb5d8d597f13432fe83c94c73bd8027c384",
+   "mainChainHeight": 10362305
+  },
+  {
+   "layerHeight": 4,
+   "stateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "mainChainHeight": 10368751
+  },
+  {
+   "layerHeight": 5,
+   "stateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "mainChainHeight": 10368796
+  },
+  {
+   "layerHeight": 6,
+   "stateRoot": "778c8a0fa6d0918655ec681fc59eedaa26a5fab16a889a1b0b2477fc58dbd561",
+   "mainChainHeight": 10370263
+  },
+  {
+   "layerHeight": 7,
+   "stateRoot": "2c891f7a3cfde1ca7a2e267a15dc19e5d2b6f9bd430a3e48eab2f3b3fc2ec663",
+   "mainChainHeight": 10382449
+  },
+  {
+   "layerHeight": 8,
+   "stateRoot": "2c891f7a3cfde1ca7a2e267a15dc19e5d2b6f9bd430a3e48eab2f3b3fc2ec663",
+   "mainChainHeight": 10382647
+  },
+  {
+   "layerHeight": 9,
+   "stateRoot": "fd8acfa8269d9369c9eded7b0215302d81ce5d05d4b4a90a4c7d54d72ba39841",
+   "mainChainHeight": 10393099
+  },
+  {
+   "layerHeight": 10,
+   "stateRoot": "a3d7d717c0ed2da5d2c477c71907d02a72ca3f9d614909f1f2ede9b78ba55cb1",
+   "mainChainHeight": 10393105
+  },
+  {
+   "layerHeight": 12,
+   "stateRoot": "522eb3af9a9c842453d00683f3e9800754dc91b7486f8db6d10ee8123790e492",
+   "mainChainHeight": 10433896
+  },
+  {
+   "layerHeight": 13,
+   "stateRoot": "6b58748d6d21fe4eae9c3bf4a80030c61c41340e82cd5bae95609dc7e6057468",
+   "mainChainHeight": 10624083
+  },
+  {
+   "layerHeight": 14,
+   "stateRoot": "9a3e20ba101649bcf52cefa56577cb86d8acec74c4ce8558d56623e47e36fe07",
+   "mainChainHeight": 10624215
+  },
+  {
+   "layerHeight": 15,
+   "stateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "mainChainHeight": 10629840
+  },
+  {
+   "layerHeight": 16,
+   "stateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "mainChainHeight": 10629844
+  },
+  {
+   "layerHeight": 17,
+   "stateRoot": "44b479debbe1f1b3cd451c099fda93e316cfa70acfd82f5448d70c0a4df427b1",
+   "mainChainHeight": 10629848
+  },
+  {
+   "layerHeight": 18,
+   "stateRoot": "e7a18f24df1884b1015e16501bcc866b07a421921b9d841b82d6fa4d3e8c569d",
+   "mainChainHeight": 10686374
+  },
+  {
+   "layerHeight": 19,
+   "stateRoot": "e7a18f24df1884b1015e16501bcc866b07a421921b9d841b82d6fa4d3e8c569d",
+   "mainChainHeight": 10686380
+  },
+  {
+   "layerHeight": 20,
+   "stateRoot": "91b0fa6a5d88a8e6e2ef2cd0aaecf91cc9dfa62e95142a1355b47351bd0ca318",
+   "mainChainHeight": 10691336
+  },
+  {
+   "layerHeight": 21,
+   "stateRoot": "91b0fa6a5d88a8e6e2ef2cd0aaecf91cc9dfa62e95142a1355b47351bd0ca318",
+   "mainChainHeight": 10691365
+  },
+  {
+   "layerHeight": 22,
+   "stateRoot": "5d5c2daa5b24083f6144014193fbafba908780ad3dc01e3b5556746b80f92ccc",
+   "mainChainHeight": 10719113
+  },
+  {
+   "layerHeight": 23,
+   "stateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+   "mainChainHeight": 10806988
+  },
+  {
+   "layerHeight": 24,
+   "stateRoot": "83ede2f38b34d92aa93a58dc53b4440d01a38dd66125314d9ef502777be1f0f4",
+   "mainChainHeight": 10807031
+  },
+  {
+   "layerHeight": 25,
+   "stateRoot": "997d7d233847123be8c83c426e2cc05da490dadc95399da70ea5fdea0a32ee6c",
+   "mainChainHeight": 10840331
+  }
+ ],
+ "submitTxs": [
+  {
+   "txhash": "E953275101D707E1D93C69216FA8B9CEA2331EF5BBCA88A6F34DEC3F33813D35",
+   "height": "10352665",
+   "code": 0,
+   "timestamp": "2026-11-19T03:13:24Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "0",
+       "state_root": "J8wkkRsUTjVPAVTSL79amiFDZVzJdj6QYUsqumdhlZ4=",
+       "prev_state_root": "/1G7S8hwBANjs9tWbTJMW0q6kG/QwFEbphMbTyo7RTY=",
+       "tx_count": "1",
+       "data_hash": "8d8RXvEgjE0iBNqa+7qAKBMnMi8hy1FPFxoS2sVhrKw=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "1",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "0"
+      },
+      {
+       "key": "inbox_start",
+       "value": "0"
+      },
+      {
+       "key": "inbox_end",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "0"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "E901295BAED5236F130BC7A0D9D6811E6243516E0D45F71CC87538348AF65709",
+   "height": "10353644",
+   "code": 0,
+   "timestamp": "2026-11-19T03:36:40Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "1",
+       "state_root": "KTC9Y5dnqjhlDEE41X8MQHx2sBARmCO4hd177e46yqg=",
+       "prev_state_root": "J8wkkRsUTjVPAVTSL79amiFDZVzJdj6QYUsqumdhlZ4=",
+       "tx_count": "1",
+       "data_hash": "SDQeQ+yacoRIkRC0+Rjvz47wYJgitEPF+D2QoCwqmOI=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "2",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "1"
+      },
+      {
+       "key": "inbox_start",
+       "value": "1"
+      },
+      {
+       "key": "inbox_end",
+       "value": "2"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "1"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "214990B1A363C72393332D79927DC3B622CB835CFCB2CB2BA2382A5B56E89B1B",
+   "height": "10353676",
+   "code": 0,
+   "timestamp": "2026-11-19T03:37:26Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "2",
+       "state_root": "yBjbK2OmCR+g9e0m9e50lS00MDFLZrOUeGfhoKRPXG4=",
+       "prev_state_root": "KTC9Y5dnqjhlDEE41X8MQHx2sBARmCO4hd177e46yqg=",
+       "tx_count": "1",
+       "data_hash": "S/eRbUTvBYAMWf7DaydHhctmchkouMySrAQu6wWq+oU=",
+       "proof": null,
+       "withdrawals_root": "JAnHcRVl6pjIdLrM/waeoLsGtSiNRX3ILyRZntRNIrg=",
+       "validator_set_hash": null,
+       "inbox_end": "3",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "2"
+      },
+      {
+       "key": "inbox_start",
+       "value": "2"
+      },
+      {
+       "key": "inbox_end",
+       "value": "3"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "2"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "ABB46E2B8629868BE9DCF99D491045E199079D116DFCC9D8337A0D9495625BA9",
+   "height": "10362305",
+   "code": 0,
+   "timestamp": "2026-11-19T07:15:49Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "3",
+       "state_root": "CJhBJAD9V/yqcaJ2b8R+tdjVl/E0Mv6DyUxzvYAnw4Q=",
+       "prev_state_root": "yBjbK2OmCR+g9e0m9e50lS00MDFLZrOUeGfhoKRPXG4=",
+       "tx_count": "1",
+       "data_hash": "JdQO2VgyUCtguqmXg9J3CKR7O1bqZzJ9keyMRy1Vejc=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "4",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "3"
+      },
+      {
+       "key": "inbox_start",
+       "value": "3"
+      },
+      {
+       "key": "inbox_end",
+       "value": "4"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "3"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "C63A384348804B05EBE13B3082AA1845A9DFF68664E01D9DDCE9733570CA45A8",
+   "height": "10368751",
+   "code": 0,
+   "timestamp": "2026-11-19T10:22:07Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "4",
+       "state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "prev_state_root": "CJhBJAD9V/yqcaJ2b8R+tdjVl/E0Mv6DyUxzvYAnw4Q=",
+       "tx_count": "1",
+       "data_hash": "FvsfkIiJ70l8f2DvXKBwau0Qxc/mR8WrUz3faw75ZJY=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "5",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "4"
+      },
+      {
+       "key": "inbox_start",
+       "value": "4"
+      },
+      {
+       "key": "inbox_end",
+       "value": "5"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "4"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "1775F5C71D40CD4D93F0D056CC14FBB0E89E83A85FAA7634E8C26E9CB2A32382",
+   "height": "10368796",
+   "code": 0,
+   "timestamp": "2026-11-19T10:23:27Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "5",
+       "state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "prev_state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "tx_count": "1",
+       "data_hash": "o7aDJqbE5LsN4egysaHnkXhtUOVVyGwY3e2PR4Iv8yc=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "6",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "5"
+      },
+      {
+       "key": "inbox_start",
+       "value": "5"
+      },
+      {
+       "key": "inbox_end",
+       "value": "6"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "5"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "E3E71FB6BFE0A2102C9490A11F18205913926513DA524E225B59CB931DF7D11E",
+   "height": "10370239",
+   "code": 0,
+   "timestamp": "2026-11-19T11:03:36Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "6",
+       "state_root": "B4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "prev_state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "tx_count": "1",
+       "data_hash": "9CAgsahcqtBw+iI5+F+bjj8f3vzU9VdEGhyAy3SyNBg=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "7"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "6"
+      },
+      {
+       "key": "inbox_start",
+       "value": "6"
+      },
+      {
+       "key": "inbox_end",
+       "value": "7"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "6"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "136425389CA6A736DD7C50BAA1D0FA796E75A9D543A2155C5F9805EFC4B3DE2E",
+   "height": "10370263",
+   "code": 0,
+   "timestamp": "2026-11-19T11:04:39Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "6",
+       "state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "prev_state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "tx_count": "1",
+       "data_hash": "9CAgsahcqtBw+iI5+F+bjj8f3vzU9VdEGhyAy3SyNBg=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "7",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "6"
+      },
+      {
+       "key": "inbox_start",
+       "value": "6"
+      },
+      {
+       "key": "inbox_end",
+       "value": "7"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "6"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "05500EE9DB40E316002B9E522A18988936D669D334CBA905DCD1719D09D78333",
+   "height": "10382449",
+   "code": 0,
+   "timestamp": "2026-11-19T16:29:24Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "7",
+       "state_root": "LIkfejz94cp6LiZ6FdwZ5dK2+b1DCj5I6rLzs/wuxmM=",
+       "prev_state_root": "d4yKD6bQkYZV7GgfxZ7tqial+rFqiJobCyR3/Fjb1WE=",
+       "tx_count": "1",
+       "data_hash": "n1aRSk2bbhbinoPVjpDxOrItwMrvGsmO/3YW24kvWCo=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "8",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "7"
+      },
+      {
+       "key": "inbox_start",
+       "value": "7"
+      },
+      {
+       "key": "inbox_end",
+       "value": "8"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "7"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "6802887DBC277445377D70C1D2474AEC30ED3C00059F08943DF16DFB8E1D1A9A",
+   "height": "10382606",
+   "code": 0,
+   "timestamp": "2026-11-19T16:33:07Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "8",
+       "state_root": "DIkfejz94cp6LiZ6FdwZ5dK2+b1DCj5I6rLzs/wuxmM=",
+       "prev_state_root": "LIkfejz94cp6LiZ6FdwZ5dK2+b1DCj5I6rLzs/wuxmM=",
+       "tx_count": "1",
+       "data_hash": "mLkBLHes/sEySNLEYvZbgDUhAH2/onFyZI9Wad17pbs=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "9"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "8"
+      },
+      {
+       "key": "inbox_start",
+       "value": "8"
+      },
+      {
+       "key": "inbox_end",
+       "value": "9"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "8"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "5E4A2898EB0D4E11DE965411AC5D2A64884997E13311424A9C36DFBA2431915B",
+   "height": "10382647",
+   "code": 0,
+   "timestamp": "2026-11-19T16:34:06Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "8",
+       "state_root": "LIkfejz94cp6LiZ6FdwZ5dK2+b1DCj5I6rLzs/wuxmM=",
+       "prev_state_root": "LIkfejz94cp6LiZ6FdwZ5dK2+b1DCj5I6rLzs/wuxmM=",
+       "tx_count": "1",
+       "data_hash": "mLkBLHes/sEySNLEYvZbgDUhAH2/onFyZI9Wad17pbs=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "9",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "8"
+      },
+      {
+       "key": "inbox_start",
+       "value": "8"
+      },
+      {
+       "key": "inbox_end",
+       "value": "9"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "8"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "C73B1CB2E9D8EE86004A6432D818293799A5F13790458A872BDFA1301DA6A26D",
+   "height": "10393099",
+   "code": 0,
+   "timestamp": "2026-11-19T20:42:06Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "9",
+       "state_root": "/YrPqCadk2nJ7e17AhUwLYHOXQXUtKkKTH1U1yujmEE=",
+       "prev_state_root": "LIkfejz94cp6LiZ6FdwZ5dK2+b1DCj5I6rLzs/wuxmM=",
+       "tx_count": "1",
+       "data_hash": "Kl06rcKGXMEEpNh5aHq4EELLcZ4iSkavJ6QbFFuuVpc=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "10",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "9"
+      },
+      {
+       "key": "inbox_start",
+       "value": "9"
+      },
+      {
+       "key": "inbox_end",
+       "value": "10"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "9"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "A1DA0D052FA92F57BEB0F88B04DAD412DE2D64E2A3B0812B1A3B13A15A8F28A4",
+   "height": "10393105",
+   "code": 0,
+   "timestamp": "2026-11-19T20:42:15Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "10",
+       "state_root": "o9fXF8DtLaXSxHfHGQfQKnLKP51hSQnx8u3pt4ulXLE=",
+       "prev_state_root": "/YrPqCadk2nJ7e17AhUwLYHOXQXUtKkKTH1U1yujmEE=",
+       "tx_count": "2",
+       "data_hash": "x4LMmQrsm36kYAepJZN89TYK5u+XRf0va301xepzFnI=",
+       "proof": null,
+       "withdrawals_root": "pRWZi6OCLNHCY8IRVEvWjxXEcvqTmxyozSIHY9GQBsI=",
+       "validator_set_hash": null,
+       "inbox_end": "12",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "10"
+      },
+      {
+       "key": "inbox_start",
+       "value": "10"
+      },
+      {
+       "key": "inbox_end",
+       "value": "12"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "10"
+      },
+      {
+       "key": "tx_count",
+       "value": "2"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "07FF243ADEC001154ADA0B35A4850BFE5010D790AF1AB1C1EA4D5D9954929941",
+   "height": "10433596",
+   "code": 0,
+   "timestamp": "2026-11-20T12:47:35Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "11",
+       "state_root": "y3b54/YB6/YQ86IF+sagQBQZOdQwcsZsB1i2Eed76Fs=",
+       "prev_state_root": "o9fXF8DtLaXSxHfHGQfQKnLKP51hSQnx8u3pt4ulXLE=",
+       "tx_count": "1",
+       "data_hash": "1C0WSptc514kVUAKSEPgtr4MnYJzFo8urmI/Fm6vFyU=",
+       "proof": null,
+       "withdrawals_root": "k9U7ehELnI5fR1czCeKx1FpNjmEBNWQUKasQNprIi6I=",
+       "validator_set_hash": null,
+       "inbox_end": "13"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "11"
+      },
+      {
+       "key": "inbox_start",
+       "value": "12"
+      },
+      {
+       "key": "inbox_end",
+       "value": "13"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "11"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "2B7C50D856A5C0EC2E6A6514AA8660B09DBCC814A4F17A2C483603C65AA466EA",
+   "height": "10433896",
+   "code": 0,
+   "timestamp": "2026-11-20T12:54:44Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "12",
+       "state_root": "Ui6zr5qchCRT0AaD8+mAB1TckbdIb4220Q7oEjeQ5JI=",
+       "prev_state_root": "y3b54/YB6/YQ86IF+sagQBQZOdQwcsZsB1i2Eed76Fs=",
+       "tx_count": "1",
+       "data_hash": "jLQblpZWo4dL2v6hLydDk402QnpDzEz/2AG2HxkKFSI=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "14",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "12"
+      },
+      {
+       "key": "inbox_start",
+       "value": "13"
+      },
+      {
+       "key": "inbox_end",
+       "value": "14"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "12"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "2CDCC877C920232EB247D064A792B419853527633C2C6E418B5AFC1A2A3AC156",
+   "height": "10624083",
+   "code": 0,
+   "timestamp": "2026-11-23T17:00:00Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "13",
+       "state_root": "a1h0jW0h/k6unDv0qAAwxhxBNA6CzVuulWCdx+YFdGg=",
+       "prev_state_root": "Ui6zr5qchCRT0AaD8+mAB1TckbdIb4220Q7oEjeQ5JI=",
+       "tx_count": "1",
+       "data_hash": "FDKBwIWxCGWEXFV3HnYHvAD4skhAeQlnFa7JTJAK5HQ=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "15",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "13"
+      },
+      {
+       "key": "inbox_start",
+       "value": "14"
+      },
+      {
+       "key": "inbox_end",
+       "value": "15"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "13"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "1E909D64EEACF87F1FD91177C257CA71F4D01BD2E379677C349E54DAD0B0E12B",
+   "height": "10624215",
+   "code": 0,
+   "timestamp": "2026-11-23T17:05:39Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "14",
+       "state_root": "mj4guhAWSbz1LO+lZXfLhtis7HTEzoVY1WYj5H42/gc=",
+       "prev_state_root": "a1h0jW0h/k6unDv0qAAwxhxBNA6CzVuulWCdx+YFdGg=",
+       "tx_count": "1",
+       "data_hash": "B+Sujq0WUZmx8wxzHL206iUbOgWqjtW8mnzn3jTbH9o=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "16",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "14"
+      },
+      {
+       "key": "inbox_start",
+       "value": "15"
+      },
+      {
+       "key": "inbox_end",
+       "value": "16"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "14"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "C77FD038C9B802A0614ECBBA88CEFDD5097A9E49670969235A00B52BEE354444",
+   "height": "10629840",
+   "code": 0,
+   "timestamp": "2026-11-23T21:05:48Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "15",
+       "state_root": "RLR53rvh8bPNRRwJn9qT4xbPpwrP2C9USNcMCk30J7E=",
+       "prev_state_root": "mj4guhAWSbz1LO+lZXfLhtis7HTEzoVY1WYj5H42/gc=",
+       "tx_count": "1",
+       "data_hash": "QGPU4G6T3UYOvKxtJOM8SwzUNQ+XAIg2Vax/KbgwF1Q=",
+       "proof": null,
+       "withdrawals_root": "tN+6paYaOWdD8BBFRgUQFBKEbpdimGUffvhq9yPCr8M=",
+       "validator_set_hash": null,
+       "inbox_end": "17",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "15"
+      },
+      {
+       "key": "inbox_start",
+       "value": "16"
+      },
+      {
+       "key": "inbox_end",
+       "value": "17"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "15"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "E028DB3B2E552A5E7076B807023E5243199ACCBDCEE2514CE501EF0358FA1904",
+   "height": "10629844",
+   "code": 0,
+   "timestamp": "2026-11-23T21:05:58Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "16",
+       "state_root": "RLR53rvh8bPNRRwJn9qT4xbPpwrP2C9USNcMCk30J7E=",
+       "prev_state_root": "RLR53rvh8bPNRRwJn9qT4xbPpwrP2C9USNcMCk30J7E=",
+       "tx_count": "1",
+       "data_hash": "b6kEP0s2Lrm66yvJFqLfyGg/9xEwwG1yy9mfj3FnoF0=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "18",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "16"
+      },
+      {
+       "key": "inbox_start",
+       "value": "17"
+      },
+      {
+       "key": "inbox_end",
+       "value": "18"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "16"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "788A89883A3FDEB1E9B8FA752EEC509BBD04AAAA7B94445F26819D4ACA103FCC",
+   "height": "10629848",
+   "code": 0,
+   "timestamp": "2026-11-23T21:06:08Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "17",
+       "state_root": "RLR53rvh8bPNRRwJn9qT4xbPpwrP2C9USNcMCk30J7E=",
+       "prev_state_root": "RLR53rvh8bPNRRwJn9qT4xbPpwrP2C9USNcMCk30J7E=",
+       "tx_count": "1",
+       "data_hash": "BFt6ubzm4bQvJfnac1OrkyCydrCPVNhSJSEADNkYubE=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "19",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "17"
+      },
+      {
+       "key": "inbox_start",
+       "value": "18"
+      },
+      {
+       "key": "inbox_end",
+       "value": "19"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "17"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "E3D16C6D3C2CC1665DAB6F355A1AE5DBBCD5899AF38AD7B4CE39D4E3E7DCB30A",
+   "height": "10686374",
+   "code": 0,
+   "timestamp": "2026-11-24T20:04:45Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "18",
+       "state_root": "56GPJN8YhLEBXhZQG8yGawekIZIbnYQbgtb6TT6MVp0=",
+       "prev_state_root": "RLR53rvh8bPNRRwJn9qT4xbPpwrP2C9USNcMCk30J7E=",
+       "tx_count": "1",
+       "data_hash": "9IGh7FvYB7vsRgmRyJx0yyZX8Ahwuupph5LeUVDebx8=",
+       "proof": null,
+       "withdrawals_root": "HZrO1j181J3iJPF8PB+Ac5v8QLQKozazdn/lisnxhb0=",
+       "validator_set_hash": null,
+       "inbox_end": "20",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "18"
+      },
+      {
+       "key": "inbox_start",
+       "value": "19"
+      },
+      {
+       "key": "inbox_end",
+       "value": "20"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "18"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "646B8CBBA07126DCE02598C698539A7B82DBA0D9897BDA9A37BE44D5DFBC0DDC",
+   "height": "10686380",
+   "code": 0,
+   "timestamp": "2026-11-24T20:04:53Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "19",
+       "state_root": "56GPJN8YhLEBXhZQG8yGawekIZIbnYQbgtb6TT6MVp0=",
+       "prev_state_root": "56GPJN8YhLEBXhZQG8yGawekIZIbnYQbgtb6TT6MVp0=",
+       "tx_count": "2",
+       "data_hash": "vCB2ViZj4RyKeOUi3au1pQVeGYd6uzoQICxbepYTGhI=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "22",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "19"
+      },
+      {
+       "key": "inbox_start",
+       "value": "20"
+      },
+      {
+       "key": "inbox_end",
+       "value": "22"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "19"
+      },
+      {
+       "key": "tx_count",
+       "value": "2"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "BE2988B2FBBE74288266A1F9ECB54AB247063DBDBBD5D10FF816D2CC302A6D6A",
+   "height": "10691336",
+   "code": 0,
+   "timestamp": "2026-11-24T22:02:47Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "20",
+       "state_root": "kbD6al2IqObi7yzQquz5HMnfpi6VFCoTVbRzUb0Moxg=",
+       "prev_state_root": "56GPJN8YhLEBXhZQG8yGawekIZIbnYQbgtb6TT6MVp0=",
+       "tx_count": "1",
+       "data_hash": "iKgSNc71JFQvGT2qFOdmajGf/oYGkKWIYKbRD7Y4I7M=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "23",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "20"
+      },
+      {
+       "key": "inbox_start",
+       "value": "22"
+      },
+      {
+       "key": "inbox_end",
+       "value": "23"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "20"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "65D0DE12C98A1B23F39BD6C5508C27A850B4F8548D39BB6AB7550AF226005465",
+   "height": "10691365",
+   "code": 0,
+   "timestamp": "2026-11-24T22:03:28Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "21",
+       "state_root": "kbD6al2IqObi7yzQquz5HMnfpi6VFCoTVbRzUb0Moxg=",
+       "prev_state_root": "kbD6al2IqObi7yzQquz5HMnfpi6VFCoTVbRzUb0Moxg=",
+       "tx_count": "1",
+       "data_hash": "t0dNzjCFQGMqpsdfjBj/Yg4kGHNdwcuK2ssRQQCheYg=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "24",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "21"
+      },
+      {
+       "key": "inbox_start",
+       "value": "23"
+      },
+      {
+       "key": "inbox_end",
+       "value": "24"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "21"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "BB5C1DF0CC2B4E7579249D27ABD3D1930112A2E2EBC221FABCBA054BD40CD11F",
+   "height": "10719113",
+   "code": 0,
+   "timestamp": "2026-11-25T09:03:36Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "22",
+       "state_root": "XVwtqlskCD9hRAFBk/uvupCHgK09wB47VVZ0a4D5LMw=",
+       "prev_state_root": "kbD6al2IqObi7yzQquz5HMnfpi6VFCoTVbRzUb0Moxg=",
+       "tx_count": "1",
+       "data_hash": "HLcVdbh+kSbfCpHtOgwn1Y5loeE7el6JnOy7kthtD08=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "25",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "22"
+      },
+      {
+       "key": "inbox_start",
+       "value": "24"
+      },
+      {
+       "key": "inbox_end",
+       "value": "25"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "22"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "21B86F5A20201D524E69FC9F75638A50ECBA51227D45652D5982AC9CD530AAE2",
+   "height": "10806988",
+   "code": 0,
+   "timestamp": "2026-11-26T19:52:12Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "23",
+       "state_root": "g+3i84s02SqpOljcU7REDQGjjdZhJTFNnvUCd3vh8PQ=",
+       "prev_state_root": "XVwtqlskCD9hRAFBk/uvupCHgK09wB47VVZ0a4D5LMw=",
+       "tx_count": "1",
+       "data_hash": "PzUbfB604+rue7sCbWIGcsIpk8beSKvtf9coK1uBkVo=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "26",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "23"
+      },
+      {
+       "key": "inbox_start",
+       "value": "25"
+      },
+      {
+       "key": "inbox_end",
+       "value": "26"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "23"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "8D82F801984D73F79E4A6540402375A5B05484603D2A18858736450583374A56",
+   "height": "10807031",
+   "code": 0,
+   "timestamp": "2026-11-26T19:53:13Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "24",
+       "state_root": "g+3i84s02SqpOljcU7REDQGjjdZhJTFNnvUCd3vh8PQ=",
+       "prev_state_root": "g+3i84s02SqpOljcU7REDQGjjdZhJTFNnvUCd3vh8PQ=",
+       "tx_count": "1",
+       "data_hash": "6h1CKbSPzk6/TIpqKRNPH3NQYei0qMg+B/+7HrLi0rs=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "27",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "24"
+      },
+      {
+       "key": "inbox_start",
+       "value": "26"
+      },
+      {
+       "key": "inbox_end",
+       "value": "27"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "24"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "EB086B96BF9EE8F677E68B2B15803932A6601AD793AB4791B8B4B522008C6D11",
+   "height": "10840331",
+   "code": 0,
+   "timestamp": "2026-11-27T09:02:50Z",
+   "tx": {
+    "body": {
+     "messages": [
+      {
+       "@type": "/qorechain.rdk.v1.MsgSubmitBatch",
+       "sequencer": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+       "rollup_id": "vigil-pay-1",
+       "batch_index": "25",
+       "state_root": "mX19IzhHEjvoyDxCbizAXaSQ2tyVOZ2nDqX96goy7mw=",
+       "prev_state_root": "g+3i84s02SqpOljcU7REDQGjjdZhJTFNnvUCd3vh8PQ=",
+       "tx_count": "1",
+       "data_hash": "Uwo4IS3wWyWppFFv1BYLP/RxchvJh2Lwf5gjRRfY3pk=",
+       "proof": null,
+       "withdrawals_root": null,
+       "validator_set_hash": null,
+       "inbox_end": "28",
+       "anchor_signature": "(ML-DSA-87 signature, trimmed)"
+      }
+     ]
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_consumed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "25"
+      },
+      {
+       "key": "inbox_start",
+       "value": "27"
+      },
+      {
+       "key": "inbox_end",
+       "value": "28"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "batch_submitted",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "25"
+      },
+      {
+       "key": "tx_count",
+       "value": "1"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "fraudTxs": [
+  {
+   "txhash": "1BF5B717F658DCD923D9860322DA21C901C608C2F6E7FA359A6439BBA114EBC4",
+   "height": "10370243",
+   "code": 0,
+   "timestamp": "2026-11-19T11:03:46Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_rolled_back",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "consumed_sequence",
+       "value": "6"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "rdk_fraud_upheld",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "6"
+      },
+      {
+       "key": "submitter",
+       "value": "qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk"
+      },
+      {
+       "key": "challenger",
+       "value": "qor1ua2dl0nuf3qxr5yfhr3x9ah5cdh9vw7qczvdj5"
+      },
+      {
+       "key": "slashed",
+       "value": "1000000000uqor"
+      },
+      {
+       "key": "challenger_reward",
+       "value": "500000000uqor"
+      },
+      {
+       "key": "burned",
+       "value": "500000000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915",
+   "height": "10382607",
+   "code": 0,
+   "timestamp": "2026-11-19T16:33:09Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_inbox_rolled_back",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "consumed_sequence",
+       "value": "8"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    },
+    {
+     "type": "rdk_fraud_upheld",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "8"
+      },
+      {
+       "key": "submitter",
+       "value": "qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2"
+      },
+      {
+       "key": "challenger",
+       "value": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
+      },
+      {
+       "key": "slashed",
+       "value": "1000000000uqor"
+      },
+      {
+       "key": "challenger_reward",
+       "value": "500000000uqor"
+      },
+      {
+       "key": "burned",
+       "value": "500000000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "executedTxs": [
+  {
+   "txhash": "FD1C8D24DC743039D9CD4CAD608B92066FE9B5E7E414FE835FC9B0751C5CBD66",
+   "height": "10356232",
+   "code": 0,
+   "timestamp": "2026-11-19T04:38:18Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_withdrawal_executed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "2"
+      },
+      {
+       "key": "withdrawal_index",
+       "value": "0"
+      },
+      {
+       "key": "recipient",
+       "value": "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s"
+      },
+      {
+       "key": "amount",
+       "value": "250000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "C1710FB0E1DB0A256BDCAE79944B4682B1226169A7F7117062034BB9A52920A9",
+   "height": "10395658",
+   "code": 0,
+   "timestamp": "2026-11-19T21:42:44Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_withdrawal_executed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "10"
+      },
+      {
+       "key": "withdrawal_index",
+       "value": "1"
+      },
+      {
+       "key": "recipient",
+       "value": "qor1xueny89pa625xm9jxgtdxvw3m07p3cff7g8yah"
+      },
+      {
+       "key": "amount",
+       "value": "2000000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "660F744F553596BC80E2F294BAB65A5C3285B5E683D0387283E0055E3F30E65D",
+   "height": "10447357",
+   "code": 0,
+   "timestamp": "2026-11-20T18:15:40Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_withdrawal_executed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "11"
+      },
+      {
+       "key": "withdrawal_index",
+       "value": "2"
+      },
+      {
+       "key": "recipient",
+       "value": "qor10w42gcuvzr0mvnt2ukfu9uqe0qh8wulrv2gk6k"
+      },
+      {
+       "key": "amount",
+       "value": "100000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "AEEE2C7A0543DC8E8F25D7A5F0D76BE6067B1E2953F0BED3E4A4CB5CF1C3D217",
+   "height": "10631836",
+   "code": 0,
+   "timestamp": "2026-11-23T22:20:03Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_withdrawal_executed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "15"
+      },
+      {
+       "key": "withdrawal_index",
+       "value": "3"
+      },
+      {
+       "key": "recipient",
+       "value": "qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy"
+      },
+      {
+       "key": "amount",
+       "value": "100000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "txhash": "258430D7FA0F4DB3CA8D2ABFF50C3247B1FF66058D02AFB293775ADDBD51A21C",
+   "height": "10688902",
+   "code": 0,
+   "timestamp": "2026-11-24T21:04:53Z",
+   "tx": {
+    "body": {
+     "messages": []
+    }
+   },
+   "events": [
+    {
+     "type": "rdk_withdrawal_executed",
+     "attributes": [
+      {
+       "key": "rollup_id",
+       "value": "vigil-pay-1"
+      },
+      {
+       "key": "batch_index",
+       "value": "18"
+      },
+      {
+       "key": "withdrawal_index",
+       "value": "4"
+      },
+      {
+       "key": "recipient",
+       "value": "qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy"
+      },
+      {
+       "key": "amount",
+       "value": "100000uqor"
+      },
+      {
+       "key": "msg_index",
+       "value": "0"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

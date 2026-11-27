@@ -1,0 +1,128 @@
+/*
+ * The browser watchtower panel on the Rollup page. Loaded with its chunk, so the first paint's stylesheet
+ * does not grow. Built from the shared pieces (verdict, checks, chips, kv, panels, the log table); only
+ * the figures, the command block and the forms are its own.
+ */
+.rp {
+  display: grid;
+  gap: var(--s4);
+}
+.rp > .verdict {
+  margin-top: 0;
+  font-size: 1rem;
+}
+.rp-sub {
+  margin: 0;
+  max-width: 72ch;
+}
+.rp-figs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 40px;
+}
+.rp-figs p {
+  margin: 0;
+  display: grid;
+}
+.rp-n {
+  font-family: var(--f-display);
+  font-variation-settings: "opsz" 72;
+  font-weight: 500;
+  font-size: clamp(1.5rem, 2.2vw, 2.1rem);
+  line-height: 1.05;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.rp-k {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sounding);
+}
+.rp-caught {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s4);
+}
+.rp-caught h3 {
+  font-family: var(--f-display);
+  font-variation-settings: "opsz" 36;
+  font-weight: 500;
+  font-size: 1.1rem;
+  margin: 0;
+}
+.rp-caught .note {
+  margin: var(--s3) 0 0;
+  max-width: 72ch;
+}
+.page .rp-cols {
+  margin-top: 0;
+  gap: var(--s5) clamp(28px, 4vw, 64px);
+}
+.rp-all {
+  margin-top: 0;
+}
+.rp-table td {
+  white-space: nowrap;
+}
+.rp-table tr.rp-rb td {
+  background: var(--port-wash);
+}
+.rp-again {
+  margin: var(--s4) 0 0;
+}
+.rp > .verdict:focus {
+  outline-offset: 4px;
+}
+.rp-owe {
+  font-size: 1.02rem;
+  margin-bottom: 8px;
+}
+.rp-form {
+  display: grid;
+  gap: 6px;
+}
+.rp-form label {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sounding);
+  margin-top: 4px;
+}
+.rp-form select {
+  width: 100%;
+  min-width: 0;
+}
+.rp-form .note {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.rp-cmd-h {
+  margin: var(--s4) 0 6px;
+}
+.rp-cmd {
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  background: var(--night);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  font-family: var(--f-mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rp-cmd code {
+  font-size: inherit;
+}
+.rp-trust {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s4);
+  margin: 0;
+  max-width: 90ch;
+}
+@media (max-width: 760px) {
+  .rp-figs {
+    gap: 6px 24px;
+  }
+}

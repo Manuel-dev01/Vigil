@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import type { AnchorView, BatchView, InboxView, RollupView as Rollup } from "@qorechain/rdk";
 import { chain } from "../chain.ts";
 import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
 import { listen, type Head, type LiveItem } from "../live.ts";
 import { reveal } from "../reveal.ts";
-import { Ext, ExplorerHint, useRefresh } from "../ui.tsx";
+import { ErrorBoundary, Ext, ExplorerHint, useRefresh } from "../ui.tsx";
 import { BeaconLine } from "./Beacons.tsx";
 import { PageHead, Reading, Section, type Sounding } from "./Head.tsx";
 
 const REFRESH_MS = 30_000;
+
+// The browser watchtower and its worker load only when the visitor asks for them.
+const ReplayPanel = lazy(() => import("./Replay.tsx").then((m) => ({ default: m.ReplayPanel })));
 
 interface Fraud {
   height: number;
@@ -185,6 +188,37 @@ function FeedItem({ item }: { item: LiveItem }) {
 
 const COUNT = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
 
+/** Your browser as a watchtower: re-execute every batch here, on request (Replay.tsx). */
+function BrowserWatchtower() {
+  const [on, setOn] = useState(false);
+  // Inline spacing keeps the first paint's stylesheet as it was; the panel's own styles load with it.
+  return (
+    <div style={{ marginTop: "var(--s7)" }}>
+      <Section title="Re-execute it in this browser" aside="your browser as a watchtower" id="replay">
+        <p style={{ maxWidth: "72ch" }}>
+          Do what our hosted watchtowers do, here: read every inbox entry and every batch submission from {NODE_HOST}, re-execute each batch with the RDK's
+          qledger-v1 executor and our watchtower's check, and compare it with the batch list and anchors as {NODE_HOST} reports them. Then check what the
+          rollup owes against its deposit pool, open any account against an anchored root, and forge a batch to watch a fraud proof win. It runs in a Web
+          Worker. Nothing is signed or sent.
+        </p>
+        {on ? (
+          // Its own boundary: a chunk that fails to load (say, a stale file after a redeploy) or a render
+          // error in the panel stops only this section, not the whole Rollup page.
+          <ErrorBoundary resetKey="replay">
+            <Suspense fallback={<Reading>Loading the re-execution code…</Reading>}>
+              <ReplayPanel />
+            </Suspense>
+          </ErrorBoundary>
+        ) : (
+          <button type="button" className="primary" onClick={() => setOn(true)}>
+            Re-execute every batch here
+          </button>
+        )}
+      </Section>
+    </div>
+  );
+}
+
 export function RollupView() {
   // Read every 30 s while the tab is visible, after a reconnect and on each live post or batch; one load at a time.
   const { data: state, error, refreshing, refresh } = useRefresh(load, REFRESH_MS);
@@ -306,6 +340,8 @@ export function RollupView() {
           </ol>
         </section>
       )}
+
+      <BrowserWatchtower />
 
       {state && rollup && (
         <div className="cols">
