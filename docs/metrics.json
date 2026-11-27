@@ -3,10 +3,10 @@
   "rollupId": "vigil-pay-1",
   "chainId": "qorechain-diana",
   "asOf": {
-    "height": 10860329,
-    "time": "2026-11-27T16:57:42Z"
+    "height": 10862210,
+    "time": "2026-11-27T17:42:17Z"
   },
-  "requests": 28,
+  "requests": 34,
   "live": {
     "createdHeight": 10351825,
     "createdTime": "2026-11-19T02:53:21Z",
@@ -15,22 +15,23 @@
   "archive": {
     "entries": 27,
     "head": 27,
-    "confirmedByChain": true
+    "confirmedByChain": true,
+    "chainInboxEnd": 38
   },
   "batches": {
-    "listed": 26,
+    "listed": 34,
     "final": 26,
-    "pending": 0,
+    "pending": 8,
     "rejectedListed": 0,
-    "latestIndex": 25,
-    "anchored": 25,
+    "latestIndex": 33,
+    "anchored": 33,
     "unanchoredFinal": [
       11
     ]
   },
   "anchors": {
-    "onChain": 25,
-    "verified": 25,
+    "onChain": 33,
+    "verified": 33,
     "failed": [],
     "finalWithVerifiedAnchor": 25,
     "attestedInSolidity": 25,
@@ -45,10 +46,12 @@
         "height": 10370243,
         "challenger": "qor1ua2dl0nuf3qxr5yfhr3x9ah5cdh9vw7qczvdj5",
         "ours": false,
+        "slashedUqor": "1000000000",
         "evidence": [
           43,
           44
         ],
+        "drill": "fraud drill 1",
         "forgedTx": "E3E71FB6BFE0A2102C9490A11F18205913926513DA524E225B59CB931DF7D11E",
         "forgedHeight": 10370239,
         "blocksAfterBatch": 4
@@ -59,10 +62,12 @@
         "height": 10382607,
         "challenger": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd",
         "ours": true,
+        "slashedUqor": "1000000000",
         "evidence": [
           54,
           55
         ],
+        "drill": "fraud drill 2",
         "forgedTx": "6802887DBC277445377D70C1D2474AEC30ED3C00059F08943DF16DFB8E1D1A9A",
         "forgedHeight": 10382606,
         "blocksAfterBatch": 1
@@ -97,6 +102,7 @@
         "frontHeight": 10629908,
         "frontTime": "2026-11-23T21:08:43Z",
         "batchHeight": 10629840,
+        "batchFinal": true,
         "blocksAfterBatch": 68,
         "postEntry": 17,
         "postHeight": 10629836,
@@ -115,23 +121,57 @@
         "frontHeight": 10686385,
         "frontTime": "2026-11-24T20:05:00Z",
         "batchHeight": 10686374,
+        "batchFinal": true,
         "blocksAfterBatch": 11,
         "postEntry": 20,
         "postHeight": 10686369,
         "postTime": "2026-11-24T20:04:37Z",
         "postToPaidSeconds": 23,
         "secondsBeforeFinal": 3585
+      },
+      {
+        "batchIndex": 29,
+        "withdrawalIndex": 5,
+        "payout": "0x7a6280cC972f5643eFcFA954e0DB45536ce57891",
+        "amountUqor": "500000",
+        "paidUqor": "497500",
+        "feeUqor": "2500",
+        "frontTx": "0x7c275a65efc75a68da17902a976d591c2d37fcad66de4460620e4bb82fcb13c1",
+        "frontHeight": 10861586,
+        "frontTime": "2026-11-27T17:27:31Z",
+        "batchHeight": 10861569,
+        "batchFinal": false,
+        "blocksAfterBatch": 17,
+        "secondsBeforeFinal": 3575
+      },
+      {
+        "batchIndex": 32,
+        "withdrawalIndex": 6,
+        "payout": "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3",
+        "amountUqor": "50000",
+        "paidUqor": "49750",
+        "feeUqor": "250",
+        "frontTx": "0x6ed87d50c8cff0a3e7b9a37411d17749761786b4dc1a71fcd54f516628175455",
+        "frontHeight": 10862205,
+        "frontTime": "2026-11-27T17:42:09Z",
+        "batchHeight": 10862193,
+        "batchFinal": false,
+        "blocksAfterBatch": 12,
+        "secondsBeforeFinal": 3583
       }
     ],
-    "frontedUqor": "200000",
-    "owedUqor": "0",
-    "repaidPercent": 100,
+    "frontedUqor": "750000",
+    "owedUqor": "550000",
+    "repaidPercent": 26.6,
     "searchedBatches": [
       15,
-      18
+      18,
+      29,
+      32
     ]
   },
   "payslips": {
+    "poster": "qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws",
     "sealedEntries": [
       6,
       24,
@@ -187,7 +227,7 @@
       "source": "EVIDENCE 13; chain read 27 Nov 2026"
     },
     {
-      "value": "25 of 25",
+      "value": "33 of 33",
       "label": "anchors verify (ML-DSA-87)",
       "note": "checked against the creator's key as the node reports it; 25 final batches carry their own verified anchor",
       "source": "chain read 27 Nov 2026"
@@ -196,7 +236,7 @@
       "value": "25",
       "label": "anchors verified in Solidity",
       "note": "recorded by SettlementReceiptVerifier through pqcVerify, through layer height 25; 0 conflicts",
-      "source": "EVIDENCE 62, 63, 80, 112; chain read 27 Nov 2026"
+      "source": "EVIDENCE 62, 63, 80, 112, 125; chain read 27 Nov 2026"
     },
     {
       "value": "1 block",
@@ -205,15 +245,15 @@
       "source": "EVIDENCE 54, 55"
     },
     {
-      "value": "2 instant exits",
+      "value": "4 instant exits",
       "label": "paid before finality",
-      "note": "a small sample (n = 2); the fastest was paid 23 s after its withdrawal was posted; the vault is 100% repaid",
+      "note": "a small sample (n = 4); the fastest was paid 23 s after its withdrawal was posted; every exit whose batch is final is repaid; 0.55 QOR is owed on 2 exits whose batch is not final yet",
       "source": "EVIDENCE 91, 104; chain read 27 Nov 2026"
     },
     {
       "value": "3",
       "label": "payslips sealed with ML-KEM-1024",
-      "note": "posted in the rollup's inbox; a payment and its payslip cost about 0.26 QOR in fees",
+      "note": "posted in the rollup's inbox by employer-1; a payment and its payslip cost about 0.26 QOR in fees",
       "source": "EVIDENCE 37, 115, 122; chain read 27 Nov 2026"
     }
   ]

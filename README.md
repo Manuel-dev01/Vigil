@@ -44,16 +44,16 @@ There is no server of ours in between: the page talks straight to a public QoreC
 ## Vigil in numbers
 
 <!-- metrics:start (written by pnpm --filter @vigil/scripts metrics) -->
-Read from the chain at block 10,860,329 (27 Nov 2026, 16:57 UTC) by `pnpm --filter @vigil/scripts metrics`, which makes about 28 read-only requests. Full table: [docs/METRICS.md](docs/METRICS.md).
+Read from the chain at block 10,862,210 (27 Nov 2026, 17:42 UTC) by `pnpm --filter @vigil/scripts metrics`, which makes about 34 read-only requests. Full table: [docs/METRICS.md](docs/METRICS.md).
 
 | Number | What it counts | Source |
 |---|---|---|
 | **8 days** live on testnet | vigil-pay-1 created at block 10,351,825, 19 Nov 2026 | EVIDENCE 13; chain read 27 Nov 2026 |
-| **25 of 25** anchors verify (ML-DSA-87) | checked against the creator's key as the node reports it; 25 final batches carry their own verified anchor | chain read 27 Nov 2026 |
-| **25** anchors verified in Solidity | recorded by SettlementReceiptVerifier through pqcVerify, through layer height 25; 0 conflicts | EVIDENCE 62, 63, 80, 112; chain read 27 Nov 2026 |
+| **33 of 33** anchors verify (ML-DSA-87) | checked against the creator's key as the node reports it; 25 final batches carry their own verified anchor | chain read 27 Nov 2026 |
+| **25** anchors verified in Solidity | recorded by SettlementReceiptVerifier through pqcVerify, through layer height 25; 0 conflicts | EVIDENCE 62, 63, 80, 112, 125; chain read 27 Nov 2026 |
 | **1 block** from forged batch to upheld challenge | fraud drill 2: batch 8, our watchtower-2's challenge; 1,000 QOR bond slashed | EVIDENCE 54, 55 |
-| **2 instant exits** paid before finality | a small sample (n = 2); the fastest was paid 23 s after its withdrawal was posted; the vault is 100% repaid | EVIDENCE 91, 104; chain read 27 Nov 2026 |
-| **3** payslips sealed with ML-KEM-1024 | posted in the rollup's inbox; a payment and its payslip cost about 0.26 QOR in fees | EVIDENCE 37, 115, 122; chain read 27 Nov 2026 |
+| **4 instant exits** paid before finality | a small sample (n = 4); the fastest was paid 23 s after its withdrawal was posted; every exit whose batch is final is repaid; 0.55 QOR is owed on 2 exits whose batch is not final yet | EVIDENCE 91, 104; chain read 27 Nov 2026 |
+| **3** payslips sealed with ML-KEM-1024 | posted in the rollup's inbox by employer-1; a payment and its payslip cost about 0.26 QOR in fees | EVIDENCE 37, 115, 122; chain read 27 Nov 2026 |
 <!-- metrics:end -->
 
 ## What is proven on chain
@@ -126,7 +126,7 @@ Wicketgate, another Protocol Builders entry, also pays rollup withdrawals before
 | Keys over the exit contract | None: `InstantExitVault` has no owner, pause or upgrade path. Taking liquidity out needs the LP's ML-DSA-87 signature ([source](contracts/src/InstantExitVault.sol)) | `LaneHub`, which opens lanes, has "no owner or admin" ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L26)). Each lane's pool needs its opener's two admin keys, proven ML-DSA-87 keys ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L152)). In their main `ExitPool`, the two admins act by ML-DSA-87 signature: either can pause new instant exits, and both together change risk and lane settings ([ExitPool.sol](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/contracts/src/ExitPool.sol#L642-L675)) |
 | Signing keys and EVM windows | Watchtower keys never open an EVM window: they post their signatures into the rollup's inbox, and the vault checks them with `pqcVerify` (EVIDENCE 88, 91, [THREAT_MODEL §14](THREAT_MODEL.md#14-instant-exits-23-nov-2026)) | "Watchers open windows to work" ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L62)). `ExitPool` checks each attestation's ML-DSA-87 signature in the contract, so in their Q-Day simulation a stolen classical key with an open window could not attest ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L63)) |
 | Rollups served | `vigil-pay-1` | "Any QoreChain rollup", through lanes anyone can open ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L21)) |
-| Exits paid so far | 2, a small sample (EVIDENCE 91, 104; [docs/METRICS.md](docs/METRICS.md)) | 28, by their count dated 19 Nov ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L41)) |
+| Exits paid so far | 4 by our chain read of 27 Nov 2026, a small sample ([docs/METRICS.md](docs/METRICS.md); EVIDENCE 91 and 104 record the two from 23 and 24 Nov) | 28, by their count dated 19 Nov ([README](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/README.md#L41)) |
 
 Another team's exit service paid an instant exit from `vigil-pay-1` on 19 Nov ([Wicketgate's PROOF.md](https://github.com/timix648/wicketgate/blob/9644b53d480180e07bb0abdcd2e3fd7ba4f61aac/PROOF.md#L68)).
 
