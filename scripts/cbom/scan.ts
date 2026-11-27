@@ -4,12 +4,14 @@
  *
  *   pnpm cbom:scan                      # writes cbom/vigil.cdx.json, cbom/vigil.nis.md, cbom/agility-statement.md, cbom/scan.json
  *   pnpm cbom:scan --out-dir /tmp/cbom  # somewhere else (the scheduled workflow does this)
- *   pnpm cbom:scan --offline            # contracts only, no network at all; writes to a temporary directory
+ *   pnpm cbom:scan --offline            # contracts only, into a temporary directory; reads no chain or TLS
+ *                                       # (the launcher may download the QoreScan binary once)
  *
  * Read-only. Every REST read goes through a local proxy that spaces requests about a second apart (see
  * throttle.ts); the TLS scans are one handshake per endpoint with no request. QoreScan is the pinned
  * devDependency `@qorechain/qorescan`, whose launcher runs a release binary only if its SHA-256 matches the
- * digest shipped in the package.
+ * digest shipped in the package. After the scan, the contracts gate runs on the CBOM and on the sources
+ * (gate.ts, precompiles.ts).
  */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -18,6 +20,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { contractsGate, parseCbom, scanDate } from "./lib.ts";
+import { checkSources } from "./precompiles.ts";
 import { ACCOUNTS, CONTRACTS, REST_HOST, TLS_ENDPOINTS } from "./targets.ts";
 import { startThrottleProxy } from "./throttle.ts";
 
@@ -91,6 +94,10 @@ async function main() {
 
   const cbom = parseCbom(readFileSync(cbomPath, "utf8"));
   const gate = contractsGate(cbom);
+  // The source check beside QoreScan's: no contract names a classical public-key precompile's address.
+  const sources = checkSources(join(REPO, CONTRACTS));
+  const precompiles = sources.uses;
+  const gateOk = gate.ok && sources.files > 0 && precompiles.length === 0;
   const record = {
     date: scanDate(cbom),
     timestamp: cbom.metadata?.timestamp,
@@ -101,13 +108,16 @@ async function main() {
     accounts: offline ? [] : [...ACCOUNTS],
     tls: offline ? [] : [...TLS_ENDPOINTS],
     pacing,
-    contractsGate: { ok: gate.ok, files: gate.files, violations: gate.violations.length },
+    contractsGate: { ok: gateOk, files: gate.files, violations: gate.violations.length + precompiles.length },
   };
   writeFileSync(join(outDir, "scan.json"), `${JSON.stringify(record, null, 2)}\n`);
   console.log(`wrote vigil.cdx.json, vigil.nis.md, agility-statement.md and scan.json in ${rel(outDir)}`);
   if (pacing) console.log(`paced: ${pacing.writes} writes through ${pacing.tunnels} tunnel(s) in ${pacing.seconds} s`);
-  console.log(`contracts gate: ${gate.ok ? "pass" : "FAIL"} (${gate.files} Solidity files, ${gate.violations.length} classical signature uses)`);
-  if (!gate.ok) process.exitCode = 1;
+  for (const u of precompiles) console.error(`  CLASSICAL  precompile ${u.address}, ${u.what}, at ${u.where}`);
+  console.log(
+    `contracts gate: ${gateOk ? "pass" : "FAIL"} (${gate.files} Solidity files, ${gate.violations.length} classical signature uses found by QoreScan, ${precompiles.length} classical precompile addresses)`,
+  );
+  if (!gateOk) process.exitCode = 1;
 }
 
 main().catch((e: unknown) => {

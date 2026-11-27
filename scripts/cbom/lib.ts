@@ -3,10 +3,11 @@
  * facts the README and the web page's "What's inside" label quote. QoreScan builds every CBOM; nothing here
  * writes one.
  *
- * The gate: no Vigil contract may verify a classical signature. In a CBOM that means no component found in
- * the Solidity sources may be a public-key primitive (signature, encryption, key agreement or KEM) that
- * QoreScan does not class as post-quantum. QoreScan blanks comments and string literals before it matches,
- * so a comment that names ECDSA is not a use of it.
+ * The gate's rule: no Vigil contract may verify a classical signature. Over a CBOM, it checks that no
+ * component QoreScan found in the Solidity sources is a public-key primitive (signature, encryption, key
+ * agreement or KEM) that QoreScan does not class as post-quantum. QoreScan blanks comments and string
+ * literals before it matches, so a comment that names ECDSA is not a use of it. QoreScan matches patterns,
+ * so precompiles.ts adds a source check for precompile addresses it does not flag.
  */
 
 export interface Property {
@@ -227,7 +228,7 @@ export function summaryMarkdown(cbom: Cbom, against?: Cbom): string {
     "",
     "An inventory aid, not a certification. Chain facts are as the node reports them.",
     "",
-    `Contracts gate: ${gate.ok ? "pass" : "FAIL"} (${gate.files} Solidity files; classical public-key uses: ${gate.violations.map((v) => v.name).join(", ") || "none"})`,
+    `Contracts gate on QoreScan's findings: ${gate.ok ? "pass" : "FAIL"} (${gate.files} Solidity files; classical public-key uses: ${gate.violations.map((v) => v.name).join(", ") || "none"})`,
     "",
     "| Algorithm | QoreScan class | Found by |",
     "|---|---|---|",

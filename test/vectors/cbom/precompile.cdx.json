@@ -1,0 +1,44 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:af99bb51-de3b-55ce-96a1-411ba6596f35",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-27T17:53:57Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "supplier": {
+            "name": "QoreChain Association"
+          },
+          "name": "qorescan",
+          "version": "0.1.0",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/qorechain/qorescan"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "platform",
+      "bom-ref": "target",
+      "name": "Solidity sources"
+    },
+    "properties": [
+      {
+        "name": "qorescan:disclaimer",
+        "value": "QoreScan output is an inventory aid. It is not a certification, an audit or a legal opinion, and it does not establish conformity with any regulation or standard."
+      },
+      {
+        "name": "qorescan:solidity:files",
+        "value": "1"
+      }
+    ]
+  },
+  "components": []
+}

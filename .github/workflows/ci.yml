@@ -63,9 +63,11 @@ jobs:
       - name: Browser watchtower worker (built file, recorded data)
         run: pnpm --filter @vigil/web smoke:worker
 
-  # QoreScan's cryptographic inventory of the contracts, and a gate on it: CI fails if any contract verifies a
-  # classical signature (ecrecover, ECDSA, P-256 or RSA, or imports a library that provides one). Only the
-  # Solidity scan gates; the network scans (accounts, TLS) run in cbom-network.yml and never block.
+  # QoreScan's cryptographic inventory of the contracts, and a gate on it: CI fails if QoreScan finds a classical
+  # signature check in a contract (ecrecover, ECDSA, P-256 or RSA, or an import of a library that provides one),
+  # or if a contract names a classical public-key precompile's address (a source check beside QoreScan's, for
+  # forms it does not flag). Both are pattern checks on the source, not a proof. Only the Solidity scan gates;
+  # the network scans (accounts, TLS) run in cbom-network.yml and never block.
   cbom:
     name: CBOM gate (QoreScan, contracts)
     runs-on: ubuntu-latest
@@ -93,25 +95,30 @@ jobs:
       - name: Scan the contracts
         run: pnpm exec qorescan solidity contracts/src --out "$RUNNER_TEMP/contracts.cdx.json"
 
-      - name: Gate (no classical signature verification in the contracts)
-        run: pnpm cbom:gate "$RUNNER_TEMP/contracts.cdx.json"
+      - name: Gate (no classical signature check found in the contracts)
+        run: pnpm cbom:gate "$RUNNER_TEMP/contracts.cdx.json" --sources contracts/src
 
-      # The gate must still catch a real ecrecover (exit 1, not 2: a broken scan is not a catch), and must pass
-      # ECDSA and ecrecover named only in comments and strings, as in PQGuardVault's doc comment.
+      # The gate must still catch a real ecrecover, both as a call and through a constant written as a full
+      # 20-byte address (exit 1, not 2: a broken scan is not a catch), and must pass ECDSA and ecrecover named
+      # only in comments and strings, as in PQGuardVault's doc comment.
       - name: Gate self-test (canaries)
         run: |
-          pnpm exec qorescan solidity test/vectors/cbom/classical --out "$RUNNER_TEMP/classical.cdx.json"
-          set +e
-          GITHUB_ACTIONS= pnpm -s cbom:gate "$RUNNER_TEMP/classical.cdx.json"
-          code=$?
-          set -e
-          if [ "$code" -ne 1 ]; then
-            echo "::error::The gate did not fail the ecrecover canary (exit $code)."
-            exit 1
-          fi
-          echo "The ecrecover canary failed the gate, as it must."
+          must_fail() {
+            pnpm exec qorescan solidity "test/vectors/cbom/$1" --out "$RUNNER_TEMP/$1.cdx.json"
+            set +e
+            GITHUB_ACTIONS= pnpm -s cbom:gate "$RUNNER_TEMP/$1.cdx.json" --sources "test/vectors/cbom/$1"
+            code=$?
+            set -e
+            if [ "$code" -ne 1 ]; then
+              echo "::error::The gate did not fail the $1 canary (exit $code)."
+              exit 1
+            fi
+            echo "The $1 canary failed the gate, as it must."
+          }
+          must_fail classical
+          must_fail precompile
           pnpm exec qorescan solidity test/vectors/cbom/comments --out "$RUNNER_TEMP/comments.cdx.json"
-          pnpm -s cbom:gate "$RUNNER_TEMP/comments.cdx.json"
+          pnpm -s cbom:gate "$RUNNER_TEMP/comments.cdx.json" --sources test/vectors/cbom/comments
 
       - name: Summary
         if: always()

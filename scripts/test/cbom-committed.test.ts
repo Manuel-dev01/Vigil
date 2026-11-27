@@ -61,7 +61,7 @@ describe("summary of the committed scan", () => {
   it("summarises the committed scan with its disclaimer and gate result", () => {
     const md = summaryMarkdown(committed);
     expect(md).toMatch(/An inventory aid, not a certification/);
-    expect(md).toMatch(/Contracts gate: pass \(5 Solidity files; classical public-key uses: none\)/);
+    expect(md).toMatch(/Contracts gate on QoreScan's findings: pass \(5 Solidity files; classical public-key uses: none\)/);
     expect(md).toMatch(/\| vigil-pq\.up\.railway\.app:443 \| X25519 \|/);
   });
 });
