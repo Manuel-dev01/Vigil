@@ -96,19 +96,27 @@ button.vote-close::after {
   }
 }
 
-/* The landing page's header is fixed over its hero: leave room for the strip. */
+/* The landing page's header is fixed over its hero: leave room for the strip, at its measured height
+   (--vote-h, set while it shows), so a strip that wraps on a phone still clears the hero. */
 @media (max-width: 899px) {
   html.on-landing.has-vote .hero {
-    padding-top: 156px;
+    padding-top: calc(112px + var(--vote-h, 44px));
   }
 }
 
+/* On a phone the label sits on its own line above the message, so it still says what the vote is for. */
 @media (max-width: 560px) {
-  .vote-tag {
-    display: none;
-  }
   .vote-in {
     gap: 4px 12px;
+  }
+  .vote-msg {
+    display: grid;
+    grid-template-columns: 7px minmax(0, 1fr);
+    gap: 1px 8px;
+  }
+  .vote-text,
+  a.vote-go {
+    grid-column: 2;
   }
 }
 
