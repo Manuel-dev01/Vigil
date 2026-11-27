@@ -1,0 +1,107 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:e0603438-ad78-559f-b403-6884e704096b",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-27T17:13:19Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "supplier": {
+            "name": "QoreChain Association"
+          },
+          "name": "qorescan",
+          "version": "0.1.0",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://github.com/qorechain/qorescan"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "platform",
+      "bom-ref": "target",
+      "name": "Solidity sources"
+    },
+    "properties": [
+      {
+        "name": "qorescan:disclaimer",
+        "value": "QoreScan output is an inventory aid. It is not a certification, an audit or a legal opinion, and it does not establish conformity with any regulation or standard."
+      },
+      {
+        "name": "qorescan:solidity:files",
+        "value": "1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/algorithm/ecdsa-secp256k1",
+      "name": "ECDSA secp256k1",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "ClassicalCanary.sol",
+            "line": 8,
+            "symbol": "ecrecover",
+            "additionalContext": "ecrecover: ECDSA secp256k1 public key recovery (precompile 0x01)"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "curve": "secp256k1",
+          "cryptoFunctions": [
+            "sign",
+            "verify"
+          ],
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 0
+        }
+      },
+      "properties": [
+        {
+          "name": "qorescan:classification",
+          "value": "quantum-vulnerable"
+        },
+        {
+          "name": "qorescan:transition",
+          "value": "Deprecated after 2030, disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "qorescan:standard",
+          "value": "SEC 2 curve, ECDSA per FIPS 186-5"
+        },
+        {
+          "name": "qorescan:family",
+          "value": "ECDSA"
+        },
+        {
+          "name": "qorescan:algorithm-note",
+          "value": "IR 8547 schedules the ECDSA family; QoreScan applies that schedule to every curve in the family."
+        },
+        {
+          "name": "qorescan:source",
+          "value": "solidity"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "target",
+      "dependsOn": [
+        "crypto/algorithm/ecdsa-secp256k1"
+      ]
+    }
+  ]
+}
