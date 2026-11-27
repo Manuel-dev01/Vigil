@@ -49,6 +49,10 @@ export function cells(line: string): string[] {
 
 const unquote = (s: string) => s.replace(/^`(.*)`$/, "$1");
 
+/** A row may start with a link target, `<a id="r12"></a>12` or `<a id="ro-escrow"></a>2026-11-27`; it is not part of the value. */
+const ANCHOR = /^<a\s+id="[^"]*"\s*><\/a>\s*/i;
+export const withoutAnchor = (cell: string) => cell.replace(ANCHOR, "");
+
 /** "10,241,702" -> 10241702. Throws on anything else, so a malformed row is loud. */
 export function parseHeight(s: string): number {
   const digits = s.replace(/,/g, "");
@@ -67,6 +71,7 @@ export function parseLedger(markdown: string): Ledger {
     else if (/^##\s/.test(line)) section = undefined;
 
     const c = cells(line);
+    if (c.length > 0) c[0] = withoutAnchor(c[0] as string);
     if (c.length === 0 || /^-+$/.test(c[0]?.replace(/:/g, "") ?? "")) continue;
 
     if (section === "numbered" && /^\d+$/.test(c[0] ?? "")) {

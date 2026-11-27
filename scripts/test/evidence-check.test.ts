@@ -11,7 +11,7 @@ import { parseArgs, UsageError } from "../evidence/args.ts";
 import { EVENTS_ABI, isTxNotFound, judgeRow, matchesAbbrev, qorAt } from "../evidence/check.ts";
 import { EXPECT } from "../evidence/expect.ts";
 import { ChainReader, MIN_GAP_MS, worthKeeping, type Fetched } from "../evidence/fetch.ts";
-import { parseLedger, type TxRow } from "../evidence/ledger.ts";
+import { cells, parseLedger, type TxRow } from "../evidence/ledger.ts";
 import { buildReport, commandsOf, failReasons, NOT_SCRIPTED, ranges, readOnlyResults, toMarkdown } from "../evidence/report.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
@@ -42,6 +42,25 @@ describe("EVIDENCE.md parser", () => {
   it("finds the read-only checks", () => {
     expect(ledger.readOnly.length).toBeGreaterThanOrEqual(6);
     expect(ledger.readOnly.map((r) => r.index)).toEqual(ledger.readOnly.map((_, i) => i + 1));
+  });
+
+  it("reads rows that start with a link target, as every row of EVIDENCE.md does", () => {
+    const head = "| # | Date (UTC) | Network | Height | Tx hash | Explorer | What it proves | How to re-verify |\n|---|---|---|---|---|---|---|---|\n";
+    const hash = "A".repeat(64);
+    const md =
+      `${head}| <a id="r7"></a>7 | 2026-11-17 | testnet | 10,241,833 | \`${hash}\` | x | y | z |\n\n` +
+      "## Read-only checks (no transaction)\n\n| Date (UTC) | Network | Height | What it shows | How to re-verify |\n|---|---|---|---|---|\n" +
+      '| <a id="ro-escrow"></a>2026-11-27 | testnet | ~10,859,700 | x | `GET /x` |\n';
+    const parsed = parseLedger(md);
+    expect(parsed.rows.map((r) => [r.n, r.date, r.height, r.hash])).toEqual([[7, "2026-11-17", 10_241_833, hash]]);
+    expect(parsed.readOnly.map((r) => [r.index, r.date, r.height])).toEqual([[1, "2026-11-27", "~10,859,700"]]);
+    // No row of EVIDENCE.md is lost to its link target: one parsed row per anchored line, in both tables.
+    const lines = readFileSync(resolve(ROOT, "EVIDENCE.md"), "utf8").split(/\r?\n/);
+    const numbered = lines.filter((l) => /^\|\s*(<a id="r\d+"><\/a>)?\d+\s*\|/.test(l));
+    expect(numbered.length).toBe(ledger.rows.length);
+    for (const [i, l] of numbered.entries()) expect(l.startsWith(`| <a id="r${i + 1}"></a>${i + 1} |`), `row ${i + 1}`).toBe(true);
+    const readOnly = lines.filter((l) => /^\|\s*(<a id="[^"]+"><\/a>)?\d{4}-\d{2}-\d{2}\s*\|/.test(l) && cells(l).length === 5);
+    expect(readOnly.length).toBe(ledger.readOnly.length);
   });
 
   it("refuses a row without a full hash, or with a cell missing", () => {
