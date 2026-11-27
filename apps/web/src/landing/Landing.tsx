@@ -44,7 +44,7 @@ const STEPS: Step[] = [
     n: "04",
     title: "Fronted",
     body: "Leaving early? Both watchtowers sign your withdrawal, the vault checks their ML-DSA-87 signatures with pqcVerify and can pay you before the batch is final. Our first automatic exit was paid 11 blocks after its batch: about 23 seconds from the block that took the withdrawal to the block that paid it.",
-    sounding: { label: "EVIDENCE 99 to 104", href: row(99) },
+    sounding: { label: "EVIDENCE 99 to 104, timed 27 Nov", href: `${EVIDENCE}#ro-exit-time` },
   },
   {
     n: "05",

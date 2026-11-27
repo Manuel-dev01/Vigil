@@ -16,7 +16,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 - **Rollup:** `vigil-pay-1`, created and bonded 19 Nov (EVIDENCE 13–14).
 - **Sequencers:** Keel, run by the creator, hosted and always on (EVIDENCE 15–23), and a standby Keel with its own bonded key in another region. With the creator's Keel stopped, the standby batched a user's withdrawal; the creator's Keel then resumed and anchored again (EVIDENCE 65–72; §7).
 - **Watchtowers:** two keys in two hosting regions, both in challenge mode (EVIDENCE 24–27, 46–47).
-- **Sealed payroll lane:** live, with three sealed payslips on chain: November's, December's and January's (EVIDENCE 28–38, 114–115, 117, 121–123).
+- **Sealed payroll lane:** live. Three sealed payslips were posted: November's, December's and January's (EVIDENCE 28–38, 114–115, 117, 121–123). The chain deletes a posted-data record after 648,000 blocks, November's around 30 Nov (EVIDENCE 115); the web app reads each entry from the transaction that posted it, checked against the chain's inbox accumulator.
 - **Fraud drills:** two, both upheld on chain (EVIDENCE 39–45, 48–56; §7).
 - **Receipts in three places:** the CLI (`scripts/receipts-snapshot.ts`), the browser (`apps/web`, which reads one public node over its websocket with no server of ours), and Solidity: `SettlementReceiptVerifier` has verified and recorded 19 `vigil-pay-1` anchors on chain, every one through layer height 19 (EVIDENCE 57–64, 79–81, 110–113; §5, §13).
 - **Instant exits:** paid by an automatic relayer before finality and repaid after it (EVIDENCE 82–109; §14).
@@ -26,7 +26,7 @@ Vigil is a qledger-v1 **based optimistic rollup** on QoreChain.
 
 | Asset | Where it lives | What loss looks like |
 |---|---|---|
-| Deposit pool | x/rdk, per rollup: `vigil-pay-1`'s `deposit_pool` (2.45 QOR on 27 Nov), not its `escrow_balance`, which is the creator's 9,900 QOR stake (EVIDENCE 13, 21; read-only check of 27 Nov) | A withdrawal paid that the honest ledger does not owe |
+| Deposit pool | x/rdk, per rollup: `vigil-pay-1`'s `deposit_pool` (2.45 QOR on 27 Nov), not its `escrow_balance`, which is the creator's 9,900 QOR stake (EVIDENCE 13, 21; [read-only check of 27 Nov](EVIDENCE.md#ro-escrow)) | A withdrawal paid that the honest ledger does not owe |
 | L2 balances | qledger state (SHA-256 sparse Merkle tree) | A transfer or withdrawal without the account's ML-DSA-44 signature |
 | Submitter bonds | x/rdk (the creator's 1,000 QOR bond) | Slashed when the submitter was honest, or kept when it was not |
 | Sealed payment data | ML-KEM-1024 envelopes in the inbox | Plaintext readable by anyone other than the named recipients, now or later |
@@ -196,8 +196,8 @@ Moving one watchtower to a second provider is open work.
 | A challenge that loses the race fails in delivery, not at CheckTx, so it still pays its fee (0.24 QOR in drill 1) | 19 Nov 2026 | EVIDENCE 116 (watchtower-2, in the same block as the winner) and 45 (watchtower-1, 4 blocks later, same fee) |
 | The chain refuses a qledger-v1 post over **6,144 bytes** "so every fraud proof fits one transaction", and refuses it while executing the message, so the fee is paid. Simulated at 4,781 / 6,144 / 6,145 / 9,492 bytes: accepted, accepted, refused, refused | 24 Nov 2026 | §12 F6 |
 | Posted data is deleted after 648,000 blocks (another rollup's early entries return 404). Finalized batch records, which the parameters allow deleting after 432,000 blocks, are still served 750,000 blocks after finality | 24 Nov 2026 | `GET /qorechain/rdk/v1/posted_data/…`, `/batch/…` |
-| `vigil-pay-1`'s own batch 0 record (finalized at 10,355,185) is still served at height 10,860,020, about 505,000 blocks after finality, and settlement receipts for all 25 anchored batches verify with a live client | 27 Nov 2026 | `scripts/receipts-snapshot.ts`; EVIDENCE read-only checks |
-| The automatic relayer's first exit took **22.8 s and 16 blocks** from the block with the withdrawal post to the block whose `front()` paid it, 11 of those blocks after the batch. One exit, so a sample of one; measured from inclusion to inclusion | 27 Nov 2026 (block timestamps of 24 Nov) | EVIDENCE 99–104 and the read-only check of 27 Nov |
+| `vigil-pay-1`'s own batch 0 record (finalized at 10,355,185) is still served at height 10,860,020, about 505,000 blocks after finality, and settlement receipts for all 25 anchored batches verify with a live client | 27 Nov 2026 | `scripts/receipts-snapshot.ts`; [EVIDENCE read-only check](EVIDENCE.md#ro-receipts) |
+| The automatic relayer's first exit took **22.8 s and 16 blocks** from the block with the withdrawal post to the block whose `front()` paid it, 11 of those blocks after the batch. One exit, so a sample of one; measured from inclusion to inclusion | 27 Nov 2026 (block timestamps of 24 Nov) | EVIDENCE 99–104 and the [read-only check of 27 Nov](EVIDENCE.md#ro-exit-time) |
 | `eth_estimateGas` without a gas price runs with `tx.gasprice = 0`, so a contract can behave differently under estimation than when sent | 24 Nov 2026 | §12 F7 |
 | An EVM window's `max_value` counts each transaction's maximum fee as well as its value | 24 Nov 2026 (SDK docs; EVIDENCE 103, 107) | `packages/exit-relayer` |
 | Inside a contract, checking one anchor (rebuild the 144-byte message, `pqcKeyStatus`, `pqcVerify` on a 4,627-byte signature) and recording it costs **279,928 gas** (0.0315 QOR at 0.1125 uqor/gas); ten in one transaction cost 2,305,444 gas | 19 Nov 2026 | EVIDENCE 62–63 |
@@ -209,7 +209,7 @@ Moving one watchtower to a second provider is open work.
 
 ## 11. Exercised so far
 
-**Tests (27 Nov 2026):** 258 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 27 more vitest tests run against the live chain only when `VIGIL_LIVE=1` (one per saved `vigil-pay-1` receipt, plus two), and one only after a local Foundry build.
+**Tests (27 Nov 2026):** 265 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 27 more vitest tests run against the live chain only when `VIGIL_LIVE=1` (one per saved `vigil-pay-1` receipt, plus two), and one only after a local Foundry build.
 
 | Suite | Tests | What it pins down |
 |---|---|---|
