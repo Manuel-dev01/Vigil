@@ -10,8 +10,8 @@
  * - it cannot be revoked, because the envelope stays on chain and in the public inbox archive.
  *
  * QoreSeal 0.1.0's open() unwraps the data key inside and does not return it. payslipDataKey repeats
- * that unwrap with QoreSeal's exported primitives (parseEnvelope, mlkemDecapsulate, x25519Agree,
- * hybridSharedSecret, deriveKey) and AES-256-GCM from @noble/ciphers, the cipher QoreSeal itself uses,
+ * that unwrap with QoreSeal's exported primitives (parseEnvelope, recipientHint, mlkemDecapsulate,
+ * x25519Agree, hybridSharedSecret, deriveKey) and AES-256-GCM from @noble/ciphers, the cipher QoreSeal itself uses,
  * and returns the key only once it has decrypted the payload. test/disclose.test.ts checks it against
  * openPayslip on envelopes sealed to throwaway keys.
  *
@@ -20,7 +20,18 @@
  * transfer, which a disclosure checks (THREAT_MODEL.md section 13).
  */
 import { gcm } from "@noble/ciphers/aes.js";
-import { ENTRY_LENGTH, deriveKey, fromBase64Url, hybridSharedSecret, mlkemDecapsulate, parseEnvelope, toBase64Url, x25519Agree, type SealKeyPair } from "@qorechain/qoreseal";
+import {
+  ENTRY_LENGTH,
+  deriveKey,
+  fromBase64Url,
+  hybridSharedSecret,
+  mlkemDecapsulate,
+  parseEnvelope,
+  recipientHint,
+  toBase64Url,
+  x25519Agree,
+  type SealKeyPair,
+} from "@qorechain/qoreseal";
 import { PAYSLIP_PURPOSE, checkPayslipShape, sealedLaneAad, type Payslip } from "./payslip.ts";
 
 export const DATA_KEY_BYTES = 32;
@@ -39,6 +50,8 @@ function concat(...parts: Uint8Array[]): Uint8Array {
   }
   return out;
 }
+
+const sameBytes = (a: Uint8Array, b: Uint8Array): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
 function attempt<T>(f: () => T): T | undefined {
   try {
@@ -65,8 +78,11 @@ export function payslipDataKey(input: { chainId: string; rollupId: string; envel
   // Each wrapped key authenticates the envelope's fixed header (magic, version, algorithms, flags, salt,
   // recipient count): the header less its recipient entries and the payload nonce.
   const fixed = env.header.subarray(0, env.header.length - env.entries.length * ENTRY_LENGTH[env.mode] - env.nonce.length);
-  // Payslips are anonymous (no hints), so every entry is tried, as open() does; a wrong one fails its tag.
-  for (const e of env.entries) {
+  // As open() does: an anonymous envelope (payslips are) has no hints, so every entry is tried and a wrong
+  // one fails its tag; otherwise only the entries whose recipient hint is this key's.
+  const myHint = recipientHint(env.salt, input.keys.mlkemPublicKey);
+  const candidates = env.anonymous ? env.entries : env.entries.filter((e) => sameBytes(e.hint, myHint));
+  for (const e of candidates) {
     const dataKey = attempt(() => {
       let shared = mlkemDecapsulate(input.keys.mlkemSecretKey, e.mlkemCiphertext);
       if (env.mode === "hybrid") {
@@ -110,6 +126,13 @@ export const dataKeyToText = (dataKey: Uint8Array): string => {
  * not send the part after "#" to the server, so the key reaches only the page.
  */
 export const shareFragment = (entry: number, dataKey: Uint8Array): string => `#/payslip?entry=${entry}&dk=${dataKeyToText(dataKey)}`;
+
+/** The whole link: the web app's address `base` (any "#" part replaced) with the fragment of shareFragment. */
+export function shareLink(base: string | URL, entry: number, dataKey: Uint8Array): string {
+  const u = new URL(base);
+  u.hash = shareFragment(entry, dataKey).slice(1);
+  return u.href;
+}
 
 /** The inverse of dataKeyToText; throws on anything that is not exactly a 32-byte key. */
 export function dataKeyFromText(text: string): Uint8Array {

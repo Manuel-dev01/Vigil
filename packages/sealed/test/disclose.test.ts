@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { hexToBytes } from "@qorechain/rdk";
 import { generateSealKeys, recipientOf, seal, sealKeysFromSeed, toBase64Url } from "@qorechain/qoreseal";
-import { dataKeyFromText, dataKeyToText, openPayslipWithDataKey, payslipDataKey } from "../src/disclose.ts";
+import { dataKeyFromText, dataKeyToText, openPayslipWithDataKey, payslipDataKey, shareLink } from "../src/disclose.ts";
 import { PAYSLIP_PURPOSE, isSealedEnvelope, openPayslip, sealPayslip, sealedLaneAad, type Payslip } from "../src/payslip.ts";
 
 const chainId = "qorechain-diana";
@@ -64,6 +64,9 @@ describe("payslipDataKey", () => {
       const dataKey = payslipDataKey({ chainId, rollupId, envelope: env, keys: fresh });
       expect(openPayslipWithDataKey({ rollupId, envelope: env, dataKey })).toEqual(openPayslip({ chainId, rollupId, envelope: env, keys: fresh }));
     }
+    // With hints, as in open(), only the entry whose hint is this key's is tried.
+    expect(payslipDataKey({ chainId, rollupId, envelope: withHints, keys: auditor })).toEqual(payslipDataKey({ chainId, rollupId, envelope: withHints, keys: fresh }));
+    expect(() => payslipDataKey({ chainId, rollupId, envelope: withHints, keys: outsider })).toThrow(/no entry/);
   });
 });
 
@@ -120,6 +123,16 @@ describe("data keys as link text", () => {
       expect(() => dataKeyFromText(bad)).toThrow(/43 characters/);
     }
     expect(() => dataKeyToText(new Uint8Array(31))).toThrow(/32 bytes/);
+  });
+
+  it("go after the \"#\" of the web app's address, whatever that address ends with", () => {
+    const key = new Uint8Array(32).fill(7);
+    const tail = `#/payslip?entry=27&dk=${dataKeyToText(key)}`;
+    expect(shareLink("https://vigil.example", 27, key)).toBe(`https://vigil.example/${tail}`);
+    expect(shareLink("https://vigil.example/", 27, key)).toBe(`https://vigil.example/${tail}`);
+    expect(shareLink("https://vigil.example/app/index.html", 27, key)).toBe(`https://vigil.example/app/index.html${tail}`);
+    expect(shareLink("https://vigil.example/?x=1", 27, key)).toBe(`https://vigil.example/?x=1${tail}`);
+    expect(shareLink("https://vigil.example/#/exits", 27, key)).toBe(`https://vigil.example/${tail}`);
   });
 });
 
