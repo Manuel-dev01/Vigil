@@ -331,6 +331,9 @@ describe("the report", () => {
     // A read-only row added later with a command no rule knows gets a neutral reason, not a wrong one.
     const added = readOnlyResults([{ index: 7, date: "2026-12-01", network: "testnet", height: "~10,900,000", recheck: "`pnpm --filter @vigil/web check-solvency`" }]);
     expect(added[0]?.why).toBe(NOT_SCRIPTED);
+    // The receipt snapshot alone reads about 30 records and replays nothing, so it is not given the replay reason.
+    const snapshot = readOnlyResults([{ index: 8, date: "2026-11-27", network: "testnet", height: "10,860,020", recheck: "`cd scripts && npx tsx receipts-snapshot.ts vigil-pay-1`" }]);
+    expect(snapshot[0]?.why).toBe(NOT_SCRIPTED);
     expect(commandsOf("`a b`; recorded in `test/vectors/x.json`")).toBe("a b");
   });
 

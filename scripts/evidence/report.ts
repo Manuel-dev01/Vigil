@@ -49,7 +49,7 @@ const WHY_NOT_RUN: { test: RegExp; why: string }[] = [
     why: "it is a separate probe of the PQC precompiles (calls with crafted inputs and throwaway keys), not a read-back of a transaction; left out to keep this check's requests few",
   },
   { test: /spike:a\b.*pnpm test\b/, why: `${REPLAYS}; its offline part (\`pnpm test\`) runs in CI` },
-  { test: /qledger-watchtower\b.*--once|spike:a\b|kit-gap-check\.ts|receipts-snapshot\.ts/, why: REPLAYS },
+  { test: /qledger-watchtower\b.*--once|spike:a\b|kit-gap-check\.ts/, why: REPLAYS },
 ];
 export const NOT_SCRIPTED = "not scripted in this check; run the command";
 
