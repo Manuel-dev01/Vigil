@@ -5,7 +5,10 @@
 useDefault = true
 
 [allowlist]
-description = "Public recipient-card fields"
+description = "Public recipient-card fields, and the demo reader's seal key, published on purpose (testnet; opens only envelopes sealed to demo-reader; cannot sign or spend)"
+paths = [
+  '''^apps/web/public/demo/demo-reader\.seal\.txt$''',
+]
 regexTarget = "line"
 regexes = [
   '''^\s*"mlkemKeySha3": "[0-9a-f]{64}",?$''',

@@ -1,0 +1,7 @@
+# Vigil demo reader: a QoreSeal seal key, published on purpose (testnet only, 27 Nov 2026).
+# It opens only the payslip envelopes sealed to qor10f3gpnyh9aty8m70492wpk692dkw27y3nzdk5k (inbox entry 32 and any later ones).
+# It is not a leak and it cannot sign or spend: it is an ML-KEM-1024 + X25519 seal key, generated separately
+# from that account's signing keys, which stay private. Drop this file on https://vigil-pq.up.railway.app/#/payslip,
+# or press "Open as the demo reader" there.
+QSEAL_ADDRESS=qor10f3gpnyh9aty8m70492wpk692dkw27y3nzdk5k
+QSEAL_SEED_HEX=114f56cdcb215b84adb8a28238265aee9840dbb7d948a96ec8343b0638142957
