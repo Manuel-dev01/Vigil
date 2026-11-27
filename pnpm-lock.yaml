@@ -220,6 +220,9 @@ importers:
       '@vigil/qledger-watchtower':
         specifier: workspace:*
         version: link:../packages/qledger-watchtower
+      '@vigil/sealed':
+        specifier: workspace:*
+        version: link:../packages/sealed
       cosmjs-types:
         specifier: 0.11.0
         version: 0.11.0

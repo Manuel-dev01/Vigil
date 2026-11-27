@@ -349,7 +349,8 @@ a.life-sounding {
   transform: none;
 }
 
-/* ------------------------------------------------------------------ also on watch, the log */
+/* ------------------------------------------------------------------ in numbers, also on watch, the log */
+.numbers,
 .also,
 .log {
   padding: clamp(96px, 15vh, 168px) var(--gutter);
@@ -388,6 +389,49 @@ a.life-sounding {
   border-bottom: 1px solid currentColor;
   padding-bottom: 2px;
   font-weight: 500;
+}
+
+.numbers-grid {
+  list-style: none;
+  margin: 0 0 var(--s6);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s6);
+}
+.numbers-grid li {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s5);
+  min-width: 0;
+}
+.numbers-grid h3 {
+  margin: 0 0 var(--s3);
+  font-weight: 500;
+}
+.num-value {
+  display: block;
+  font-family: var(--f-display);
+  font-size: var(--t-h2);
+  font-variation-settings: "opsz" 72;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1.05;
+  color: var(--lamp);
+}
+.num-label {
+  display: block;
+  margin-top: var(--s2);
+  font-size: var(--t-body);
+  color: var(--chart);
+}
+.num-note {
+  color: var(--sounding);
+  margin: 0 0 var(--s3);
+}
+.num-src {
+  font-size: var(--t-label);
+  letter-spacing: 0.04em;
+  color: var(--sounding);
+  margin: 0;
 }
 
 .log-head {
@@ -569,6 +613,10 @@ html.is-dawn .dawn-copy {
   .also-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  .numbers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s5);
+  }
   .log-head .sec-title,
   .log-head p {
     grid-column: 1 / -1;
@@ -589,6 +637,11 @@ html.is-dawn .dawn-copy {
   }
   .dawn-copy {
     grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .numbers-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 420px) {

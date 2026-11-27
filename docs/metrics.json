@@ -1,0 +1,260 @@
+{
+  "schema": "vigil/metrics/v1",
+  "rollupId": "vigil-pay-1",
+  "chainId": "qorechain-diana",
+  "asOf": {
+    "height": 10862210,
+    "time": "2026-11-27T17:42:17Z"
+  },
+  "requests": 34,
+  "live": {
+    "createdHeight": 10351825,
+    "createdTime": "2026-11-19T02:53:21Z",
+    "days": 8
+  },
+  "archive": {
+    "entries": 27,
+    "head": 27,
+    "confirmedByChain": true,
+    "chainInboxEnd": 38
+  },
+  "batches": {
+    "listed": 34,
+    "final": 26,
+    "pending": 8,
+    "rejectedListed": 0,
+    "latestIndex": 33,
+    "anchored": 33,
+    "unanchoredFinal": [
+      11
+    ]
+  },
+  "anchors": {
+    "onChain": 33,
+    "verified": 33,
+    "failed": [],
+    "finalWithVerifiedAnchor": 25,
+    "attestedInSolidity": 25,
+    "highestAttested": 25,
+    "conflicts": 0
+  },
+  "fraud": {
+    "upheld": [
+      {
+        "batchIndex": 6,
+        "tx": "1BF5B717F658DCD923D9860322DA21C901C608C2F6E7FA359A6439BBA114EBC4",
+        "height": 10370243,
+        "challenger": "qor1ua2dl0nuf3qxr5yfhr3x9ah5cdh9vw7qczvdj5",
+        "ours": false,
+        "slashedUqor": "1000000000",
+        "evidence": [
+          43,
+          44
+        ],
+        "drill": "fraud drill 1",
+        "forgedTx": "E3E71FB6BFE0A2102C9490A11F18205913926513DA524E225B59CB931DF7D11E",
+        "forgedHeight": 10370239,
+        "blocksAfterBatch": 4
+      },
+      {
+        "batchIndex": 8,
+        "tx": "4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915",
+        "height": 10382607,
+        "challenger": "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd",
+        "ours": true,
+        "slashedUqor": "1000000000",
+        "evidence": [
+          54,
+          55
+        ],
+        "drill": "fraud drill 2",
+        "forgedTx": "6802887DBC277445377D70C1D2474AEC30ED3C00059F08943DF16DFB8E1D1A9A",
+        "forgedHeight": 10382606,
+        "blocksAfterBatch": 1
+      }
+    ],
+    "fastPath": {
+      "seenAfterBlockSeconds": 1.6,
+      "judgedMs": 10,
+      "broadcastAfterMs": 254,
+      "evidence": 55
+    }
+  },
+  "standby": [
+    {
+      "batchIndex": 11,
+      "firstEntry": 13,
+      "postHeight": 10433589,
+      "submittedHeight": 10433596,
+      "blocksAfterPost": 7
+    }
+  ],
+  "exits": {
+    "rows": [
+      {
+        "batchIndex": 15,
+        "withdrawalIndex": 3,
+        "payout": "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3",
+        "amountUqor": "100000",
+        "paidUqor": "99500",
+        "feeUqor": "500",
+        "frontTx": "0x9705770b52cdb3448277915a778f1e0e6ba4c8ffddcb2ae4ae6d574416637933",
+        "frontHeight": 10629908,
+        "frontTime": "2026-11-23T21:08:43Z",
+        "batchHeight": 10629840,
+        "batchFinal": true,
+        "blocksAfterBatch": 68,
+        "postEntry": 17,
+        "postHeight": 10629836,
+        "postTime": "2026-11-23T21:05:37Z",
+        "postToPaidSeconds": 186,
+        "secondsBeforeFinal": 3425
+      },
+      {
+        "batchIndex": 18,
+        "withdrawalIndex": 4,
+        "payout": "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3",
+        "amountUqor": "100000",
+        "paidUqor": "99500",
+        "feeUqor": "500",
+        "frontTx": "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f",
+        "frontHeight": 10686385,
+        "frontTime": "2026-11-24T20:05:00Z",
+        "batchHeight": 10686374,
+        "batchFinal": true,
+        "blocksAfterBatch": 11,
+        "postEntry": 20,
+        "postHeight": 10686369,
+        "postTime": "2026-11-24T20:04:37Z",
+        "postToPaidSeconds": 23,
+        "secondsBeforeFinal": 3585
+      },
+      {
+        "batchIndex": 29,
+        "withdrawalIndex": 5,
+        "payout": "0x7a6280cC972f5643eFcFA954e0DB45536ce57891",
+        "amountUqor": "500000",
+        "paidUqor": "497500",
+        "feeUqor": "2500",
+        "frontTx": "0x7c275a65efc75a68da17902a976d591c2d37fcad66de4460620e4bb82fcb13c1",
+        "frontHeight": 10861586,
+        "frontTime": "2026-11-27T17:27:31Z",
+        "batchHeight": 10861569,
+        "batchFinal": false,
+        "blocksAfterBatch": 17,
+        "secondsBeforeFinal": 3575
+      },
+      {
+        "batchIndex": 32,
+        "withdrawalIndex": 6,
+        "payout": "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3",
+        "amountUqor": "50000",
+        "paidUqor": "49750",
+        "feeUqor": "250",
+        "frontTx": "0x6ed87d50c8cff0a3e7b9a37411d17749761786b4dc1a71fcd54f516628175455",
+        "frontHeight": 10862205,
+        "frontTime": "2026-11-27T17:42:09Z",
+        "batchHeight": 10862193,
+        "batchFinal": false,
+        "blocksAfterBatch": 12,
+        "secondsBeforeFinal": 3583
+      }
+    ],
+    "frontedUqor": "750000",
+    "owedUqor": "550000",
+    "repaidPercent": 26.6,
+    "searchedBatches": [
+      15,
+      18,
+      29,
+      32
+    ]
+  },
+  "payslips": {
+    "poster": "qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws",
+    "sealedEntries": [
+      6,
+      24,
+      27
+    ],
+    "rounds": [
+      {
+        "period": "2026-11",
+        "paymentEntry": 5,
+        "envelopeEntry": 6,
+        "paymentTx": "73287A6BDDF3363C0D4BD8FEF9A428B7DC1D7A14386DB72ECAE5152432C58C22",
+        "envelopeTx": "0B70265B742B431607B01A423E1AF1CE5AA915C948373F5AFAED780753B18B9B",
+        "evidence": [
+          35,
+          37
+        ],
+        "envelopeBytes": 5822,
+        "spentUqor": "255732"
+      },
+      {
+        "period": "2026-12",
+        "paymentEntry": 23,
+        "envelopeEntry": 24,
+        "paymentTx": "4C279045078423757280BFE453B112413AE2698E7E972FB6D18855B65051FD66",
+        "envelopeTx": "8ADA7C5E04F5A1CB66C3372A4DA3C8A81CD7B3094DFF0BED6D7A17F0068A1739",
+        "evidence": [
+          114,
+          115
+        ],
+        "envelopeBytes": 5905,
+        "spentUqor": "257181"
+      },
+      {
+        "period": "2027-01",
+        "paymentEntry": 26,
+        "envelopeEntry": 27,
+        "paymentTx": "F82CF360FB8294E00872E0605EB7C3C3586A1F26CD0FF9A1760E50F6ABED6814",
+        "envelopeTx": "013F7B58409CF2FF39099F9CA301E4EEA82BC941EC8FA3DB89C8CF37B7F7B982",
+        "evidence": [
+          121,
+          122
+        ],
+        "envelopeBytes": 5901,
+        "spentUqor": "257143"
+      }
+    ]
+  },
+  "strip": [
+    {
+      "value": "8 days",
+      "label": "live on testnet",
+      "note": "vigil-pay-1 created at block 10,351,825, 19 Nov 2026",
+      "source": "EVIDENCE 13; chain read 27 Nov 2026"
+    },
+    {
+      "value": "33 of 33",
+      "label": "anchors verify (ML-DSA-87)",
+      "note": "checked against the creator's key as the node reports it; 25 final batches carry their own verified anchor",
+      "source": "chain read 27 Nov 2026"
+    },
+    {
+      "value": "25",
+      "label": "anchors verified in Solidity",
+      "note": "recorded by SettlementReceiptVerifier through pqcVerify, through layer height 25; 0 conflicts",
+      "source": "EVIDENCE 62, 63, 80, 112, 125; chain read 27 Nov 2026"
+    },
+    {
+      "value": "1 block",
+      "label": "from forged batch to upheld challenge",
+      "note": "fraud drill 2: batch 8, our watchtower-2's challenge; 1,000 QOR bond slashed",
+      "source": "EVIDENCE 54, 55"
+    },
+    {
+      "value": "4 instant exits",
+      "label": "paid before finality",
+      "note": "a small sample (n = 4); the fastest was paid 23 s after its withdrawal was posted; every exit whose batch is final is repaid; 0.55 QOR is owed on 2 exits whose batch is not final yet",
+      "source": "EVIDENCE 91, 104; chain read 27 Nov 2026"
+    },
+    {
+      "value": "3",
+      "label": "payslips sealed with ML-KEM-1024",
+      "note": "posted in the rollup's inbox by employer-1; a payment and its payslip cost about 0.26 QOR in fees",
+      "source": "EVIDENCE 37, 115, 122; chain read 27 Nov 2026"
+    }
+  ]
+}
