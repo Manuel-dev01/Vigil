@@ -113,7 +113,7 @@ pnpm test                      # 317 TypeScript tests (28 more are skipped: 27 n
 pnpm --filter @vigil/web dev   # the web app, reading the live chain
 ```
 
-- Re-check every numbered [EVIDENCE](EVIDENCE.md) row against the chain, read-only and at one request a second (about three minutes): `pnpm evidence:check`. On 27 Nov it re-verified 123 of 123 rows at height 10,859,709, as the node reports ([docs/evidence-check.md](docs/evidence-check.md)); a scheduled workflow repeats it daily (the badge above).
+- Re-check every numbered [EVIDENCE](EVIDENCE.md) row against the chain, read-only and at one request a second (about three minutes): `pnpm evidence:check`. On 27 Nov it re-verified 123 of 123 rows at height 10,863,256, as the node reports ([docs/evidence-check.md](docs/evidence-check.md)); a scheduled workflow repeats it daily (the badge above).
 - Replay `vigil-pay-1` from chain data and compare the state roots: `packages/qledger-watchtower`.
 - Re-run the differential fuzzer: [`scripts/fuzz/README.md`](scripts/fuzz/README.md).
 - Check the Solidity verifier without spending anything: `pnpm --filter @vigil/scripts evm:verifier status`.

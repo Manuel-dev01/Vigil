@@ -1,8 +1,8 @@
 # Evidence check
 
-**123 of 123 rows re-verified at height 10,859,709 (27 Nov 2026, 16:42 UTC), as the node reports.** The 6 read-only checks are listed by command below.
+**123 of 123 rows re-verified at height 10,863,256 (27 Nov 2026, 18:07 UTC), as the node reports.** The 10 read-only checks are listed by command below.
 
-`pnpm evidence:check` (`scripts/evidence-check.ts`) read every numbered row of [EVIDENCE.md](https://github.com/Manuel-dev01/Vigil/blob/main/EVIDENCE.md) (sha256 `b16c7e10487bca04…`) back from the chain between 27 Nov 2026, 16:42 UTC and 16:45 UTC: `GET /cosmos/tx/v1beta1/txs/{hash}` on https://api-testnet.qore.host for native transactions and `eth_getTransactionReceipt` on https://evm-testnet.qore.host for EVM ones, one request at a time and at most one a second. No key, no transaction. This report was rebuilt from the answers saved when they were read (`--cache`), with no new reads. Full results: [docs/evidence-check.json](https://github.com/Manuel-dev01/Vigil/blob/main/docs/evidence-check.json).
+`pnpm evidence:check` (`scripts/evidence-check.ts`) read every numbered row of [EVIDENCE.md](https://github.com/Manuel-dev01/Vigil/blob/main/EVIDENCE.md) (sha256 `684d296ff80f5433…`) back from the chain between 27 Nov 2026, 18:07 UTC and 18:09 UTC: `GET /cosmos/tx/v1beta1/txs/{hash}` on https://api-testnet.qore.host for native transactions and `eth_getTransactionReceipt` on https://evm-testnet.qore.host for EVM ones, one request at a time and at most one a second. No key, no transaction. Full results: [docs/evidence-check.json](https://github.com/Manuel-dev01/Vigil/blob/main/docs/evidence-check.json).
 
 A row counts as re-verified when the node returns its transaction and:
 - its height is the row's, and so is its date (UTC) wherever the answer carries a time (an EVM receipt has one only in its logs, so rows 6, 60 and 83 get no date check);
@@ -30,3 +30,7 @@ These rows of EVIDENCE.md have no transaction, and this check does not run them 
 | 4 | 2026-11-18 | ~10,320,830 | `spike:a vigil-1; tsx scripts/receipts-snapshot.ts vigil-1` | it replays batches from chain data, which takes far more reads than this check makes at one a second |
 | 5 | 2026-11-17 | ~10,241,900 | `pnpm --filter @vigil/scripts exec tsx drill/deploy-vault.ts verify` | it signs a test message, so it needs a key this check does not hold |
 | 6 | 2026-11-16 | see vector | `pnpm --filter @vigil/scripts spike:b` | it is a separate probe of the PQC precompiles (calls with crafted inputs and throwaway keys), not a read-back of a transaction; left out to keep this check's requests few |
+| 7 | 2026-11-27 | 10,686,369 to 10,686,385 | `GET /cosmos/base/tendermint/v1beta1/blocks/10686369; /10686385; block.header.time; eth_getTransactionReceipt; blockNumber; 0xa30fb1` | not scripted in this check; run the command |
+| 8 | 2026-11-27 | ~10,859,700 | `GET /qorechain/rdk/v1/rollup/vigil-pay-1; escrow_balance; deposit_pool` | not scripted in this check; run the command |
+| 9 | 2026-11-27 | ~10,859,900 | `cast call 0x3a897802b62b052a102f55e021bc4668539c29b5 "quorum()(address[])" --rpc-url https://evm-testnet.qore.host; "threshold()(uint256)"` | not scripted in this check; run the command |
+| 10 | 2026-11-27 | 10,860,020 | `cd scripts && npx tsx receipts-snapshot.ts vigil-pay-1; GET /qorechain/rdk/v1/batches/vigil-pay-1; status; finalized_at; submitted_at` | not scripted in this check; run the command |

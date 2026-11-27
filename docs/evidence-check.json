@@ -1,23 +1,23 @@
 {
   "ledger": {
     "file": "EVIDENCE.md",
-    "sha256": "b16c7e10487bca04d410bee801b7938f6424d7cc8828a1d0f5cb3c3bfbccdb4b",
+    "sha256": "684d296ff80f5433805df5036203c1cb1c8522b56876b79f55da3549660345bc",
     "rows": 123,
-    "readOnlyRows": 6
+    "readOnlyRows": 10
   },
   "chain": {
     "network": "qorechain-diana",
     "rest": "https://api-testnet.qore.host",
     "evmRpc": "https://evm-testnet.qore.host",
-    "tipHeight": 10859709,
-    "tipTime": "2026-11-27T16:42:57.893171090Z"
+    "tipHeight": 10863256,
+    "tipTime": "2026-11-27T18:07:01.924365155Z"
   },
   "run": {
-    "firstRead": "2026-11-27T16:42:58.949Z",
-    "lastRead": "2026-11-27T16:45:43.882Z",
+    "firstRead": "2026-11-27T18:07:03.299Z",
+    "lastRead": "2026-11-27T18:09:06.826Z",
     "minGapMs": 1000,
-    "requests": 0,
-    "reusedFromCache": 124
+    "requests": 124,
+    "reusedFromCache": 0
   },
   "summary": {
     "rows": 123,
@@ -29,7 +29,7 @@
     "checks": 716,
     "checksPassed": 716
   },
-  "headline": "123 of 123 rows re-verified at height 10,859,709 (27 Nov 2026, 16:42 UTC), as the node reports",
+  "headline": "123 of 123 rows re-verified at height 10,863,256 (27 Nov 2026, 18:07 UTC), as the node reports",
   "rows": [
     {
       "n": 1,
@@ -4766,6 +4766,38 @@
       "status": "by command",
       "command": "pnpm --filter @vigil/scripts spike:b",
       "why": "it is a separate probe of the PQC precompiles (calls with crafted inputs and throwaway keys), not a read-back of a transaction; left out to keep this check's requests few"
+    },
+    {
+      "index": 7,
+      "date": "2026-11-27",
+      "height": "10,686,369 to 10,686,385",
+      "status": "by command",
+      "command": "GET /cosmos/base/tendermint/v1beta1/blocks/10686369; /10686385; block.header.time; eth_getTransactionReceipt; blockNumber; 0xa30fb1",
+      "why": "not scripted in this check; run the command"
+    },
+    {
+      "index": 8,
+      "date": "2026-11-27",
+      "height": "~10,859,700",
+      "status": "by command",
+      "command": "GET /qorechain/rdk/v1/rollup/vigil-pay-1; escrow_balance; deposit_pool",
+      "why": "not scripted in this check; run the command"
+    },
+    {
+      "index": 9,
+      "date": "2026-11-27",
+      "height": "~10,859,900",
+      "status": "by command",
+      "command": "cast call 0x3a897802b62b052a102f55e021bc4668539c29b5 \"quorum()(address[])\" --rpc-url https://evm-testnet.qore.host; \"threshold()(uint256)\"",
+      "why": "not scripted in this check; run the command"
+    },
+    {
+      "index": 10,
+      "date": "2026-11-27",
+      "height": "10,860,020",
+      "status": "by command",
+      "command": "cd scripts && npx tsx receipts-snapshot.ts vigil-pay-1; GET /qorechain/rdk/v1/batches/vigil-pay-1; status; finalized_at; submitted_at",
+      "why": "not scripted in this check; run the command"
     }
   ]
 }
