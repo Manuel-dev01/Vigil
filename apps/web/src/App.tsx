@@ -7,6 +7,7 @@ import { listen, startLive } from "./live.ts";
 import { startPlate, type Plate } from "./plate.ts";
 import { badgeOf, health, onHealth, wasOpen } from "./rpc.ts";
 import { ErrorBoundary } from "./ui.tsx";
+import { VoteBanner } from "./vote/VoteBanner.tsx";
 
 // Every view loads on demand, with the chain libraries it needs, so the shell paints first. The same
 // loaders preload a view before a page transition, so the transition never shows "Loading…".
@@ -147,6 +148,7 @@ export function App() {
         Skip to content
       </a>
       <header className="top">
+        <VoteBanner />
         <div className="top-in">
           <a className="brand" href="#/" aria-label="Vigil, home">
             <Mark size={26} className="brand-mark" />

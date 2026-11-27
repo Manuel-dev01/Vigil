@@ -1,0 +1,229 @@
+/*
+ * The People's Choice strip and its how-to-vote card. The strip sits inside the header, so it wears the
+ * header's tokens: night on the landing page until dawn, the system theme on the app pages. Its ground is
+ * mixed from those tokens, so it reads on both.
+ */
+
+/* ------------------------------------------------------------------ the strip */
+.vote-strip {
+  position: relative;
+  background: color-mix(in srgb, var(--lamp-glow) 14%, var(--night));
+  border-bottom: 1px solid color-mix(in srgb, var(--lamp-glow) 30%, var(--rule));
+  color: var(--chart);
+  font-size: 0.84rem;
+}
+.vote-in {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 7px max(16px, env(safe-area-inset-right, 0px)) 7px max(16px, env(safe-area-inset-left, 0px));
+}
+html.on-landing .vote-in {
+  max-width: none;
+  padding-inline: max(16px, 4.2vw, env(safe-area-inset-left, 0px));
+}
+.vote-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+/* A signal lamp that occults now and then, like a light on a chart. */
+.vote-lamp {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lamp-glow);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lamp-glow) 22%, transparent);
+  animation: vg-occult 4s var(--ease-inout) infinite;
+}
+.vote-tag {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sounding);
+  white-space: nowrap;
+}
+.vote-text,
+a.vote-go {
+  font-weight: 600;
+  min-width: 0;
+}
+a.vote-go {
+  color: var(--lamp);
+}
+button.vote-how {
+  font-size: 0.84rem;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+button.vote-x {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  min-width: 28px;
+  min-height: 28px;
+  justify-content: center;
+  color: var(--sounding);
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1;
+}
+button.vote-x:hover {
+  color: var(--chart);
+}
+button.vote-x::after,
+button.vote-close::after {
+  display: none;
+}
+@keyframes vg-occult {
+  0%,
+  82%,
+  100% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 0.25;
+  }
+}
+
+/* The landing page's header is fixed over its hero: leave room for the strip. */
+@media (max-width: 899px) {
+  html.on-landing.has-vote .hero {
+    padding-top: 156px;
+  }
+}
+
+@media (max-width: 560px) {
+  .vote-tag {
+    display: none;
+  }
+  .vote-in {
+    gap: 4px 12px;
+  }
+}
+
+/* ------------------------------------------------------------------ the card */
+dialog.vote-card {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100svh - 48px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--swell);
+  color: var(--chart);
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--lamp-glow);
+  border-radius: var(--r);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+dialog.vote-card[open] {
+  animation: vg-arrive 520ms var(--ease-out) both;
+}
+dialog.vote-card::backdrop {
+  background: rgba(10, 16, 22, 0.62);
+}
+.vote-card-in {
+  position: relative;
+  padding: 22px 24px 20px;
+}
+button.vote-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  background: transparent;
+}
+.vote-body {
+  display: grid;
+  gap: 0;
+}
+.vote-eyebrow {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sounding);
+  margin: 2px 90px 14px 0;
+}
+.vote-title {
+  font-family: var(--f-display);
+  font-variation-settings: "opsz" 72;
+  font-weight: 500;
+  font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  margin: 0 0 10px;
+  text-wrap: balance;
+}
+.vote-lede {
+  color: var(--sounding);
+  margin: 0 0 14px;
+}
+.vote-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.vote-steps li {
+  display: grid;
+  grid-template-columns: 7.2rem minmax(0, 1fr);
+  gap: 2px 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.vote-k {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lamp);
+}
+.vote-v {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.vote-v a {
+  color: var(--lamp);
+  font-weight: 500;
+}
+.vote-fine {
+  margin-top: 14px;
+  color: var(--sounding);
+  font-size: 0.82rem;
+}
+.vote-fine p:last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 480px) {
+  .vote-card-in {
+    padding: 18px 16px 16px;
+  }
+  .vote-steps li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vote-lamp {
+    animation: none;
+  }
+}
