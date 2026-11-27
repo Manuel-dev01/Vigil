@@ -58,6 +58,11 @@ jobs:
             exit 1
           fi
 
+      # The browser watchtower's Web Worker is built with side-effect-free tree-shaking (vite.config.ts).
+      # Run the built file on recorded chain data, so a shaken-out dependency fails here, not in a visitor's tab.
+      - name: Browser watchtower worker (built file, recorded data)
+        run: pnpm --filter @vigil/web smoke:worker
+
   contracts:
     name: Contracts (forge test)
     runs-on: ubuntu-latest
