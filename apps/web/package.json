@@ -19,6 +19,7 @@
     "@qorechain/qoreseal": "0.1.0",
     "@qorechain/rdk": "0.9.0",
     "@vigil/chain-ws": "workspace:*",
+    "@vigil/qledger-watchtower": "workspace:*",
     "@vigil/sealed": "workspace:*",
     "lenis": "1.3.27",
     "react": "19.3.1",
