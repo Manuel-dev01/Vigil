@@ -167,7 +167,7 @@ Requires Node 20+, pnpm, and Foundry for `contracts/`.
 
 ```bash
 pnpm install
-pnpm test                      # 533 TypeScript tests (28 more are skipped: 27 need a live chain, 1 a Foundry build)
+pnpm test                      # 562 TypeScript tests (28 more are skipped: 27 need a live chain, 1 a Foundry build)
 (cd contracts && forge test)   # 110 Foundry tests, including invariant fuzzing of the vault
 pnpm --filter @vigil/web dev   # the web app, reading the live chain
 ```
@@ -177,6 +177,7 @@ pnpm --filter @vigil/web dev   # the web app, reading the live chain
 - Read any L2 balance by replay, with no key: `pnpm --filter @vigil/keel balance -- --account <hex>` ([docs/ESCAPE_HATCH.md](docs/ESCAPE_HATCH.md)).
 - Re-run the differential fuzzer: [`scripts/fuzz/README.md`](scripts/fuzz/README.md).
 - Check the Solidity verifier without spending anything: `pnpm --filter @vigil/scripts evm:verifier status`.
+- Check that no contract verifies a classical signature: `pnpm cbom:gate cbom/vigil.cdx.json`, or rescan with `pnpm cbom:scan --offline` ([`cbom/`](cbom/README.md)).
 
 ## Testnet addresses
 
@@ -216,7 +217,7 @@ pnpm --filter @vigil/web dev   # the web app, reading the live chain
 | Reading the inbox, and pruning | One shared reader (`packages/core/src/inbox`) fetches each inbox entry by sequence and checks it against the chain's accumulator; Keel, the keep-alive, the relayer and the payslip tools use it. A public archive of every entry (`data/inbox/vigil-pay-1.jsonl`, refreshed by `scripts/inbox-archive.ts`) is used only for entries the chain has pruned, and only after a commitment the chain still holds confirms them. Keel logs a heartbeat every 10 minutes whether its passes succeed or not, and the keep-alive's exit code says whether it did its job |
 | Monitoring | A keyless sentinel (`packages/sentinel`) reads the chain every minute and alerts the team on Telegram: an EVM window on a key that must never open one, low balances, a stuck sequencer, disputes, an unrepaid vault, the web app down. It also re-executes every batch with the watchtower's core and alerts, repeatedly, if a bad batch is still unchallenged halfway through its challenge window, and warns when an exit the relayer serves is not fronted within 5 minutes of its batch. Both rules are tested on recorded chain data; neither has fired on chain (not yet exercised) |
 | Web app hardening (24 Nov) | Watchtower attestations are accepted only from the member's own account and only after their ML-DSA-87 signature verifies in the browser against pinned key hashes; `pqcVerify` is a second, labelled check. Exit addresses are computed in the browser from the pinned ExitAddress code. Pages survive posted-data pruning, show live-feed health truthfully, and say which checks ran where. First load is about 80 KB gzipped |
-| Continuous integration | GitHub Actions run the typecheck, the TypeScript tests and the Foundry tests on every push and pull request |
+| Continuous integration | GitHub Actions run the typecheck, the TypeScript tests and the Foundry tests on every push and pull request, and scan the contracts with QoreScan: the build fails if a contract verifies a classical signature ([`cbom/`](cbom/README.md)) |
 | Threat model | [v1.7](THREAT_MODEL.md) (27 Nov): adversaries and trust assumptions, both fraud drills, how the hosted operator keys are held and what a theft of each would cost, measured challenge and rollback behaviour, instant exits, the 24 Nov adversarial study, findings and residual risks, including payslip share links |
 
 ## Layout
@@ -232,8 +233,9 @@ packages/sentinel            keyless monitoring with Telegram alerts, and its ow
 packages/sealed              QoreSeal envelopes, KEM registration, payslips, data receipts
 contracts/                   Foundry contracts and tests
 apps/web                     rollup explorer, receipt verifier, instant exits, payslip opener
-scripts/                     spikes, rollup, EVM, drill and fuzzing scripts
+scripts/                     spikes, rollup, EVM, drill, fuzzing and CBOM scripts
 receipts/                    saved settlement and data receipts
+cbom/                        QoreScan's cryptographic inventory (CycloneDX CBOM) and its reports
 test/vectors/                recorded chain data and shared vectors
 ```
 
@@ -244,6 +246,7 @@ QoreChain kits:
 - [`@qorechain/sdk`](https://www.npmjs.com/package/@qorechain/sdk): accounts, hybrid signing, PQ key registry.
 - `@qorechain/qoreseal`: ML-KEM-1024 envelopes and the KEM registry.
 - QoreChain EVM precompiles `pqcVerify` and `pqcKeyStatus`.
+- [`@qorechain/qorescan`](https://www.npmjs.com/package/@qorechain/qorescan) 0.1.0: Vigil's cryptographic inventory, a CycloneDX CBOM in [`cbom/`](cbom/README.md) (an inventory aid, not a certification), and the CI gate on the contracts.
 
 ## Team
 
