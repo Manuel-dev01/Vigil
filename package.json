@@ -13,7 +13,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "evidence:check": "tsx scripts/evidence-check.ts"
+    "evidence:check": "tsx scripts/evidence-check.ts",
+    "redteam": "pnpm --filter @vigil/scripts redteam"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
