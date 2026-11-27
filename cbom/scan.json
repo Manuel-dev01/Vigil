@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-27",
+  "timestamp": "2026-11-27T17:15:15Z",
+  "network": "qorechain-diana (testnet), as https://api-testnet.qore.host reports it",
+  "height": "~10,861,021",
+  "qorescan": {
+    "package": "@qorechain/qorescan@0.1.0",
+    "binarySha256": "d5e489ecee358fe556f1eaefa8dc902c3c47c13b5c0b8faca8ecc42b97f4ce0e"
+  },
+  "contracts": "contracts/src",
+  "accounts": [
+    "qor1z6m6kshavs5zjvd3tz0nu9tjpde5p7w83mj90s",
+    "qor1qwker9qw2l4jpsudwkkkcrwnc9a29xpvw36gft",
+    "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd",
+    "qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33",
+    "qor12t0u9hrz2qnfmkrpp3k5u3s9mghsz9vdwkjd6l",
+    "qor1qdf0xu8fvmp0uchhhdfcx7mq893h65jk8yfcp6",
+    "qor1vwqwy8nqj060e8ufdze7qlnsq7lsjaxsfhf8hn",
+    "qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws",
+    "qor1r0zkpgngnrc30qtskf2l5ewv0v9kqwjwn5m6yv",
+    "qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m"
+  ],
+  "tls": [
+    "vigil-pq.up.railway.app:443",
+    "rpc-testnet.qore.host:443",
+    "evm-testnet.qore.host:443",
+    "api-testnet.qore.host:443"
+  ],
+  "pacing": {
+    "gapMs": 1100,
+    "writes": 37,
+    "tunnels": 1,
+    "seconds": 64
+  },
+  "contractsGate": {
+    "ok": true,
+    "files": 5,
+    "violations": 0
+  }
+}
