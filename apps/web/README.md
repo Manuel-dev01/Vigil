@@ -38,3 +38,5 @@ railway up apps/web/deploy/out --path-as-root --service <web>
 - sealed payslips, opened with a seal key or with one envelope's data key from a share link.
 
 `pqcVerify` runs as a second, labelled check. If the creator's or a watchtower's ML-DSA-87 key is ever rotated, update `PINNED_KEYS` in `src/config.ts`.
+
+**What's inside.** The footer's label lists each primitive Vigil relies on, where it is used, and what the QoreScan scan in [`cbom/`](../../cbom/README.md) saw: an inventory aid, not a certification. Its body (`src/Inside.tsx`, from `src/inside.ts`) loads when a reader opens it; `test/inside.test.ts` checks its scanned facts against the committed CBOM.

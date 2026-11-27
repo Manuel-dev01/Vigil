@@ -63,6 +63,70 @@ jobs:
       - name: Browser watchtower worker (built file, recorded data)
         run: pnpm --filter @vigil/web smoke:worker
 
+  # QoreScan's cryptographic inventory of the contracts, and a gate on it: CI fails if QoreScan finds a classical
+  # signature check in a contract (ecrecover, ECDSA, P-256 or RSA, or an import of a library that provides one),
+  # or if a contract names a classical public-key precompile's address (a source check beside QoreScan's, for
+  # forms it does not flag). Both are pattern checks on the source, not a proof. Only the Solidity scan gates;
+  # the network scans (accounts, TLS) run in cbom-network.yml and never block.
+  cbom:
+    name: CBOM gate (QoreScan, contracts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # @qorechain/qorescan 0.1.0 comes from the lockfile. Its launcher downloads the release binary and runs it
+      # only if the SHA-256 matches the digest shipped in the package. The Solidity scan reads files, nothing else.
+      - name: Scan the contracts
+        run: pnpm exec qorescan solidity contracts/src --out "$RUNNER_TEMP/contracts.cdx.json"
+
+      - name: Gate (no classical signature check found in the contracts)
+        run: pnpm cbom:gate "$RUNNER_TEMP/contracts.cdx.json" --sources contracts/src
+
+      # The gate must still catch a real ecrecover, both as a call and through a constant written as a full
+      # 20-byte address (exit 1, not 2: a broken scan is not a catch), and must pass ECDSA and ecrecover named
+      # only in comments and strings, as in PQGuardVault's doc comment.
+      - name: Gate self-test (canaries)
+        run: |
+          must_fail() {
+            pnpm exec qorescan solidity "test/vectors/cbom/$1" --out "$RUNNER_TEMP/$1.cdx.json"
+            set +e
+            GITHUB_ACTIONS= pnpm -s cbom:gate "$RUNNER_TEMP/$1.cdx.json" --sources "test/vectors/cbom/$1"
+            code=$?
+            set -e
+            if [ "$code" -ne 1 ]; then
+              echo "::error::The gate did not fail the $1 canary (exit $code)."
+              exit 1
+            fi
+            echo "The $1 canary failed the gate, as it must."
+          }
+          must_fail classical
+          must_fail precompile
+          pnpm exec qorescan solidity test/vectors/cbom/comments --out "$RUNNER_TEMP/comments.cdx.json"
+          pnpm -s cbom:gate "$RUNNER_TEMP/comments.cdx.json" --sources test/vectors/cbom/comments
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/contracts.cdx.json" ]; then
+            pnpm -s cbom:summary "$RUNNER_TEMP/contracts.cdx.json" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   contracts:
     name: Contracts (forge test)
     runs-on: ubuntu-latest

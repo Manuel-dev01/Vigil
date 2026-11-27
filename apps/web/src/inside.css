@@ -1,0 +1,44 @@
+/* The "What's inside" label's body (Inside.tsx). Loaded with it, so the shell's stylesheet stays as it was. */
+.inside-body {
+  padding: 2px 0 12px;
+}
+.inside-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.inside-list > li {
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+.inside-list p {
+  margin: 0 0 4px;
+}
+.inside-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  color: var(--chart);
+}
+.inside-note {
+  color: var(--sounding);
+}
+.inside-seen {
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.02em;
+}
+.inside-tls {
+  list-style: none;
+  margin: 4px 0 6px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.inside-tls code {
+  overflow-wrap: anywhere;
+}

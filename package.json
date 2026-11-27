@@ -14,9 +14,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "evidence:check": "tsx scripts/evidence-check.ts",
-    "redteam": "pnpm --filter @vigil/scripts redteam"
+    "redteam": "pnpm --filter @vigil/scripts redteam",
+    "cbom:scan": "tsx scripts/cbom/scan.ts",
+    "cbom:gate": "tsx scripts/cbom/gate.ts",
+    "cbom:summary": "tsx scripts/cbom/summary.ts"
   },
   "devDependencies": {
+    "@qorechain/qorescan": "0.1.0",
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

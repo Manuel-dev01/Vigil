@@ -22,6 +22,8 @@ const VerifyView = lazy(() => loaders.verify().then((m) => ({ default: m.VerifyV
 const PayslipView = lazy(() => loaders.payslip().then((m) => ({ default: m.PayslipView })));
 const ExitsView = lazy(() => loaders.exits().then((m) => ({ default: m.ExitsView })));
 const TrustView = lazy(() => loaders.trust().then((m) => ({ default: m.TrustView })));
+// The footer's "What's inside" label: its body loads when a reader opens it.
+const Inside = lazy(() => import("./Inside.tsx"));
 
 type Route = "home" | keyof typeof loaders;
 const routeOf = (hash: string): Route =>
@@ -79,6 +81,7 @@ export function App() {
   const [route, setRoute] = useState<Route>(routeOf(location.hash));
   const current = useRef(route);
   const [h, setH] = useState(health());
+  const [insideLoaded, setInsideLoaded] = useState(false);
 
   useEffect(() => {
     // Change page inside a view transition (where the browser has them): the old page lifts away and
@@ -192,6 +195,18 @@ export function App() {
             compared to one pinned in this page; ML-DSA-44 transfer signatures; the inbox accumulator; data receipts; exit messages and exit addresses.
             Rollup <code>{ROLLUP}</code> on testnet <code>qorechain-diana</code>. Times are UTC.
           </p>
+          <details className="inside" onToggle={(e) => e.currentTarget.open && setInsideLoaded(true)}>
+            <summary>
+              What's inside: the cryptography <span className="inside-aid">(an inventory aid, not a certification)</span>
+            </summary>
+            {insideLoaded && (
+              <ErrorBoundary resetKey="inside">
+                <Suspense fallback={<p className="empty">Loading…</p>}>
+                  <Inside />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+          </details>
           <p className="foot-links">
             <a href={REPO} target="_blank" rel="noopener noreferrer">
               Source

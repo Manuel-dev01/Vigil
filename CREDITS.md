@@ -14,6 +14,7 @@ under `node_modules/`) or from the project's repository.
 | `@qorechain/rdk` (QoreChain Rollup Development Kit) | 0.9.0 | Apache-2.0 | keel, qledger-watchtower, exit-relayer, sealed, chain-ws (dev), web, scripts | https://github.com/qorechain/qorechain-rdk |
 | `@qorechain/sdk` (QoreChain SDK) | 0.14.0 | Apache-2.0 | keel, qledger-watchtower, exit-relayer, sealed, scripts | https://github.com/qorechain/qorechain-sdk |
 | `@qorechain/qoreseal` (ML-KEM-1024 sealing) | 0.1.0 | Apache-2.0 | sealed, web | https://github.com/qorechain/qoreseal |
+| `@qorechain/qorescan` (QoreScan, CBOM; its launcher downloads a release binary and checks its SHA-256) | 0.1.0 | Apache-2.0 | root devDependency: CI (CBOM gate), scripts/cbom | https://github.com/qorechain/qorescan |
 | `@cosmjs/proto-signing` | 0.39.0 | Apache-2.0 | keel, qledger-watchtower, exit-relayer, scripts | https://github.com/cosmos/cosmjs |
 | `@cosmjs/stargate` | 0.39.0 | Apache-2.0 | keel, qledger-watchtower, exit-relayer, scripts | https://github.com/cosmos/cosmjs |
 | `cosmjs-types` | 0.11.0 | Apache-2.0 | scripts | https://github.com/confio/cosmjs-types |
