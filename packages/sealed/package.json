@@ -25,6 +25,7 @@
   "exports": {
     "./payslip": "./src/payslip.ts",
     "./data-receipt": "./src/data-receipt.ts",
-    "./inbox": "./src/inbox.ts"
+    "./inbox": "./src/inbox.ts",
+    "./disclose": "./src/disclose.ts"
   }
 }
