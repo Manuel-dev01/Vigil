@@ -1100,6 +1100,43 @@ tr:hover a.go::after {
   opacity: 0.6;
 }
 
+/* Every instant exit: one row per fronted exit, the summary in the foot. */
+.panel.ledger {
+  margin-bottom: 20px;
+}
+.ledger-table td .note,
+.ledger-table th .note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.ledger-exit {
+  display: block;
+  font-weight: 500;
+}
+.ledger-tx .copy {
+  justify-content: flex-end;
+}
+.ledger-table tfoot th,
+.ledger-table tfoot td {
+  border-top: 1px solid var(--rule);
+  border-bottom: 0;
+  padding-top: 10px;
+  font-family: var(--f-mono);
+  font-size: 0.76rem;
+  color: var(--chart);
+}
+.ledger-sum {
+  margin-top: 10px;
+}
+.table-wrap[role="region"]:focus-visible {
+  outline: 2px solid var(--lamp);
+  outline-offset: 2px;
+}
+
 /* ------------------------------------------------------------------ Verify: the receipt and the sector light */
 .verify-grid {
   display: grid;

@@ -21,6 +21,7 @@ import {
 import { listen } from "../live.ts";
 import { CopyHash, Ext, ExplorerHint, Mark, useRefresh, type Tone } from "../ui.tsx";
 import { PageHead, Reading, type Sounding } from "./Head.tsx";
+import { Ledger } from "./Ledger.tsx";
 import { Race, raceTimes } from "./Race.tsx";
 
 const REFRESH_MS = 30_000;
@@ -849,6 +850,8 @@ export function ExitsView() {
           }
         />
       )}
+
+      {state && v && <Ledger exits={state.exits} nowSec={nowSec} total={state.totalExits} />}
 
       {state && v && (
         <div className="cols">
