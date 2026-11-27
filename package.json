@@ -12,7 +12,8 @@
   "scripts": {
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "evidence:check": "tsx scripts/evidence-check.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
