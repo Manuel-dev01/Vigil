@@ -7,10 +7,12 @@
  * still pending. While a check runs, the lamp sweeps the fan.
  *
  * The receipt: the receipt itself, set as a document. When it differs from the one the page built from
- * the chain for the same batch (the "forge it" button changes one digit), the changed digits are marked.
+ * the chain for the same batch (each forgery changes one field), the changed field is named and its
+ * changed characters are marked.
  */
 import type { SettlementReceipt } from "@qorechain/rdk";
 import { KNOWN, short, stamp } from "../config.ts";
+import { changedFields } from "../forge.ts";
 import type { Tone } from "../ui.tsx";
 
 const SPREAD = 62; // degrees either side of straight up
@@ -113,24 +115,47 @@ function Hex({ value, was }: { value: string; was: string | undefined }) {
   );
 }
 
-export function ReceiptDoc({ r, built, stampTone, stampText }: { r: SettlementReceipt; built: SettlementReceipt | undefined; stampTone: string | undefined; stampText: string | undefined }) {
-  const same = built && built.rollupId === r.rollupId && built.batchIndex === r.batchIndex;
-  const changed = !!same && built.stateRoot !== r.stateRoot;
-  const digits = same ? [...r.stateRoot].filter((c, i) => built.stateRoot[i] !== c).length + Math.abs(r.stateRoot.length - built.stateRoot.length) : 0;
-  const sigBytes = Math.floor(r.pqcSignature.length / 2);
+/** `value` with each character that differs from `was` (same position) marked. */
+function Marked({ value, was }: { value: string; was: string }) {
   return (
-    <article className={changed ? "rdoc forged" : "rdoc"} aria-label={`Settlement receipt for batch ${r.batchIndex} of ${r.rollupId}`}>
+    <>
+      {[...value].map((c, i) =>
+        was[i] !== c ? (
+          <mark key={i} title={`was ${was[i] ?? "nothing"}`}>
+            {c}
+          </mark>
+        ) : (
+          c
+        ),
+      )}
+    </>
+  );
+}
+
+const DIFFERS = "differs from the receipt built from the chain";
+
+export function ReceiptDoc({ r, built, stampTone, stampText }: { r: SettlementReceipt; built: SettlementReceipt | undefined; stampTone: string | undefined; stampText: string | undefined }) {
+  // Compared only with the receipt the page built for the same batch, field by field.
+  const base = built && built.batchIndex === r.batchIndex && built.layerHeight === r.layerHeight ? built : undefined;
+  const diff = changedFields(r, base);
+  const digits = base && diff.has("stateRoot") ? [...r.stateRoot].filter((c, i) => base.stateRoot[i] !== c).length + Math.abs(r.stateRoot.length - base.stateRoot.length) : 0;
+  const sigByte = base && diff.has("pqcSignature") ? Math.floor([...r.pqcSignature].findIndex((c, i) => base.pqcSignature[i] !== c) / 2) + 1 : 0;
+  const sigBytes = Math.floor(r.pqcSignature.length / 2);
+  const tag = (what: string) => <span className="rdoc-diff">{what}</span>;
+  return (
+    <article className={diff.size ? "rdoc forged" : "rdoc"} aria-label={`Settlement receipt for batch ${r.batchIndex} of ${r.rollupId}`}>
       <header className="rdoc-top">
         <span>Settlement receipt</span>
         <span>version {r.version}</span>
       </header>
       <h3 className="rdoc-t">
-        {r.rollupId} <span>·</span> batch {r.batchIndex}
+        {base && diff.has("rollupId") ? <Marked value={r.rollupId} was={base.rollupId} /> : r.rollupId} <span>·</span> batch {r.batchIndex}
       </h3>
+      {base && diff.has("rollupId") && <p className="rdoc-note">{tag(`Rollup ${DIFFERS} (${base.rollupId})`)}</p>}
       <dl className="rdoc-kv">
         <div>
-          <dt>Chain</dt>
-          <dd>{r.chainId ?? "not named (version 1)"}</dd>
+          <dt>Chain {base && diff.has("chainId") && tag(DIFFERS)}</dt>
+          <dd>{base && diff.has("chainId") ? <mark>{r.chainId ?? "not named"}</mark> : (r.chainId ?? "not named (version 1)")}</dd>
         </div>
         <div>
           <dt>Layer height</dt>
@@ -145,31 +170,31 @@ export function ReceiptDoc({ r, built, stampTone, stampText }: { r: SettlementRe
           <dd>{r.anchoredAt ? stamp(r.anchoredAt) : "—"}</dd>
         </div>
         <div className="wide">
-          <dt>Signer</dt>
-          <dd title={r.creator}>{KNOWN[r.creator] ?? short(r.creator, 10)}</dd>
+          <dt>Signer {base && diff.has("creator") && tag(DIFFERS)}</dt>
+          <dd title={r.creator}>{base && diff.has("creator") ? <mark>{KNOWN[r.creator] ?? short(r.creator, 10)}</mark> : (KNOWN[r.creator] ?? short(r.creator, 10))}</dd>
         </div>
         <div className="wide">
           <dt>
             State root{" "}
-            {changed && (
-              <span className="rdoc-diff">
-                {digits === 1 ? "one digit differs" : `${digits} digits differ`} from the receipt built from the chain
-              </span>
-            )}
+            {digits > 0 && tag(`${digits === 1 ? "one digit differs" : `${digits} digits differ`} from the receipt built from the chain`)}
           </dt>
           <dd>
-            <Hex value={r.stateRoot} was={same ? built.stateRoot : undefined} />
+            <Hex value={r.stateRoot} was={base?.stateRoot} />
           </dd>
         </div>
         <div className="wide">
-          <dt>Signature</dt>
+          <dt>Signature {sigByte > 0 && tag(`byte ${sigByte.toLocaleString()} ${DIFFERS}`)}</dt>
           <dd>
-            {r.algorithm}, {sigBytes.toLocaleString()} bytes <code className="rdoc-sig">{r.pqcSignature.slice(0, 12)}…{r.pqcSignature.slice(-12)}</code>
+            {r.algorithm}, {sigBytes.toLocaleString()} bytes{" "}
+            <code className="rdoc-sig">
+              {base && diff.has("pqcSignature") ? <Marked value={r.pqcSignature.slice(0, 12)} was={base.pqcSignature.slice(0, 12)} /> : r.pqcSignature.slice(0, 12)}…
+              {r.pqcSignature.slice(-12)}
+            </code>
           </dd>
         </div>
       </dl>
       {stampText && (
-        <p className={`rdoc-stamp ${stampTone ?? ""}`} key={stampText + r.stateRoot}>
+        <p className={`rdoc-stamp ${stampTone ?? ""}`} key={stampText + r.stateRoot + r.pqcSignature.slice(0, 4) + r.chainId + r.creator + r.rollupId}>
           {stampText}
         </p>
       )}
