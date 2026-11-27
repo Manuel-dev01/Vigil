@@ -41,6 +41,8 @@ describe("the trust page", () => {
     expect(html).toContain("not an L2BEAT rating, and it claims no stage");
     expect(html).toContain("Last updated on 23 Jul 2025");
     expect(html).toContain("docs/ESCAPE_HATCH.md");
+    expect(html).toContain("Assumption the framework makes, not a requirement.");
+    expect(html).toContain("None if a vote is expedited (1 h); about 3 h otherwise");
     expect(html).toContain('role="img"');
     expect(html.match(/<path /g)).toHaveLength(5);
     expect(html).not.toMatch(/quantum-proof|quantum-safe|unbreakable/i);

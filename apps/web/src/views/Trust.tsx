@@ -29,6 +29,7 @@ import {
   rosette,
   stage0,
   stage1,
+  stage1Assumption,
   stage2,
   tm,
   wedgePath,
@@ -202,6 +203,7 @@ export function TrustView() {
 export function TrustPage({ f, error, refreshing }: { f: TrustFacts | undefined; error?: string | undefined; refreshing?: boolean }) {
   const slices = f && rosette(f);
   const card = f && exitCard(f);
+  const assumption = f && stage1Assumption(f);
 
   const soundings: Sounding[] = [
     {
@@ -213,7 +215,7 @@ export function TrustPage({ f, error, refreshing }: { f: TrustFacts | undefined;
     {
       k: "Governance vote",
       v: f ? (f.gov ? dur(f.gov.votingPeriodSec) : "not read") : undefined,
-      tone: f?.gov && f.gov.votingPeriodSec < FRAMEWORK.stage1MinExitWindowSec ? "bad" : undefined,
+      tone: f?.gov && Math.min(f.gov.votingPeriodSec, f.gov.expeditedVotingPeriodSec ?? f.gov.votingPeriodSec) < FRAMEWORK.stage1MinExitWindowSec ? "bad" : undefined,
       s: f?.gov?.expeditedVotingPeriodSec !== undefined ? `${dur(f.gov.expeditedVotingPeriodSec)} if expedited · Stage 1 asks 7 days to exit` : "Stage 1 asks 7 days to exit",
     },
     {
@@ -272,6 +274,11 @@ export function TrustPage({ f, error, refreshing }: { f: TrustFacts | undefined;
               <div>
                 <h3 className="tr-h3">Stage 1: what blocks it</h3>
                 <Checklist items={stage1(f)} label="Stage 1 requirements" />
+                {assumption && (
+                  <p className="note">
+                    <strong>Assumption the framework makes, not a requirement.</strong> {assumption.text} <Refs refs={assumption.refs} />
+                  </p>
+                )}
                 <h3 className="tr-h3">Stage 2</h3>
                 <Checklist items={stage2(f)} label="Stage 2 requirements" />
               </div>
@@ -382,7 +389,9 @@ function Disappears() {
           Withdrawals from final batches: anyone can execute them, and they pay the recipient the user signed for. <Refs refs={[ev("72, 93")]} />
         </li>
         <li>
-          Old receipts: anchors stay on chain, and the Solidity verifier has no owner. <Refs refs={[ev("60")]} />
+          Checking a receipt you hold in Solidity: SettlementReceiptVerifier has no owner, and checks the anchor's ML-DSA-87 signature against the
+          creator's key in the chain's registry. A check against the rollup module needs the batch record, which the chain's parameters allow it to
+          delete after 432,000 blocks (not yet observed). <Refs refs={[ev("60, 73")]} />
         </li>
       </ul>
       <h3 className="tr-h3">Stops</h3>

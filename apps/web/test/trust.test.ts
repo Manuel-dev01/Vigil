@@ -21,6 +21,7 @@ import {
   seconds,
   stage0,
   stage1,
+  stage1Assumption,
   stage2,
   wedgePath,
   type TrustFacts,
@@ -93,6 +94,7 @@ describe("reading the node's answers", () => {
     expect(f.rollup?.depositPoolUqor).toBe("2450000");
     expect(f.rollup?.escrowUqor).toBe("9900000000");
     expect(f.params?.minSubmitterBondUqor).toBe("1000000000");
+    expect(f.params?.defaultChallengeWindowSec).toBe(3_600);
     expect(f.circuit?.disabled).toEqual(["/cosmwasm.wasm.v1.MsgStoreCode"]);
   });
 
@@ -149,14 +151,15 @@ describe("grading", () => {
       ["proposer", "good"],
       ["exit", "risk"],
     ]);
-    expect(r.find((s) => s.key === "exit")?.value).toBe("About 3 h, set by L1 governance");
-    expect(r.find((s) => s.key === "exit")?.text).toContain("or none if the vote is expedited");
-    expect(r.find((s) => s.key === "state")?.text).toContain("1 h as the node reports");
+    expect(r.find((s) => s.key === "exit")?.value).toBe("None if a vote is expedited (1 h); about 3 h otherwise");
+    expect(r.find((s) => s.key === "exit")?.text).toContain("has no time to spare if the vote is expedited, and about 3 h to spare otherwise");
+    expect(r.find((s) => s.key === "state")?.text).toContain("1 h as the node reports, short of the 5 days");
+    expect(r.find((s) => s.key === "da")?.text).toContain("648,000 blocks as the node reports");
     expect(r.find((s) => s.key === "proposer")?.value).toBe("Self propose, with a 1,000 QOR bond");
   });
 
   it("measures the exit margin as the vote less the time an exit takes", () => {
-    expect(exitMargin(today())).toEqual({ windowSec: 3_600, normal: 10_800, expedited: 0 });
+    expect(exitMargin(today())).toEqual({ windowSec: 3_600, normal: 10_800, expedited: 0, worst: 0 });
     expect(exitMargin({ ...today(), gov: undefined })).toBeUndefined();
   });
 
@@ -167,10 +170,23 @@ describe("grading", () => {
     expect(s.every((i) => i.status === "met" || i.status === "caveat")).toBe(true);
   });
 
-  it("finds three Stage 1 requirements not met on 27 Nov, and the open proposer set met", () => {
+  it("finds the three Stage 1 requirements not met on 27 Nov", () => {
     const s = stage1(today());
-    expect(s.map((i) => i.status)).toEqual(["not met", "not met", "not met", "met"]);
-    expect(s[1]?.text).toContain("that leaves about 3 h");
+    expect(s.map((i) => i.status)).toEqual(["not met", "not met", "not met"]);
+    expect(s[1]?.text).toContain("that leaves nothing if the vote is expedited, and about 3 h otherwise");
+  });
+
+  it("puts the window down to the chain's default, not to a choice of ours", () => {
+    const t = stage1(today())[0]?.text ?? "";
+    expect(t).toContain("A rollup's creator does not choose it");
+    expect(t).toContain("default_challenge_window parameter (1 h, as the node reports)");
+    expect(t).not.toMatch(/chose|drill/);
+  });
+
+  it("states the open proposer set as the framework's assumption, not as a requirement met", () => {
+    expect(stage1(today()).some((i) => /proposer/i.test(i.q))).toBe(false);
+    expect(stage1Assumption(today()).text).toContain("assumes at least one live proposer");
+    expect(stage1Assumption(today()).text).toContain("1,000 QOR bond (as the node reports)");
   });
 
   it("follows the chain: a 5-day window and a 14-day vote would meet the two live Stage 1 items", () => {
@@ -181,7 +197,20 @@ describe("grading", () => {
     expect(s[0]?.status).toBe("met");
     expect(s[1]?.status).toBe("met");
     expect(rosette(f).find((x) => x.key === "state")?.level).toBe("good");
+    expect(rosette(f).find((x) => x.key === "state")?.text).toContain("5 days as the node reports, at least the 5 days");
     expect(rosette(f).find((x) => x.key === "exit")?.level).toBe("caution");
+  });
+
+  it("grades on the expedited vote when it is shorter: a 14-day vote with a 1 h expedited one is not enough", () => {
+    const f = today();
+    f.rollup = { ...f.rollup!, challengeWindowSec: FRAMEWORK.stage1MinChallengeSec };
+    f.gov = { votingPeriodSec: 14 * 86_400, expeditedVotingPeriodSec: 3_600 };
+    expect(exitMargin(f)?.worst).toBe(0);
+    expect(stage1(f)[1]?.status).toBe("not met");
+    expect(stage2(f)[1]?.status).toBe("not met");
+    const exit = rosette(f).find((x) => x.key === "exit");
+    expect(exit?.level).toBe("risk");
+    expect(exit?.value).toBe("None if a vote is expedited (1 h); about 9 days otherwise");
   });
 
   it("counts the exit time against the vote: a 7-day vote over a 5-day window leaves 2 days, not enough", () => {
@@ -200,6 +229,8 @@ describe("grading", () => {
     expect(stage1(f)[0]?.status).toBe("unknown");
     expect(stage1(f)[1]?.status).toBe("unknown");
     expect(authority(f).find((p) => p.action === "Pay an exit early")?.who).toContain("not read: HTTP 503");
+    expect(authority(f).find((p) => p.action === "Batch the inbox")?.source).toBe("chain rule");
+    expect(authority(f).find((p) => p.action === "Reject a batch")?.source).toBe("chain rule");
   });
 });
 
@@ -212,11 +243,13 @@ describe("who can do what, and the exit card", () => {
     expect(who("Reject a batch")).toContain("within 1 h of the batch");
     expect(who("Change the rollup's rules, or pause it")).toContain("4 h vote (1 h if expedited); the chain's upgrade authority is the governance module's account");
     expect(who("Switch off the rollup's messages without a vote")).toBe("No account holds that power, as the node reports. None of the rollup module's messages is switched off.");
+    expect(a.find((p) => p.action === "Batch the inbox")?.source).toBe("read live");
+    expect(a.find((p) => p.action === "Anchor a batch (settlement receipts)")?.source).toBe("chain rule");
   });
 
   it("puts the vault's free liquidity as the cap, and its fee", () => {
     const c = exitCard(today());
-    expect(c.fields.find((x) => x.k === "Limits")?.v).toContain("1.001 QOR, as the EVM endpoint reports");
+    expect(c.fields.find((x) => x.k === "Limits")?.v).toContain("1.001 QOR now, as the EVM endpoint reports");
     expect(c.fields.find((x) => x.k === "Fee")?.v).toMatch(/^0\.5% /);
     expect(c.fields.find((x) => x.k === "Validated by")?.v).toMatch(/^A 2-of-2 committee of ML-DSA-87 keys/);
     expect(c.stolen[0]).toContain("(1.001 QOR now)");

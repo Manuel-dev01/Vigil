@@ -70,6 +70,8 @@ export interface RollupFacts {
 export interface RdkParamsFacts {
   minSubmitterBondUqor: string;
   postedDataRetentionBlocks: number | undefined;
+  /** The chain's `default_challenge_window`, in seconds. */
+  defaultChallengeWindowSec: number | undefined;
 }
 
 export interface GovFacts {
@@ -147,7 +149,7 @@ export function parseRdkParams(j: unknown): RdkParamsFacts {
   const p = obj(obj(j)["params"]);
   const bond = str(p["min_submitter_bond"]);
   if (!/^\d+$/.test(bond)) throw new Error("the node returned no min_submitter_bond");
-  return { minSubmitterBondUqor: bond, postedDataRetentionBlocks: num(p["posted_data_retention_blocks"]) };
+  return { minSubmitterBondUqor: bond, postedDataRetentionBlocks: num(p["posted_data_retention_blocks"]), defaultChallengeWindowSec: num(p["default_challenge_window"]) };
 }
 
 /** `GET /cosmos/gov/v1/params/voting`: the newer `params` object, or the older `voting_params`. */
@@ -252,7 +254,7 @@ export function rosette(f: TrustFacts): Slice[] {
           name: "State validation",
           value: f.rollup.proofSystem === "fraud" ? "Fraud proofs, anyone may submit" : f.rollup.proofSystem || "unknown",
           level: f.rollup.proofSystem !== "fraud" ? "unknown" : w >= FRAMEWORK.stage1MinChallengeSec ? "good" : "caution",
-          text: `Anyone may challenge a batch with a fraud proof; the chain re-executes the disputed entries and slashes a wrong batch's bond. Two challenges have been upheld on vigil-pay-1. The challenge window is ${dur(w)} as the node reports, short of the 5 days Stage 1 asks for.`,
+          text: `Anyone may challenge a batch with a fraud proof; the chain re-executes the disputed entries and slashes a wrong batch's bond. Two challenges have been upheld on vigil-pay-1. The challenge window is ${dur(w)} as the node reports, ${w >= FRAMEWORK.stage1MinChallengeSec ? "at least" : "short of"} the 5 days Stage 1 asks for.`,
           refs: [ev("24, 44, 55"), tm("7")],
         }
       : unread("state", "State validation", "the rollup", f.errors.rollup);
@@ -261,7 +263,7 @@ export function rosette(f: TrustFacts): Slice[] {
     name: "Data availability",
     value: "Onchain: the L1 inbox",
     level: "caution",
-    text: `Every L2 transaction is posted to the rollup's inbox in an L1 transaction. The chain deletes its posted-data records after ${f.params?.postedDataRetentionBlocks?.toLocaleString("en-GB") ?? "648,000"} blocks (observed); after that the bytes are read back from L1 transaction history, and a public archive of every entry, checked against commitments the chain still holds, is in the repository.`,
+    text: `Every L2 transaction is posted to the rollup's inbox in an L1 transaction. The chain deletes its posted-data records after ${f.params?.postedDataRetentionBlocks?.toLocaleString("en-GB") ?? "648,000"} blocks${f.params?.postedDataRetentionBlocks !== undefined ? " as the node reports" : ""} (we have seen it do so). After that the bytes are read back from L1 transaction history, or from a public archive of posted entries in the repository, checked against commitments the chain still holds. We extend that archive by hand, so the newest entries may not be in it yet.`,
     refs: [ev("17, 122"), tm("10"), tm("13")],
   };
   const sequencer: Slice = f.rollup
@@ -287,13 +289,13 @@ export function rosette(f: TrustFacts): Slice[] {
     ? {
         key: "exit",
         name: "Exit window",
-        value: m === undefined ? "not graded" : m.normal > 0 ? `About ${dur(m.normal)}, set by L1 governance` : "None",
-        level: m === undefined ? "unknown" : m.normal >= FRAMEWORK.stage1MinExitWindowSec ? "caution" : "risk",
+        value: m === undefined ? "not graded" : marginHeadline(m, f.gov),
+        level: m === undefined ? "unknown" : m.worst >= FRAMEWORK.stage1MinExitWindowSec ? "caution" : "risk",
         text:
           `Vigil's contracts have no owner and no proxy, so nothing of ours can be upgraded. The rollup's rules live in QoreChain's rollup module: governance can change them by proposal, and can pause a based rollup. That takes a ${vote(f.gov)} as the node reports.` +
           (m === undefined
             ? ""
-            : ` Leaving takes about one challenge window (${dur(m.windowSec)}), so a user who acts when voting opens has about ${dur(m.normal)} to spare${m.expedited !== undefined ? `, or ${m.expedited > 0 ? `about ${dur(m.expedited)}` : "none"} if the vote is expedited` : ""}. Stage 1 asks for 7 days.`),
+            : ` Leaving takes about one challenge window (${dur(m.windowSec)}), so a user who acts when voting opens has ${marginLeft(m, "no time to spare", (d) => `about ${d} to spare`)}. Stage 1 asks for 7 days.`),
         refs: [tm("13")],
       }
     : unread("exit", "Exit window", "the governance parameters", f.errors.gov);
@@ -305,11 +307,40 @@ export function rosette(f: TrustFacts): Slice[] {
  * time it takes to leave (one challenge window: a withdrawal is paid on L1 only once its batch is final).
  * L2BEAT's exit window is the same idea: the delay before an upgrade, less the time an exit takes.
  */
-export function exitMargin(f: TrustFacts): { windowSec: number; normal: number; expedited: number | undefined } | undefined {
+export interface ExitMargin {
+  windowSec: number;
+  /** After a normal vote. */
+  normal: number;
+  /** After an expedited vote, when the chain has one. */
+  expedited: number | undefined;
+  /** The shorter of the two: what the grades use, since any proposal may be put to the faster vote. */
+  worst: number;
+}
+
+export function exitMargin(f: TrustFacts): ExitMargin | undefined {
   const w = windowOf(f);
   if (!f.gov || w === undefined) return undefined;
   const e = f.gov.expeditedVotingPeriodSec;
-  return { windowSec: w, normal: Math.max(0, f.gov.votingPeriodSec - w), expedited: e === undefined ? undefined : Math.max(0, e - w) };
+  const normal = Math.max(0, f.gov.votingPeriodSec - w);
+  const expedited = e === undefined ? undefined : Math.max(0, e - w);
+  return { windowSec: w, normal, expedited, worst: Math.min(normal, expedited ?? normal) };
+}
+
+/** Whether an expedited vote leaves less time than a normal one. */
+const expeditedShorter = (m: ExitMargin): m is ExitMargin & { expedited: number } => m.expedited !== undefined && m.expedited < m.normal;
+
+/** The exit window in a few words, worst case first: "None if a vote is expedited (1 h); about 3 h otherwise". */
+export function marginHeadline(m: ExitMargin, g: GovFacts): string {
+  const about = (s: number) => (s > 0 ? `about ${dur(s)}` : "none");
+  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  if (!expeditedShorter(m)) return cap(about(m.normal));
+  return `${cap(about(m.expedited))} if a vote is expedited (${dur(g.expeditedVotingPeriodSec ?? 0)}); about ${dur(m.normal)} otherwise`;
+}
+
+/** The time left, worst case first, in a sentence: `none` is the words for no time, `some` wraps a duration. */
+function marginLeft(m: ExitMargin, none: string, some: (d: string) => string): string {
+  const say = (s: number) => (s > 0 ? some(dur(s)) : none);
+  return expeditedShorter(m) ? `${say(m.expedited)} if the vote is expedited, and ${say(m.normal)} otherwise` : say(m.normal);
 }
 
 function unread(key: Slice["key"], name: string, what: string, error: string | undefined): Slice {
@@ -362,6 +393,7 @@ export function stage0(f: TrustFacts): Item[] {
 
 export function stage1(f: TrustFacts): Item[] {
   const w = windowOf(f);
+  const d = f.params?.defaultChallengeWindowSec;
   const m = exitMargin(f);
   return [
     w === undefined
@@ -369,15 +401,15 @@ export function stage1(f: TrustFacts): Item[] {
       : {
           q: "Challenge period of at least 5 days (cut from 7 days on 30 Apr 2026)",
           status: w >= FRAMEWORK.stage1MinChallengeSec ? "met" : "not met",
-          text: `${dur(w)}, as the node reports. The window is set per rollup when it is created; vigil-pay-1 chose 1 hour so that a drill and its withdrawal finish within a day.`,
+          text: `${dur(w)}, as the node reports. A rollup's creator does not choose it: the message that creates a rollup carries no challenge window, and vigil-pay-1's matches the chain's default_challenge_window parameter${d !== undefined ? ` (${dur(d)}, as the node reports)` : ""}.`,
           refs: [ev("13")],
           live: true,
         },
     f.gov && m
       ? {
           q: "Upgrades by anyone outside a Security Council give users at least 7 days to exit",
-          status: m.normal >= FRAMEWORK.stage1MinExitWindowSec ? "met" : "not met",
-          text: `There is no Security Council. QoreChain governance can change the rollup module's rules after a ${vote(f.gov)}, as the node reports; less the ${dur(m.windowSec)} an exit takes, that leaves about ${dur(m.normal)}.`,
+          status: m.worst >= FRAMEWORK.stage1MinExitWindowSec ? "met" : "not met",
+          text: `There is no Security Council. QoreChain governance can change the rollup module's rules after a ${vote(f.gov)}, as the node reports; less the ${dur(m.windowSec)} an exit takes, that leaves ${marginLeft(m, "nothing", (x) => `about ${x}`)}.`,
           refs: [tm("13")],
           live: true,
         }
@@ -388,14 +420,20 @@ export function stage1(f: TrustFacts): Item[] {
       text: "Governance can pause a based rollup, and funds then wait for governance (QoreChain's v3.2.8 rollup documentation).",
       refs: [tm("13")],
     },
-    {
-      q: "The proposer set is open, so one live proposer can be assumed",
-      status: f.params ? "met" : "unknown",
-      text: `Any account with a ${bond(f)} bond may submit batches; a standby on another key did so on 20 Nov.`,
-      refs: [ev("65–72")],
-      live: true,
-    },
   ];
+}
+
+/**
+ * Not a requirement: the Stages page's Stage 1 section says that if the proposer set is open to anyone with
+ * enough resources, it assumes at least one live proposer at any time (and does not assume it is non-censoring).
+ * This says whether vigil-pay-1's set is open, so a reader can see the assumption applies.
+ */
+export function stage1Assumption(f: TrustFacts): { text: string; refs: Ref[] } {
+  return {
+    text:
+      `The framework's Stage 1 section assumes at least one live proposer at any time when the proposer set is open to anyone with enough resources, and does not assume that proposer is non-censoring. vigil-pay-1's set is open: any account with a ${bond(f)} bond${f.params ? " (as the node reports)" : ""} may submit batches, and a standby on another key did so on 20 Nov.`,
+    refs: [ev("65–72")],
+  };
 }
 
 export function stage2(f: TrustFacts): Item[] {
@@ -404,7 +442,7 @@ export function stage2(f: TrustFacts): Item[] {
     { q: "Is the fraud proof system permissionless?", status: "met", text: "Yes: there is no allowlist. Our watchtower's challenge and another team's watcher's were both upheld; ours posted no bond.", refs: [ev("24, 44, 55")] },
     {
       q: "Do users have at least 30 days to exit in case of unwanted upgrades?",
-      status: m ? (m.normal >= FRAMEWORK.stage2MinExitWindowSec ? "met" : "not met") : "unknown",
+      status: m ? (m.worst >= FRAMEWORK.stage2MinExitWindowSec ? "met" : "not met") : "unknown",
       text: f.gov && m ? `No: a governance change can take effect after a ${vote(f.gov)}.` : "The governance parameters or the challenge window could not be read.",
       refs: [tm("13")],
       live: true,
@@ -416,8 +454,8 @@ export function stage2(f: TrustFacts): Item[] {
 /** What would change the Stage 1 answer, split by who would have to act. */
 export const STAGE1_NEEDS: { who: string; what: string }[] = [
   {
-    who: "The rollup (us)",
-    what: "A challenge window of at least 5 days. The creator picks it when the rollup is created, so this means a new rollup; L1 withdrawals would then wait 5 days, which is what instant exits are for.",
+    who: "QoreChain",
+    what: "A challenge window of at least 5 days that a rollup can run with: a default_challenge_window parameter of at least 5 days, or a window set per rollup at creation. A new rollup could then use it; its L1 withdrawals would wait 5 days, which is what instant exits are for.",
   },
   {
     who: "QoreChain",
@@ -452,13 +490,13 @@ export function authority(f: TrustFacts): Power[] {
     {
       action: "Batch the inbox",
       who: `The creator's sequencer first. Any account that bonds ${bond(f)} may batch too; our standby does after an entry has waited 30 blocks.`,
-      source: "read live",
+      source: f.params ? "read live" : "chain rule",
       refs: [ev("65–72")],
     },
     {
       action: "Reject a batch",
       who: `Anyone with a valid fraud proof, within ${w !== undefined ? dur(w) : "the challenge window"} of the batch. The chain re-executes and decides.`,
-      source: "read live",
+      source: w !== undefined ? "read live" : "chain rule",
       refs: [ev("44, 55")],
     },
     { action: "Finalise a batch", who: "No one acts: the chain treats a batch as final once its challenge window passes with no upheld challenge.", source: "chain rule", refs: [ev("16")] },
@@ -484,8 +522,8 @@ export function authority(f: TrustFacts): Power[] {
     },
     {
       action: "Anchor a batch (settlement receipts)",
-      who: f.rollup ? `Only the rollup creator's ML-DSA-87 key: ${nameOf(f.rollup.creator)}.` : "Only the rollup creator's ML-DSA-87 key.",
-      source: f.rollup ? "read live" : "chain rule",
+      who: f.rollup ? `Only the rollup creator's ML-DSA-87 key: ${nameOf(f.rollup.creator)}, as the node reports.` : "Only the rollup creator's ML-DSA-87 key.",
+      source: "chain rule",
       refs: [tm("13")],
     },
     { action: "Change Vigil's contracts", who: "No one: InstantExitVault and SettlementReceiptVerifier have no owner and no proxy.", source: "contract code", refs: [doc("contracts/src/InstantExitVault.sol", "InstantExitVault.sol")] },
@@ -494,7 +532,7 @@ export function authority(f: TrustFacts): Power[] {
       who: f.gov
         ? `QoreChain governance, by proposal, after a ${vote(f.gov)}${f.upgradeAuthority?.isGov ? "; the chain's upgrade authority is the governance module's account" : f.upgradeAuthority ? `; the chain's upgrade authority is ${shortAddr(f.upgradeAuthority.address)}` : ""}, as the node reports. The creator cannot pause a based rollup.`
         : "QoreChain governance, by proposal (voting period not read). The creator cannot pause a based rollup.",
-      source: "read live",
+      source: f.gov ? "read live" : "chain rule",
       refs: [tm("13")],
     },
     {
@@ -528,7 +566,11 @@ export function exitCard(f: TrustFacts): { fields: Field[]; stolen: string[]; de
           : "The vault's quorum (not read).",
         refs: [ev("83"), tm("8")],
       },
-      { k: "Limits", v: `None in the contract. In practice an exit is capped by the vault's free liquidity${cap ? `: ${cap}, as the EVM endpoint reports` : ""}.`, refs: [ev("108")] },
+      {
+        k: "Limits",
+        v: `None in the contract. In practice an exit is capped by the vault's free liquidity, which changes as exits are fronted and repaid${cap ? `: ${cap} now, as the EVM endpoint reports` : ""}.`,
+        refs: [doc("contracts/src/InstantExitVault.sol", "InstantExitVault.sol")],
+      },
       { k: "Fee", v: v ? `${(v.feeBps / 100).toLocaleString("en-GB")}% of the exit, kept by the vault for the LP.` : "Not read.", refs: [ev("83")] },
       {
         k: "Signer budget",
