@@ -221,7 +221,7 @@ export function TrustPage({ f, error, refreshing }: { f: TrustFacts | undefined;
       v: f ? (f.vault ? `${f.vault.threshold} of ${f.vault.quorum.length}` : "not read") : undefined,
       s: "ML-DSA-87 keys, one operator",
     },
-    { k: "Exit liquidity", v: f ? (f.vault ? qorFromWei(f.vault.availableWei) : "not read") : undefined, s: "the only cap on early exits" },
+    { k: "Exit liquidity", v: f ? (f.vault ? qorFromWei(f.vault.availableWei) : "not read") : undefined, s: "caps early exits; the contract sets no limit" },
     { k: "Submitter bond", v: f ? (f.params ? qor(f.params.minSubmitterBondUqor) : "not read") : undefined, s: "lets any account batch" },
   ];
 
