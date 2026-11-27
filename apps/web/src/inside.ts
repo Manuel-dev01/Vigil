@@ -43,7 +43,7 @@ export const INSIDE: readonly InsidePrimitive[] = [
     cls: "post-quantum",
     clsNote: "FIPS 204, NIST category 5",
     where:
-      "Signs every batch anchor (the settlement receipts), both watchtowers' exit signatures, and the post-quantum half of every operator transaction on L1. The contracts check it through the pqcVerify and pqcKeyStatus precompiles.",
+      "Signs every batch anchor (the settlement receipts), the watchtowers' exit attestations (EVIDENCE 104), and the post-quantum half of each operator transaction on L1, except the classical-signed one that registers each account's key (EVIDENCE 98). The contracts check it through the pqcVerify and pqcKeyStatus precompiles.",
     seen: "Scanned: in the three contracts, and as the registered key of each of our 10 L1 accounts, as the node reports. EVIDENCE 16, 104.",
     qorescan: { name: "ML-DSA-87", cls: "post-quantum" },
   },
@@ -74,8 +74,9 @@ export const INSIDE: readonly InsidePrimitive[] = [
     name: "Keccak-256",
     cls: "hash",
     clsNote: "QoreScan classes hashes as symmetric",
-    where: "In the contracts: exit message and exit-address hashes, and the chain-id check. On the EVM: addresses and transactions.",
-    seen: "Scanned: in the three contracts, and on the EVM lane as the node reports.",
+    where:
+      "In InstantExitVault and SettlementReceiptVerifier: exit ids, exit-address (CREATE2) derivation and the chain-id check. On the EVM: addresses and transactions.",
+    seen: "Scanned: in InstantExitVault and SettlementReceiptVerifier, and on the EVM lane as the node reports.",
     qorescan: { name: "Keccak-256", cls: "symmetric" },
   },
   {
@@ -83,7 +84,7 @@ export const INSIDE: readonly InsidePrimitive[] = [
     cls: "classical",
     clsNote: "quantum-vulnerable",
     where:
-      "The classical half of each hybrid L1 transaction (the chain's hybrid mode is required, as the node reports); EVM transactions, which run inside windows that the ML-DSA-87 key opens; and the bootstrap transaction that registers each account's ML-DSA-87 key. No Vigil contract verifies it: CI fails if one does.",
+      "The classical half of each hybrid L1 transaction (the chain's hybrid mode is required, as the node reports); EVM transactions, which run inside windows that the ML-DSA-87 key opens; and the bootstrap transaction that registers each account's ML-DSA-87 key. The scan found no check of it in Vigil's contracts; CI fails if a scan of their source finds one (a call to ecrecover or ECDSA, or the ecrecover precompile's address).",
     seen: "Scanned: the classical key of each of our 10 L1 accounts and the EVM lane, as the node reports. None in the contracts. EVIDENCE 98 (a classical-signed bootstrap).",
     qorescan: { name: "ECDSA secp256k1", cls: "quantum-vulnerable" },
   },

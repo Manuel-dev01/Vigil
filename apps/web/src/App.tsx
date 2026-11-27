@@ -197,7 +197,7 @@ export function App() {
           </p>
           <details className="inside" onToggle={(e) => e.currentTarget.open && setInsideLoaded(true)}>
             <summary>
-              What's inside: the cryptography <span className="inside-aid">an inventory aid, not a certification</span>
+              What's inside: the cryptography <span className="inside-aid">(an inventory aid, not a certification)</span>
             </summary>
             {insideLoaded && (
               <ErrorBoundary resetKey="inside">

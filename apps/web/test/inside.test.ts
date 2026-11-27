@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { algorithms, allComponents, parseCbom, props, scanDate, tlsGroups } from "../../../scripts/cbom/lib.ts";
+import { algorithms, allComponents, parseCbom, props, scanDate, solidityWhere, tlsGroups } from "../../../scripts/cbom/lib.ts";
 import { INSIDE, SCAN, TLS, TLS_NOTE } from "../src/inside.ts";
 
 const REPO = resolve(import.meta.dirname, "../../..");
@@ -35,6 +35,18 @@ describe("What's inside: the label matches the scan", () => {
     const fromContracts = algorithms(cbom).filter((a) => a.sources.includes("solidity"));
     expect(fromContracts.map((a) => a.name).sort()).toEqual(["Keccak-256", "ML-DSA-87"]);
     for (const a of fromContracts) expect(INSIDE.some((p) => p.qorescan?.name === a.name)).toBe(true);
+  });
+
+  it("names the contracts each scanned primitive was found in, and no others", () => {
+    const CONTRACTS = ["InstantExitVault", "PQGuardVault", "SettlementReceiptVerifier"];
+    for (const p of INSIDE.filter((x) => x.qorescan)) {
+      const asset = allComponents(cbom).find((c) => c.type === "cryptographic-asset" && c.name === p.qorescan!.name);
+      const found = new Set(solidityWhere(asset!).map((w) => w.split(".sol:")[0]));
+      const text = `${p.where}\n${p.seen}`;
+      const claimed = /\bthree contracts\b/.test(text) ? CONTRACTS : CONTRACTS.filter((c) => text.includes(c));
+      expect(claimed, p.name).toEqual(CONTRACTS.filter((c) => found.has(c)));
+      expect([...found].every((f) => CONTRACTS.includes(f)), p.name).toBe(true);
+    }
   });
 
   it("never calls a classical primitive post-quantum or hybrid", () => {
