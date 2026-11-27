@@ -60,9 +60,12 @@ export interface Payslip {
 const UQOR = /^-?\d+$/;
 const HEX32 = /^[0-9a-f]{64}$/;
 
-/** Throws unless `p` is a well-formed payslip whose lines add up to the payment. */
-export function checkPayslip(p: Payslip): Payslip {
-  if (p.v !== 1 || p.kind !== "vigil/payslip") throw new Error("not a vigil/payslip v1");
+/**
+ * Throws unless `p` is a well-formed payslip, without checking that its lines add up to the payment.
+ * A disclosure shows that sum as a check of its own (disclose.ts); everything else uses checkPayslip.
+ */
+export function checkPayslipShape(p: Payslip): Payslip {
+  if (!p || typeof p !== "object" || p.v !== 1 || p.kind !== "vigil/payslip") throw new Error("not a vigil/payslip v1");
   for (const f of ["rollupId", "period", "employer", "employee", "issuedAt"] as const) {
     if (typeof p[f] !== "string" || p[f] === "") throw new Error(`payslip.${f} is missing`);
   }
@@ -73,8 +76,17 @@ export function checkPayslip(p: Payslip): Payslip {
   if (!Array.isArray(p.lines) || p.lines.length === 0 || p.lines.some((l) => typeof l.label !== "string" || !UQOR.test(l.amountUqor))) {
     throw new Error("payslip.lines must be non-empty {label, amountUqor}");
   }
-  const net = p.lines.reduce((s, l) => s + BigInt(l.amountUqor), 0n);
-  if (net !== BigInt(pay.amountUqor)) throw new Error(`payslip lines add up to ${net} uqor, but the payment is ${pay.amountUqor}`);
+  return p;
+}
+
+/** What a well-formed payslip's lines add up to, in uqor. */
+export const payslipLinesTotal = (p: Payslip): bigint => p.lines.reduce((s, l) => s + BigInt(l.amountUqor), 0n);
+
+/** Throws unless `p` is a well-formed payslip whose lines add up to the payment. */
+export function checkPayslip(p: Payslip): Payslip {
+  checkPayslipShape(p);
+  const net = payslipLinesTotal(p);
+  if (net !== BigInt(p.payment.amountUqor)) throw new Error(`payslip lines add up to ${net} uqor, but the payment is ${p.payment.amountUqor}`);
   return p;
 }
 

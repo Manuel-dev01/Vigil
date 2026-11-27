@@ -676,7 +676,12 @@ async function member(v: Hex, address: Hex): Promise<Member> {
 const exitIdOf = (batchIndex: number, stateRoot: string, withdrawalIndex: number): Hex =>
   keccak256(encodeAbiParameters([{ type: "uint64" }, { type: "bytes32" }, { type: "uint64" }], [BigInt(batchIndex), `0x${stateRoot}`, BigInt(withdrawalIndex)]));
 
-export async function loadExits(limit = EXITS_PAGE): Promise<ExitsState> {
+/**
+ * The vault and its exits, newest first. Only the first `limit` exits are built (each needs its own reads);
+ * with `inBatch`, only the exits of the batches it accepts are, so the payslip page reads just the exits
+ * that could be a salary leaving.
+ */
+export async function loadExits(limit = EXITS_PAGE, inBatch?: (batchIndex: number) => boolean): Promise<ExitsState> {
   const d = VAULT_DEPLOYMENT;
   if (!d) throw new Error("deployments/diana.json has no InstantExitVault");
   const v = getAddress(d.address);
@@ -874,7 +879,7 @@ export async function loadExits(limit = EXITS_PAGE): Promise<ExitsState> {
 
   // Each exit is read on its own: one that fails shows its error, and the others are unaffected.
   const exits = await Promise.all(
-    all.slice(0, limit).map((cand) =>
+    (inBatch ? all.filter((c) => inBatch(c.batchIndex)) : all).slice(0, limit).map((cand) =>
       build(cand).catch(
         (e: unknown): ExitView => ({
           id: cand.id,
