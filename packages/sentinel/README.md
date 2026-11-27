@@ -20,7 +20,7 @@ This package watches Vigil from the outside and tells a human on Telegram when s
 
 **Instant exits.** From the same re-execution it knows every withdrawal in a batch waiting for finality. Those paid to the exit address of a payout the relayer serves (announced with a payout notice, posted by the payout itself, or listed in `EXIT_PAYOUTS`) are checked with the vault's public `fronted(exitId)` (`src/exits.ts`).
 
-A condition is announced once when it starts and once when it clears; an unchallenged bad batch is announced again every 10 minutes while it lasts. A summary of balances and status goes out every day at 08:00 UTC. If the chain cannot be read for 10 checks in a row, that is announced too.
+A condition is announced once when it starts and once when it clears; an unchallenged bad batch is announced again every 10 minutes while it lasts. A check that could not re-execute the batches, or read an exit, does not announce their alerts as resolved: they stay open until a check that can look finds them gone. A bad batch whose submission time the node does not report is alerted at once. A summary of balances and status goes out every day at 08:00 UTC. If the chain cannot be read for 10 checks in a row, that is announced too.
 
 ```sh
 pnpm --filter @vigil/sentinel start -- --once      # one check, printed
@@ -30,6 +30,6 @@ pnpm --filter @vigil/sentinel start -- --once      # one check, printed
 - `TELEGRAM_BOT_TOKEN`: the bot's token, kept secret. Without it, alerts go to the log only.
 - `TELEGRAM_CHAT_ID`: optional. Without it, the sentinel uses the chat of whoever last pressed Start on the bot.
 - `SENTINEL_INTERVAL`: seconds between checks (default 60).
-- `EXIT_PAYOUTS`: optional. The payouts the exit relayer is configured with (comma list, `qor1…` or `0x…`), so their exits are watched too.
+- `EXIT_PAYOUTS`: optional. The payouts the exit relayer is configured with (comma list, `qor1…` or `0x…`), so their exits are watched too. Set it to the relayer's value: a payout that was neither announced with a payout notice nor posted its own entries is watched only if it is listed here.
 
-The accounts and their rules are in `src/accounts.ts`, and the rules themselves, tested offline, are in `src/rules.ts`. `test/judge.test.ts` runs the re-execution and the exit watch on `vigil-pay-1` as recorded on 24 Nov (`test/vectors/inbox-vigil-pay-1.json`): all 22 batches valid, a changed state root, withdrawals root or data hash flagged, a rollback re-judged, pruned records handled, and batch 18's exit found with the vault's own exit id.
+The accounts and their rules are in `src/accounts.ts`, and the rules themselves, tested offline, are in `src/rules.ts`. `test/judge.test.ts` runs the re-execution and the exit watch on `vigil-pay-1` as recorded on 24 Nov ([`test/vectors/inbox-vigil-pay-1.json`](../../test/vectors/inbox-vigil-pay-1.json), at the repository root): all 22 batches valid, a changed state root, withdrawals root or data hash flagged, a rollback re-judged, pruned records handled, and batch 18's exit found with the vault's own exit id.

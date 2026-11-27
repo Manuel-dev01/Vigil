@@ -7,9 +7,9 @@ One small instant exit a day, of its own money, from its own key, so the whole e
 ## What one run does
 
 1. Reads the `InstantExitVault` (quorum, LP, fee, free liquidity) and the rollup, from the chain.
-2. Loads the canary's key file and refuses any key that is not its own: every team address in the README's testnet table (the creator, keel-b, the watchtowers, the keep-alive, the relayer, both deployers, employer-1), and the rollup's creator and the vault's quorum and LP as the chain reports them.
+2. Loads the canary's key file and refuses any key that is not its own: every team address in the README's testnet table (the creator, keel-b, the watchtowers, the keep-alive, the relayer, both deployers, employer-1), the rollup's creator and the vault's quorum and LP as the chain reports them, and the team's two demo L2 accounts (EVIDENCE 86 and 99) as its L2 key.
 3. Replays the rollup for its L2 nonce and balance, with Keel's sync and the shared inbox reader (`@vigil/keel/sync`, `@vigil/core/inbox`).
-4. Refuses to post when a batch awaits a challenge, entries are waiting for the sequencer, the canary already posted twice in the last 24 hours (read from its own inbox posts), or the vault cannot front the amount.
+4. Refuses to post when a batch awaits a challenge, entries are waiting for the sequencer, the canary already posted twice in the last 24 hours (read from its own inbox posts, every entry up to the head; a run that cannot read them fails), or the vault cannot front the amount. It reads the chain one request at a time.
 5. Builds one hybrid-signed transaction with two inbox posts:
    - a **payout notice** for its own L1 address (`encodePayoutNotice` from `@vigil/qledger-watchtower`), so the relayer knows whose exit address it is;
    - an **L2 withdrawal** of 0.01 to 0.05 QOR (default 0.02) to `exitAddressOf(its own L1 address)`, signed with ML-DSA-44 (`signQledgerTx`).
