@@ -7,11 +7,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { decodeEventLog, encodeAbiParameters, parseAbiParameters } from "viem";
 import { describe, expect, it } from "vitest";
-import { EVENTS_ABI, judgeRow, matchesAbbrev } from "../evidence/check.ts";
+import { parseArgs, UsageError } from "../evidence/args.ts";
+import { EVENTS_ABI, isTxNotFound, judgeRow, matchesAbbrev, qorAt } from "../evidence/check.ts";
 import { EXPECT } from "../evidence/expect.ts";
-import { ChainReader, MIN_GAP_MS, type Fetched } from "../evidence/fetch.ts";
+import { ChainReader, MIN_GAP_MS, worthKeeping, type Fetched } from "../evidence/fetch.ts";
 import { parseLedger, type TxRow } from "../evidence/ledger.ts";
-import { buildReport, commandsOf, ranges, readOnlyResults, toMarkdown } from "../evidence/report.ts";
+import { buildReport, commandsOf, failReasons, NOT_SCRIPTED, ranges, readOnlyResults, toMarkdown } from "../evidence/report.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const ledger = parseLedger(readFileSync(resolve(ROOT, "EVIDENCE.md"), "utf8"));
@@ -83,6 +84,35 @@ describe("what each row claims (expect.ts)", () => {
       if (stated?.[1]) expect(EXPECT[r.n]?.gasUsed, `row ${r.n}`).toBe(Number(stated[1].replace(/,/g, "")));
     }
   });
+
+  it("checks every transaction fee a listed row states, to the row's precision", () => {
+    // The ways EVIDENCE.md states what a transaction itself paid ("Fee 0.091616 QOR", "paid its 0.24 QOR
+    // fee", "279,928 gas (0.0315 QOR)", "fee 240,358 uqor"). A vault's 0.5% fee is a log value, not this.
+    const inQor = [/\bfee (\d+\.\d+) QOR\b/i, /\bits (\d+\.\d+) QOR fee\b/, /\bgas \((\d+\.\d+) QOR\)/, /\bgas, about \d+k each, (\d+\.\d+) QOR\b/];
+    const found: number[] = [];
+    for (const r of listed) {
+      const qor = inQor.map((re) => re.exec(r.proves)?.[1]).find((v) => v !== undefined);
+      const uqor = /\bfee ([\d,]+) uqor\b/.exec(r.proves)?.[1];
+      if (qor === undefined && uqor === undefined) continue;
+      found.push(r.n);
+      const x = EXPECT[r.n];
+      if (uqor !== undefined) expect(x?.feeUqor, `row ${r.n}`).toBe(Number(uqor.replace(/,/g, "")));
+      if (qor !== undefined) {
+        // An exact figure may be listed in uqor instead.
+        if (x?.feeQor !== undefined) expect(x.feeQor, `row ${r.n}`).toBe(qor);
+        else expect(x?.feeUqor !== undefined && qorAt(BigInt(x.feeUqor), 6, qor), `row ${r.n}`).toBe(qor);
+      }
+    }
+    expect(found.filter((n) => n <= 123)).toEqual([13, 14, 15, 45, 55, 62, 80, 112, 116, 118]);
+  });
+
+  it("matches the ledger's data hash, and the root row 62 abbreviates, as the rows write them", () => {
+    expect(EXPECT[38]?.msgBytes?.["data_hash"]).toBe("a3b68326…f327");
+    expect(row(38).proves).toContain("a3b68326…f327");
+    // Row 62 writes the root as 27cc…959e; the full value is not taken from the chain's own answer.
+    expect(row(62).recheck).toContain("0x27cc…959e");
+    expect(JSON.stringify(EXPECT[62]?.logs?.[0]?.args, (_, v) => (typeof v === "bigint" ? v.toString() : v))).toContain('"0x27cc…959e"');
+  });
 });
 
 describe("judging recorded answers", () => {
@@ -146,6 +176,16 @@ describe("catching answers that disagree with the row", () => {
   it("a different fee or gas", () => {
     expect(failedChecks(mismatch(13, (b) => (b.tx.auth_info.fee.amount[0].amount = "91617")))).toEqual(["fee (uqor)"]);
     expect(failedChecks(mismatch(55, (b) => (b.tx_response.gas_used = "345266")))).toEqual(["gas used"]);
+    // Row 45 says "its 0.24 QOR fee": 0.235 or more rounds to it, 0.245 does not.
+    expect(failedChecks(mismatch(45, (b) => (b.tx.auth_info.fee.amount[0].amount = "235000")))).toEqual([]);
+    expect(failedChecks(mismatch(45, (b) => (b.tx.auth_info.fee.amount[0].amount = "245000")))).toEqual(["fee (QOR, as the row rounds it)"]);
+    // Row 55 says "605,960 at 0.3 uqor, fee 0.18 QOR".
+    expect(failedChecks(mismatch(55, (b) => (b.tx.auth_info.fee.amount[0].amount = "242384")))).toEqual(["fee (QOR, as the row rounds it)", "gas price (uqor)"]);
+  });
+
+  it("a different data hash in the batch message", () => {
+    const r = mismatch(38, (b) => (b.tx.body.messages[0].data_hash = Buffer.from("ab".repeat(32), "hex").toString("base64")));
+    expect(r.checks.find((c) => !c.ok)).toMatchObject({ what: "message data_hash", expected: "a3b68326…f327", actual: "ab".repeat(32) });
   });
 
   it("EVM: a different amount fronted, a missing log, a revert", () => {
@@ -159,6 +199,24 @@ describe("catching answers that disagree with the row", () => {
     expect(failedChecks(paid)).toEqual(["log Fronted from 0x3a897802b62b052a102f55e021bc4668539c29b5"]);
     expect(failedChecks(mismatch(62, (b) => (b.result.logs = [])))).toEqual(["log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590"]);
     expect(failedChecks(mismatch(6, (b) => (b.result.status = "0x0")))).toEqual(["result"]);
+    const vaultFee = mismatch(91, (b) => {
+      const l = b.result.logs[0];
+      const words = l.data.slice(2).match(/.{64}/g);
+      words[3] = (BigInt(`0x${words[3]}`) + 1n).toString(16).padStart(64, "0");
+      l.data = "0x" + words.join("");
+    });
+    expect(failedChecks(vaultFee)).toEqual(["log Fronted from 0x3a897802b62b052a102f55e021bc4668539c29b5"]);
+  });
+
+  it("EVM: another state root than row 62's 27cc…959e, or another cost than its 0.0315 QOR", () => {
+    const root = mismatch(62, (b) => {
+      const l = b.result.logs[0];
+      l.topics[2] = `0x27cc${"0".repeat(56)}959f`;
+    });
+    expect(failedChecks(root)).toEqual(["log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590"]);
+    // 279,928 gas at twice the price is 0.0630 QOR.
+    const cost = mismatch(62, (b) => (b.result.effectiveGasPrice = `0x${(BigInt(b.result.effectiveGasPrice) * 2n).toString(16)}`));
+    expect(cost.checks.find((c) => !c.ok)).toMatchObject({ what: "fee (QOR, as the row rounds it)", expected: "0.0315", actual: "0.0630" });
   });
 
   it("EVM: a block hash that is not zero in the BLOCKHASH probe", () => {
@@ -186,8 +244,20 @@ describe("answers that cannot be judged", () => {
 
   it("a transaction the node no longer returns is 'not found', not a failure", () => {
     expect(judgeRow(native, EXPECT[13], f(404, { code: 5, message: "tx not found: 02993B…" })).status).toBe("not found");
-    expect(judgeRow(native, EXPECT[13], f(400, { code: 3, message: "tx not found" })).status).toBe("not found");
     expect(judgeRow(evm, EXPECT[62], f(200, { jsonrpc: "2.0", id: 1, result: null })).status).toBe("not found");
+  });
+
+  it("only the node's own 'tx not found' answer counts as not found; any other 404 is an error", () => {
+    // A proxy's HTML page, the gateway's answer for a route that does not exist, or another code.
+    const html = f(404, "<html><body>404 Not Found</body></html>");
+    const noRoute = f(404, { code: 5, message: "Not Found", details: [] });
+    const other = f(404, { code: 3, message: "invalid hash" });
+    for (const g of [html, noRoute, other]) {
+      expect(isTxNotFound(g)).toBe(false);
+      expect(judgeRow(native, EXPECT[13], g).status).toBe("error");
+    }
+    expect(isTxNotFound(f(404, { code: 5, message: "tx not found: 02993B…" }))).toBe(true);
+    expect(isTxNotFound(f(200, { message: "tx not found" }))).toBe(false);
   });
 
   it("a rate limit, a server error or a broken answer is an error", () => {
@@ -214,14 +284,34 @@ describe("the report", () => {
   it("formats row ranges", () => {
     expect(ranges([])).toBe("none");
     expect(ranges([5])).toBe("5");
-    expect(ranges([1, 2, 3, 5, 7, 8])).toBe("1 to 3, 5 and 7, 8");
+    expect(ranges([1, 2, 3, 5, 7, 8])).toBe("1 to 3, 5, 7 and 8");
+    expect(ranges([1, 2])).toBe("1 and 2");
+    expect(ranges([6, 60, 83])).toBe("6, 60 and 83");
     expect(ranges([3, 1, 2])).toBe("1 to 3");
   });
 
-  it("lists every read-only check by command, never as passed", () => {
+  it("rounds a fee to the places the row writes it with", () => {
+    expect(qorAt(240_358n, 6, "0.24")).toBe("0.24");
+    expect(qorAt(91_616n, 6, "0.091616")).toBe("0.091616");
+    expect(qorAt(279_928n * 112_500_000_000n, 18, "0.0315")).toBe("0.0315");
+    expect(qorAt(712_745n * 112_500_000_000n, 18, "0.080")).toBe("0.080");
+    expect(qorAt(1_500_000n, 6, "2")).toBe("2");
+    expect(() => qorAt(1n, 6, "0.0000001")).toThrow(/places/);
+  });
+
+  it("lists every read-only check by command, never as passed, with the reason meant for it", () => {
     const ro = readOnlyResults(ledger.readOnly);
     expect(ro.every((x) => x.status === "by command" && x.command.length > 0)).toBe(true);
-    expect(ro.find((x) => x.command.includes("deploy-vault.ts"))?.why).toMatch(/key/);
+    const why = (cmd: string) => ro.find((x) => x.command.includes(cmd))?.why;
+    expect(why("deploy-vault.ts")).toMatch(/needs a key/);
+    expect(why("spike:b")).toMatch(/separate probe .* requests few/);
+    expect(why("qledger-watchtower")).toMatch(/^it replays batches/);
+    expect(why("kit-gap-check.ts")).toMatch(/^it replays batches/);
+    expect(why("receipts-snapshot.ts")).toMatch(/^it replays batches/);
+    expect(why("spike:a <rollupId>")).toMatch(/offline part \(`pnpm test`\) runs in CI/);
+    // A read-only row added later with a command no rule knows gets a neutral reason, not a wrong one.
+    const added = readOnlyResults([{ index: 7, date: "2026-12-01", network: "testnet", height: "~10,900,000", recheck: "`pnpm --filter @vigil/web check-solvency`" }]);
+    expect(added[0]?.why).toBe(NOT_SCRIPTED);
     expect(commandsOf("`a b`; recorded in `test/vectors/x.json`")).toBe("a b");
   });
 
@@ -246,7 +336,92 @@ describe("the report", () => {
     expect(md).toContain("| not found | 16 |");
     expect(md).toContain("## Rows not re-verified");
     expect(md).toContain("deploy-vault.ts verify");
+    expect(md).toContain("A claim in a row's text that is not listed there is not checked.");
+    expect(md).not.toContain("This run fails");
+    expect(md).not.toContain("--cache");
     expect(md.split("\n").filter((l) => /^\| [1-6] \| 2026-/.test(l))).toHaveLength(6);
+  });
+
+  it("names the rows whose answer carries no date, and says when answers came from a cache", () => {
+    const rows = [6, 13, 62].map((n) => judgeRow(row(n), EXPECT[n], answer(n)));
+    const report = buildReport({
+      ledgerSha256: "0".repeat(64),
+      rows,
+      readOnly: [],
+      rest: "r",
+      evmRpc: "e",
+      tipHeight: null,
+      tipTime: null,
+      readTimes: [],
+      minGapMs: 1000,
+      requests: 0,
+      reusedFromCache: 4,
+    });
+    const md = toMarkdown(report);
+    expect(md).toContain("so row 6 gets no date check");
+    expect(rows.map((r) => r.status)).toEqual(["verified", "verified", "verified"]);
+    expect(md).toContain("rebuilt from the answers saved when they were read (`--cache`), with no new reads");
+    expect(report.run).toMatchObject({ requests: 0, reusedFromCache: 4 });
+  });
+
+  it("fails a run with a mismatch, a failed read, or fewer than half the rows re-verified", () => {
+    const s = (o: Partial<Record<"verified" | "mismatch" | "not found" | "error", number>>) => {
+      const c = { verified: 0, mismatch: 0, "not found": 0, error: 0, ...o };
+      return { ...c, rows: c.verified + c.mismatch + c["not found"] + c.error, claimsListed: 0, checks: 0, checksPassed: 0 };
+    };
+    expect(failReasons(s({ verified: 123 }))).toEqual([]);
+    expect(failReasons(s({ verified: 100, "not found": 23 }))).toEqual([]);
+    expect(failReasons(s({ verified: 122, mismatch: 1 }))).toEqual(["1 row disagrees with the chain"]);
+    expect(failReasons(s({ verified: 121, mismatch: 2 }))).toEqual(["2 rows disagree with the chain"]);
+    expect(failReasons(s({ verified: 121, error: 2 }))).toEqual(["2 rows could not be read"]);
+    // The node returns "not found" for everything (a moved route, a pruned index): nothing proved, so red.
+    expect(failReasons(s({ "not found": 123 }))).toEqual(["only 0 of 123 rows were re-verified, fewer than half"]);
+    expect(failReasons(s({ verified: 61, "not found": 62 }))).toEqual(["only 61 of 123 rows were re-verified, fewer than half"]);
+    const md = toMarkdown(
+      buildReport({
+        ledgerSha256: "0".repeat(64),
+        rows: [judgeRow(row(13), EXPECT[13], { ...answer(13), httpStatus: 404, body: { code: 5, message: "tx not found: 02993B" } })],
+        readOnly: [],
+        rest: "r",
+        evmRpc: "e",
+        tipHeight: null,
+        tipTime: null,
+        readTimes: [],
+        minGapMs: 1000,
+      }),
+    );
+    expect(md).toContain("**This run fails:** only 0 of 1 rows were re-verified, fewer than half.");
+  });
+});
+
+describe("the command line", () => {
+  it("reads the flags", () => {
+    expect(parseArgs([])).toEqual({ write: false, gapMs: MIN_GAP_MS });
+    expect(parseArgs(["--write", "--cache", "c", "--summary", "s.md", "--gap-ms", "1500"])).toEqual({
+      write: true,
+      cache: "c",
+      summary: "s.md",
+      gapMs: 1500,
+    });
+    expect([...(parseArgs(["--", "--rows", "13,60-62"]).rows ?? [])]).toEqual([13, 60, 61, 62]);
+  });
+
+  it("refuses a gap that is not a whole number of at least 1000 ms, so the throttle cannot be switched off", () => {
+    for (const bad of [["--gap-ms", "1.5s"], ["--gap-ms", "abc"], ["--gap-ms", ""], ["--gap-ms", "999"], ["--gap-ms", "1e3"], ["--gap-ms", "-2000"]]) {
+      expect(() => parseArgs(bad), bad.join(" ")).toThrow(UsageError);
+    }
+  });
+
+  it("refuses a flag with its value missing, rather than reading the next flag as the value", () => {
+    expect(() => parseArgs(["--gap-ms", "--write"])).toThrow(/--gap-ms needs a value/);
+    expect(() => parseArgs(["--gap-ms"])).toThrow(/--gap-ms needs a value/);
+    expect(() => parseArgs(["--rows", "--write"])).toThrow(/--rows needs a value/);
+  });
+
+  it("refuses an unknown flag, bad rows, and --rows with --write", () => {
+    expect(() => parseArgs(["--row", "44"])).toThrow(/unknown argument "--row"/);
+    expect(() => parseArgs(["--rows", "4x"])).toThrow(/cannot read "4x"/);
+    expect(() => parseArgs(["--rows", "44", "--write"])).toThrow(/without --rows/);
   });
 });
 
@@ -269,6 +444,33 @@ describe("the throttled reader", () => {
     expect(reader.gapMs).toBe(MIN_GAP_MS);
     for (let i = 0; i < 4; i++) await reader.evmReceipt(`0x${String(i).repeat(64)}`);
     expect(starts.slice(1).map((s, i) => s - (starts[i] as number))).toEqual([1000, 1000, 1000]);
+  });
+
+  it("keeps requests a second apart when the gap is not a number (NaN, infinite or missing)", async () => {
+    for (const gapMs of [Number.NaN, Number.POSITIVE_INFINITY, undefined]) {
+      const c = clock();
+      const starts: number[] = [];
+      const fetchFn = (async () => {
+        starts.push(c.now());
+        c.advance(30);
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: null }), { status: 200 });
+      }) as typeof fetch;
+      const reader = new ChainReader({ fetchFn, ...(gapMs === undefined ? {} : { gapMs }), now: c.now, sleep: c.sleep });
+      expect(reader.gapMs, String(gapMs)).toBe(MIN_GAP_MS);
+      for (let i = 0; i < 4; i++) await reader.evmReceipt(`0x${String(i).repeat(64)}`);
+      expect(starts.slice(1).map((s, i) => s - (starts[i] as number)), String(gapMs)).toEqual([1000, 1000, 1000]);
+    }
+  });
+
+  it("caches only complete answers, so a 'not found' or a failure is asked again", () => {
+    const f = (httpStatus: number, body: unknown): Fetched => ({ url: "x", fetchedAt: "t", httpStatus, body });
+    expect(worthKeeping(f(200, { tx_response: {} }))).toBe(true);
+    expect(worthKeeping(f(200, { jsonrpc: "2.0", id: 1, result: { status: "0x1" } }))).toBe(true);
+    expect(worthKeeping(f(200, { jsonrpc: "2.0", id: 1, result: null }))).toBe(false);
+    expect(worthKeeping(f(200, { jsonrpc: "2.0", id: 1, error: { message: "limit" } }))).toBe(false);
+    expect(worthKeeping(f(404, { code: 5, message: "tx not found" }))).toBe(false);
+    expect(worthKeeping(f(200, "<html>"))).toBe(false);
+    expect(worthKeeping(f(429, "slow down"))).toBe(false);
   });
 
   it("retries a rate limit at most twice, then reports the error", async () => {

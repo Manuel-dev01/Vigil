@@ -44,7 +44,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # Fails on a row whose transaction disagrees with it, or on a read that still fails after two
-      # retries. A transaction the node no longer returns is reported "not found" and does not fail.
+      # Fails on a row whose transaction disagrees with it, on a read that still fails after two
+      # retries, or when fewer than half the rows are re-verified. A transaction the node no longer
+      # returns is reported "not found"; only the node's own "tx not found" answer counts as that, so
+      # a proxy's 404 page is an error, and a run where nothing is found cannot pass.
       - name: Evidence check
         run: pnpm evidence:check --summary "$GITHUB_STEP_SUMMARY"

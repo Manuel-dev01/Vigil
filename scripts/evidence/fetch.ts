@@ -22,13 +22,27 @@ export interface Fetched {
 
 export const MIN_GAP_MS = 1000;
 
+/**
+ * Only a complete answer is cached: HTTP 200 with a JSON body that is not a JSON-RPC error or an
+ * empty (`null`) receipt. Failures and "not found" answers are asked again on the next run.
+ */
+export function worthKeeping(f: Fetched): boolean {
+  if (f.httpStatus !== 200 || typeof f.body !== "object" || f.body === null) return false;
+  const b = f.body as { error?: unknown; result?: unknown };
+  return b.error === undefined && b.result !== null;
+}
+
 const sleep = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms));
 
 export interface ReaderOptions {
   fetchFn: typeof fetch;
   /** Time between the starts of two requests; raised to at least MIN_GAP_MS. */
   gapMs?: number;
-  /** Keep each answer here and reuse it on the next run (transient failures are not kept). */
+  /**
+   * Keep each complete answer here and reuse it on the next run. Failures and "not found" answers
+   * are not kept, so a re-run asks again; the tip is kept, so a cached run is one consistent snapshot
+   * (the report counts the answers it reused).
+   */
   cacheDir?: string;
   log?: (line: string) => void;
   /** Injected in tests. */
@@ -46,10 +60,13 @@ export class ChainReader {
   readonly gapMs: number;
   /** Requests sent, retries included (cache hits are not requests). */
   requests = 0;
+  /** Answers reused from `cacheDir` instead of read again. */
+  cacheHits = 0;
 
   constructor(o: ReaderOptions) {
     this.fetchFn = o.fetchFn;
-    this.gapMs = Math.max(MIN_GAP_MS, o.gapMs ?? MIN_GAP_MS);
+    // A gap that is not a finite number (NaN from a mistyped flag) must not switch the throttle off.
+    this.gapMs = o.gapMs !== undefined && Number.isFinite(o.gapMs) ? Math.max(MIN_GAP_MS, o.gapMs) : MIN_GAP_MS;
     this.cacheDir = o.cacheDir;
     this.log = o.log ?? (() => {});
     this.sleep = o.sleep ?? sleep;
@@ -78,15 +95,19 @@ export class ChainReader {
   private async cached(key: string, get: () => Promise<Fetched>): Promise<Fetched> {
     const file = this.cacheDir ? resolve(this.cacheDir, `${key}.json`) : undefined;
     if (file) {
+      let hit: Fetched | undefined;
       try {
-        return JSON.parse(readFileSync(file, "utf8")) as Fetched;
+        hit = JSON.parse(readFileSync(file, "utf8")) as Fetched;
       } catch {
         // not cached yet
       }
+      if (hit) {
+        this.cacheHits++;
+        return hit;
+      }
     }
     const f = await get();
-    // Cache only answers that are not transient failures, so a re-run retries those.
-    if (file && f.httpStatus !== 0 && f.httpStatus !== 429 && f.httpStatus < 500) writeFileSync(file, JSON.stringify(f));
+    if (file && worthKeeping(f)) writeFileSync(file, JSON.stringify(f));
     return f;
   }
 
