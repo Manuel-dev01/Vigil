@@ -445,6 +445,9 @@ export function RollupView() {
                 <dt>Watchtowers</dt>
                 <dd>Two of ours (US West and EU West) plus anyone else's. Any bonded account can challenge, and the chain pays the first correct challenger.</dd>
               </dl>
+              <p className="note">
+                Who can move, stop or change what, read live, and how to leave without us: <a href="#/trust">Trust</a>.
+              </p>
               <ExplorerHint />
             </Section>
           </aside>
