@@ -4,7 +4,7 @@ import { chain } from "../chain.ts";
 import { CHAIN_ID, KNOWN, NODE_HOST, REPO, ROLLUP, qor, short, shortAddr, txUrl, utcStamp, utcTime } from "../config.ts";
 import { listen, type Head, type LiveItem } from "../live.ts";
 import { reveal } from "../reveal.ts";
-import { Ext, ExplorerHint, useRefresh } from "../ui.tsx";
+import { ErrorBoundary, Ext, ExplorerHint, useRefresh } from "../ui.tsx";
 import { BeaconLine } from "./Beacons.tsx";
 import { PageHead, Reading, Section, type Sounding } from "./Head.tsx";
 
@@ -197,13 +197,18 @@ function BrowserWatchtower() {
       <Section title="Re-execute it in this browser" aside="your browser as a watchtower" id="replay">
         <p style={{ maxWidth: "72ch" }}>
           Do what our hosted watchtowers do, here: read every inbox entry and every batch submission from {NODE_HOST}, re-execute each batch with the RDK's
-          qledger-v1 executor and our watchtower's check, and compare it with what the chain reports. Then check what the rollup owes against its deposit
-          pool, open any account against an anchored root, and forge a batch to watch a fraud proof win. It runs in a Web Worker. Nothing is signed or sent.
+          qledger-v1 executor and our watchtower's check, and compare it with the batch list and anchors as {NODE_HOST} reports them. Then check what the
+          rollup owes against its deposit pool, open any account against an anchored root, and forge a batch to watch a fraud proof win. It runs in a Web
+          Worker. Nothing is signed or sent.
         </p>
         {on ? (
-          <Suspense fallback={<Reading>Loading the re-execution code…</Reading>}>
-            <ReplayPanel />
-          </Suspense>
+          // Its own boundary: a chunk that fails to load (say, a stale file after a redeploy) or a render
+          // error in the panel stops only this section, not the whole Rollup page.
+          <ErrorBoundary resetKey="replay">
+            <Suspense fallback={<Reading>Loading the re-execution code…</Reading>}>
+              <ReplayPanel />
+            </Suspense>
+          </ErrorBoundary>
         ) : (
           <button type="button" className="primary" onClick={() => setOn(true)}>
             Re-execute every batch here

@@ -9,10 +9,11 @@
  */
 import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { CHAIN_ID, KNOWN, NODE_HOST, ROLLUP, errText, qor, short, shortAddr, txUrl } from "../config.ts";
-import type { BatchRow, Field, Forgery, Lookup, ReplayResult } from "../replay/core.ts";
+import type { BatchRow, Field, Lookup, ReplayResult } from "../replay/core.ts";
 import { ReplayWorker } from "../replay/client.ts";
+import type { ForgeAnswer } from "../replay/worker.ts";
 import { readReplayInput, type ReadInfo } from "../replay/read.ts";
-import { Ext, Mark } from "../ui.tsx";
+import { Ext, Mark, type Tone } from "../ui.tsx";
 import { Reading } from "./Head.tsx";
 import "./replay.css";
 
@@ -44,11 +45,14 @@ export function ReplayPanel() {
   const [run, setRun] = useState(0);
 
   useEffect(() => {
-    const w = new ReplayWorker();
-    worker.current = w;
+    let w: ReplayWorker | undefined;
     let alive = true;
     void (async () => {
       try {
+        // Started first, inside the try: a worker that cannot start, or fails while the node is read,
+        // shows here as an error with "Try again", not as a page-level error or an endless wait.
+        w = new ReplayWorker();
+        worker.current = w;
         setPhase({ kind: "reading", step: "the rollup" });
         const { input, ...info } = await readReplayInput((step) => alive && setPhase({ kind: "reading", step }));
         if (!alive) return;
@@ -61,7 +65,7 @@ export function ReplayPanel() {
     })();
     return () => {
       alive = false;
-      w.dispose();
+      w?.dispose();
       worker.current = undefined;
     };
   }, [run]);
@@ -82,27 +86,65 @@ export function ReplayPanel() {
   return <Results info={phase.info} r={phase.result} worker={worker} again={() => setRun((n) => n + 1)} />;
 }
 
+/** After a run, "Read and re-execute again" waits this long: each run asks the public node about 70 questions. */
+const COOLDOWN_MS = 30_000;
+
+const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+
 function Results({ info, r, worker, again }: { info: Omit<ReadInfo, "input">; r: ReplayResult; worker: RefObject<ReplayWorker | undefined>; again: () => void }) {
-  const settled = r.counts.kept + r.counts.pruned;
-  const reproduced = r.counts.keptReproduced + r.counts.prunedReproduced;
-  const allGood = settled > 0 && reproduced === settled;
+  const c = r.counts;
+  const settled = c.kept + c.pruned;
+  const reproduced = c.keptReproduced + c.prunedReproduced;
+  // "Unknown parent" and "entries missing" were not judged: they count as neither reproduced nor wrong.
+  const notJudged = c.keptNotJudged + c.prunedNotJudged;
+  const wrong = settled - reproduced - notJudged;
+  const seedIssue = r.seed !== undefined && (!r.seed.matches || r.seed.anchor === "other root");
+  const tone = wrong > 0 ? "bad" : notJudged > 0 || c.keptAnchorOther > 0 || seedIssue || settled === 0 ? "warn" : "ok";
   const rolledBack = r.rows.filter((x) => x.where === "rolled back");
+  const wrongBack = rolledBack.filter((x) => x.verdict === "differs");
+  const allCaught = wrongBack.length > 0 && wrongBack.every((x) => x.challenge?.wins) && rolledBack.every((x) => x.verdict !== "unknown parent" && x.verdict !== "entries missing");
+
+  // The button that started this run is gone: move focus to the verdict, which also announces it.
+  const head = useRef<HTMLDivElement>(null);
+  useEffect(() => head.current?.focus(), []);
+  const [cooling, setCooling] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setCooling(false), COOLDOWN_MS);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="rp" aria-live="polite">
-      <div className={`verdict ${allGood ? "ok" : "bad"}`}>
+    <div className="rp">
+      <div className={`verdict ${tone}`} ref={head} tabIndex={-1} aria-live="polite">
         {reproduced} of {settled} batch{settled === 1 ? "" : "es"} reproduced in this browser in {r.ms.toLocaleString()} ms
-        {allGood ? "." : `; ${settled - reproduced} did not reproduce.`}
+        {wrong > 0 && `; ${wrong} did not reproduce`}
+        {notJudged > 0 && `; ${notJudged} could not be judged here`}.
       </div>
       <p className="rp-sub">
-        {allGood ? (
+        Each batch was re-executed here from the {r.entries} inbox entries, and its state root, withdrawals root and data hash compared with what {NODE_HOST}{" "}
+        reports: the batch list
+        {c.pruned > 0 && (
           <>
-            Each batch was re-executed here from the {r.entries} inbox entries, and its state root, withdrawals root and data hash match what {NODE_HOST}{" "}
-            reports: the batch list
-            {r.counts.pruned > 0 && <>, or, for the {r.counts.pruned} whose record the chain has pruned, the batch's own submission and the ML-DSA-87 anchor that outlives it</>}.
+            , or, for the {c.pruned} whose record the chain has pruned, the batch's own submission and the ML-DSA-87 anchor recorded with it where there is
+            one{c.prunedNoAnchor > 0 && <> ({plural(c.prunedNoAnchor, "has none and was", "have none and were")} checked against the submission only)</>}
           </>
-        ) : (
-          <>Each batch was re-executed here from the {r.entries} inbox entries and compared with what {NODE_HOST} reports. The table below names every field that differs.</>
         )}
+        .{wrong > 0 && <> The table below names every field that differs.</>}
+        {c.keptAnchorOther > 0 && (
+          <>
+            {" "}
+            {plural(c.keptAnchorOther, "reproduced batch has", "reproduced batches have")} an ML-DSA-87 anchor that names another root, as {NODE_HOST} reports
+            it (marked in the table).
+          </>
+        )}
+        {notJudged > 0 && (
+          <>
+            {" "}
+            A batch marked "unknown parent" builds on a state this replay did not reach, and one marked "entries missing" covers entries past those read; neither
+            is counted as reproduced or as wrong.
+          </>
+        )}
+        {r.seed && <Seeded seed={r.seed} />}
         {info.archived > 0 && <> Entries 1 to {info.archived} came from the repository's inbox archive, used because the chain's inbox accumulator confirms them.</>}
       </p>
 
@@ -127,7 +169,7 @@ function Results({ info, r, worker, again }: { info: Omit<ReadInfo, "input">; r:
 
       {rolledBack.length > 0 && (
         <div className="rp-caught">
-          <h3>Rolled back on chain{rolledBack.every((b) => b.verdict === "differs" && b.challenge?.wins) ? ", and caught again here" : ""}</h3>
+          <h3>Rolled back on chain{allCaught ? ", and caught again here" : ""}</h3>
           <ul className="checks">
             {rolledBack.map((b) => (
               <Caught key={b.key} b={b} />
@@ -157,9 +199,17 @@ function Results({ info, r, worker, again }: { info: Omit<ReadInfo, "input">; r:
             </summary>
             <Table rows={r.rows} />
           </details>
-          <button type="button" className="rp-again" onClick={again}>
-            Read and re-execute again
-          </button>
+          <p className="rp-again">
+            <button type="button" onClick={again} disabled={cooling} aria-describedby={cooling ? "rp-cool" : undefined}>
+              Read and re-execute again
+            </button>
+            {cooling && (
+              <span id="rp-cool" className="note">
+                {" "}
+                Available {COOLDOWN_MS / 1000} s after a run, to spare the public node.
+              </span>
+            )}
+          </p>
         </div>
         <aside>
           <SolvencyPanel r={r} />
@@ -171,19 +221,40 @@ function Results({ info, r, worker, again }: { info: Omit<ReadInfo, "input">; r:
         What runs here: the inbox accumulator, every ML-DSA-44 signature inside execution, the state and withdrawals roots, the data hashes, the fraud
         proofs and the chain's rule for deciding them (the RDK's <code>checkQledgerFraud</code>), through the same check our hosted watchtowers use (
         <code>packages/qledger-watchtower/src/check.ts</code>). What it trusts: the batch list, anchors, inbox entries, deposit pool and payments are as{" "}
-        {NODE_HOST} reports them, without proofs. The anchors' ML-DSA-87 signatures are checked on the Verify page.
+        {NODE_HOST} reports them, without proofs. An anchor's ML-DSA-87 signature is not checked in this panel; it can be checked on the Verify page.
       </p>
     </div>
   );
 }
 
+/** The state before the first kept batch, rebuilt from entries alone because the earlier records are pruned and their submissions were not read. */
+function Seeded({ seed: s }: { seed: NonNullable<ReplayResult["seed"]> }) {
+  const last = s.batchIndex - 1;
+  return (
+    <>
+      {" "}
+      The chain no longer lists batch{last === 0 ? " 0" : `es 0 to ${last}`} and their submissions were not read, so they were not judged one by one.
+      Instead, inbox entries 1 to {s.entries} were re-executed from the empty ledger, and the state they give {s.matches ? "has" : "does not have"} the
+      parent root batch #{s.batchIndex} published
+      {s.anchor === "matches" && <>, and batch #{last}'s ML-DSA-87 anchor names it, as {NODE_HOST} reports</>}
+      {s.anchor === "other root" && <>, and batch #{last}'s ML-DSA-87 anchor names another root, as {NODE_HOST} reports</>}
+      {s.anchor === "none" && <>; batch #{last} has no ML-DSA-87 anchor to compare</>}.
+    </>
+  );
+}
+
 function Caught({ b }: { b: BatchRow }) {
+  const [tone, label]: [Tone, string] =
+    b.verdict === "differs"
+      ? [b.challenge?.wins ? "ok" : "bad", "caught"]
+      : b.verdict === "reproduced"
+        ? ["skip", "honest"]
+        : b.verdict === "descends from a wrong batch"
+          ? ["skip", "dropped with it"]
+          : ["skip", "not judged"];
   return (
     <li>
-      <Mark
-        tone={b.verdict === "differs" && b.challenge?.wins ? "ok" : b.verdict === "reproduced" ? "skip" : "bad"}
-        label={b.verdict === "differs" ? "caught" : b.verdict === "reproduced" ? "honest" : "not judged"}
-      />
+      <Mark tone={tone} label={label} />
       <span>
         <span className="what">
           Batch #{b.batchIndex}, block {b.height?.toLocaleString() ?? "?"}
@@ -197,8 +268,10 @@ function Caught({ b }: { b: BatchRow }) {
           {b.verdict === "differs"
             ? `its ${fields(b.mismatches)} ${b.mismatches.length === 1 ? "disagrees" : "disagree"}`
             : b.verdict === "reproduced"
-              ? "re-execution agrees with it; the chain drops every unfinalized batch after a wrong one"
-              : b.verdict}
+              ? "re-execution agrees with it; the chain drops every later batch not yet final after a wrong one"
+              : b.verdict === "descends from a wrong batch"
+                ? "it built on a wrong batch's state root; the chain drops every later batch not yet final after a wrong one"
+                : b.verdict}
         </span>
         <br />
         <span className="why">
@@ -266,11 +339,17 @@ function Table({ rows }: { rows: BatchRow[] }) {
                 {!b.anchor ? (
                   <span className="anc open">none</span>
                 ) : b.anchor.matches ? (
-                  <span className="anc lit" title={`The ML-DSA-87 anchor in the same transaction signs ${b.anchor.stateRoot}, the root re-executed here`}>
+                  <span
+                    className="anc lit"
+                    title={`The ML-DSA-87 anchor recorded at this layer height in the same block names ${b.anchor.stateRoot}, the root re-executed here, as ${NODE_HOST} reports; check its signature on the Verify page`}
+                  >
                     matches
                   </span>
                 ) : (
-                  <span className="chip bad" title={`The anchor signs ${b.anchor.stateRoot}`}>
+                  <span
+                    className="chip bad"
+                    title={`The ML-DSA-87 anchor recorded at this layer height in the same block names ${b.anchor.stateRoot}, not the root re-executed here, as ${NODE_HOST} reports`}
+                  >
                     other root
                   </span>
                 )}
@@ -366,7 +445,7 @@ function LookupPanel({ r, worker }: { r: ReplayResult; worker: RefObject<ReplayW
         Look up an account <small>batch #{r.lookupRoot.batchIndex}</small>
       </h2>
       <form className="rp-form" onSubmit={(e) => void submit(e)}>
-        <label htmlFor="rp-pick">Accounts in the replayed state</label>
+        <label htmlFor="rp-pick">Accounts after batch #{r.lookupRoot.batchIndex}</label>
         <select id="rp-pick" value={r.accounts.some((a) => a.id === id) ? id : ""} onChange={(e) => e.target.value && setId(e.target.value)}>
           <option value="">Choose one, or paste an id below</option>
           {r.accounts.map((a) => (
@@ -395,7 +474,7 @@ function LookupPanel({ r, worker }: { r: ReplayResult; worker: RefObject<ReplayW
               <br />
               <span className="why">
                 Opened with a witness ({got.siblings} non-empty sibling{got.siblings === 1 ? "" : "s"} on a 256-level path) that hashes to{" "}
-                <code>{short(got.root, 8)}</code>, the state root of batch #{got.batchIndex}, which its ML-DSA-87 anchor signs as {NODE_HOST} reports it.{" "}
+                <code>{short(got.root, 8)}</code>, the state root of batch #{got.batchIndex}, which its ML-DSA-87 anchor names, as {NODE_HOST} reports it.{" "}
                 <a className="go" href={`#/verify?batch=${got.batchIndex}`}>
                   Verify that anchor's signature
                 </a>
@@ -419,7 +498,7 @@ function ForgePanel({ r, worker }: { r: ReplayResult; worker: RefObject<ReplayWo
   const [pick, setPick] = useState(options[0]?.value ?? "");
   const chosen = options.find((o) => o.value === pick);
   const [amount, setAmount] = useState("");
-  const [got, setGot] = useState<Forgery & { command: string }>();
+  const [got, setGot] = useState<ForgeAnswer>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -441,6 +520,10 @@ function ForgePanel({ r, worker }: { r: ReplayResult; worker: RefObject<ReplayWo
     if (!chosen) return;
     if (uqor === undefined) {
       setError("Give an amount in QOR, with at most six decimals.");
+      return;
+    }
+    if (uqor > BigInt(chosen.t.max)) {
+      setError(`The sender held ${qor(chosen.t.max)} before this transfer; a forged amount above that cannot be written to the ledger.`);
       return;
     }
     setBusy(true);
@@ -519,11 +602,19 @@ function ForgePanel({ r, worker }: { r: ReplayResult; worker: RefObject<ReplayWo
               <span>
                 <span className="what">Against batch #{got.batchIndex} as the chain holds it, the same rule {got.winsAgainstReal ? "upholds" : "refuses"} it</span>
                 <br />
-                <span className="why">That batch is honest, so a challenge could not win.</span>
+                <span className="why">
+                  {got.winsAgainstReal
+                    ? "Re-execution reproduced that batch, yet the rule upholds the proof against it: this needs a closer look."
+                    : "Re-execution reproduces that batch, so a challenge against it cannot win."}
+                </span>
               </span>
             </li>
           </ul>
-          <p className="note rp-cmd-h">The challenge a watchtower would send, printed here and never run:</p>
+          <p className="note rp-cmd-h">
+            The challenge our watchtower would build if batch #{got.batchIndex} on chain were this forgery, printed here and never run. Its gas (
+            {got.gas.toLocaleString()}) and fee ({qor(got.feeUqor)}) are our watchtower's estimate for a challenge (<code>Challenger.gasFor</code>: 500,000 plus 40
+            per proof byte plus 100,000 per entry, at 0.3 uqor per unit of gas).
+          </p>
           <pre className="rp-cmd">
             <code>{shown}</code>
           </pre>
@@ -541,8 +632,22 @@ function ForgePanel({ r, worker }: { r: ReplayResult; worker: RefObject<ReplayWo
             </button>
           </div>
           <p className="note" style={{ marginTop: 8 }}>
-            This page holds no key and has no code that sends a transaction. <code>--generate-only</code> writes an unsigned file. Batch #{got.batchIndex} is
-            honest, so the chain would refuse this challenge, on {CHAIN_ID} as here.
+            This page holds no key and has no code that sends a transaction. <code>--generate-only</code> writes an unsigned file, and the ML-DSA-87
+            co-signing step is printed as a comment only.
+            {!got.winsAgainstReal && (
+              <>
+                {" "}
+                <code>checkQledgerFraud</code> refuses this proof against batch #{got.batchIndex} as the chain holds it
+                {chosen?.b.batchIndex === got.batchIndex && chosen.b.status === "finalized" ? (
+                  <>
+                    ; on {CHAIN_ID} that batch is also final, as {NODE_HOST} reports, and the chain refuses a challenge to a batch that is no longer open before it
+                    judges the proof (EVIDENCE 45: code 9).
+                  </>
+                ) : (
+                  "."
+                )}
+              </>
+            )}
           </p>
         </div>
       )}
