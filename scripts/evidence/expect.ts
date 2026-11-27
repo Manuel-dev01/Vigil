@@ -7,11 +7,13 @@
  * attributes, EVM logs, gas and fees. Values come from the row text or, for a step in a sequence,
  * from the rows around it (the exit row 91 fronts is the one rows 86 and 87 post and batch). A value
  * written `abcd1234…wxyz` is matched as the ledger abbreviates it (same start and end); `null` means
- * the attribute must be absent (an unscoped EVM window has no `allowed_targets`).
+ * the attribute must be absent (an unscoped EVM window has no `allowed_targets`). A fee the row
+ * rounds ("0.24 QOR") is checked to the places the row writes it with.
  *
- * A row the table does not list gets the generic checks only, and the report says so. Claims that
- * need chain state rather than the transaction (balances, bonds today, anchors, contract records)
- * are not checked here: each row's "How to re-verify" column has the command.
+ * A row the table does not list gets the generic checks only, and the report says so. Only what is
+ * listed here is checked: claims that need chain state rather than the transaction (balances, bonds
+ * today, anchors, contract records) are not, and each row's "How to re-verify" column has the
+ * command for them.
  */
 
 export type AttrValue = string | null;
@@ -28,7 +30,7 @@ export type LogName = "Attested" | "Fronted" | "Settled" | "Probe";
 export interface LogClaim {
   event: LogName;
   address: string;
-  /** Decoded arguments that must match (bigint for integers, lower-case hex for bytes and addresses). */
+  /** Decoded arguments that must match (bigint for integers; hex for bytes and addresses, which may be abbreviated `0xabcd…wxyz`). */
   args?: Record<string, bigint | string>;
   /** A check that does not fit `args`, with the words the report prints for it. */
   test?: { says: string; ok: (args: Record<string, unknown>) => boolean };
@@ -42,8 +44,17 @@ export interface RowExpect {
   events?: EventClaim[];
   gasUsed?: number;
   gasWanted?: number;
-  /** Native: the fee paid, in uqor. */
+  /** Native: the fee paid, in uqor, where the row states it exactly. */
   feeUqor?: number;
+  /**
+   * The fee in QOR as the row writes it, checked to that many places: native, the fee paid; EVM,
+   * gas used times the price paid per gas.
+   */
+  feeQor?: string;
+  /** Native: the fee divided by the gas limit, in uqor, to the row's places. */
+  gasPriceUqor?: string;
+  /** Native: bytes fields of the first message (base64 in the answer), as hex. */
+  msgBytes?: Record<string, string>;
   /** EVM: the address a deployment created. */
   contract?: string;
   /** EVM: the sender. */
@@ -245,7 +256,7 @@ export const EXPECT: Record<number, RowExpect> = {
   35: { msgs: ["MsgPostRollupData"], events: [posted(5, { data_hash: "84eeba7e…6a65" })] },
   36: { msgs: ["MsgSubmitBatch"], events: [batch(4), anchored(4, "778c8a0f…d561")] },
   37: { msgs: ["MsgPostRollupData"], events: [posted(6, { size: "5822", poster: EMPLOYER1, data_hash: "44bc6d02…1077" })] },
-  38: { msgs: ["MsgSubmitBatch"], events: [batch(5), rootAt(5, "778c8a0f…d561")] },
+  38: { msgs: ["MsgSubmitBatch"], msgBytes: { data_hash: "a3b68326…f327" }, events: [batch(5), rootAt(5, "778c8a0f…d561")] },
   39: { msgs: ["MsgSend"], events: [send(EVIL1, "1005000000uqor", OOJAE_QOREX)] },
   40: { msgs: ["MsgRegisterPQCKeyV2"], events: [keyRegistered(EVIL1)] },
   41: { msgs: ["MsgBondRollupSubmitter"], events: [bonded(EVIL1)] },
@@ -257,6 +268,7 @@ export const EXPECT: Record<number, RowExpect> = {
   },
   45: {
     msgs: ["MsgChallengeBatch"],
+    feeQor: "0.24",
     failure: { code: 9, codespace: "rdk", rawLog: "batch 6 is rejected: batch already finalized" },
     events: [signer(WT1)],
   },
@@ -273,6 +285,8 @@ export const EXPECT: Record<number, RowExpect> = {
     msgs: ["MsgChallengeBatch"],
     gasUsed: 345_265,
     gasWanted: 605_960,
+    gasPriceUqor: "0.3",
+    feeQor: "0.18",
     events: [hybrid(WT2), ...fraudUpheld(8, EVIL2, WT2), { type: "rdk_inbox_rolled_back", attrs: { rollup_id: ROLLUP, consumed_sequence: "8" } }],
   },
   56: { msgs: ["MsgSubmitBatch"], events: [batch(8), consumed(8, 8, 9), rootAt(8, "2c891f7a…")] },
@@ -301,7 +315,7 @@ export const EXPECT: Record<number, RowExpect> = {
       },
     ],
   },
-  62: { gasUsed: 279_928, logs: [attested(0, "0x27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e")] },
+  62: { gasUsed: 279_928, feeQor: "0.0315", logs: [attested(0, "0x27cc…959e")] },
   63: { gasUsed: 2_305_444, logs: attestedRange(1, 10) },
   64: { msgs: ["MsgCloseEVMWindow"], events: [windowClosed(EVM_DEPLOYER)] },
   65: { msgs: ["MsgSend"], events: [hybrid(), send(KEEL_B, "1010000000uqor", OOJAE_QOREX)] },
@@ -325,7 +339,7 @@ export const EXPECT: Record<number, RowExpect> = {
     msgs: ["MsgOpenEVMWindow"],
     events: [hybrid(EVM_DEPLOYER), windowOpened(EVM_DEPLOYER, { height: 10_627_884, blocks: 200, maxTxs: 2, maxValueUqor: 250_000, target: VERIFIER })],
   },
-  80: { gasUsed: 712_745, logs: [attested(12), attested(13), attested(14, "0x9a3e20ba101649bcf52cefa56577cb86d8acec74c4ce8558d56623e47e36fe07")] },
+  80: { gasUsed: 712_745, feeQor: "0.080", logs: [attested(12), attested(13), attested(14, "0x9a3e20ba101649bcf52cefa56577cb86d8acec74c4ce8558d56623e47e36fe07")] },
   81: { msgs: ["MsgCloseEVMWindow"], events: [windowClosed(EVM_DEPLOYER)] },
   82: {
     msgs: ["MsgOpenEVMWindow"],
@@ -341,7 +355,13 @@ export const EXPECT: Record<number, RowExpect> = {
   90: { msgs: ["MsgOpenEVMWindow"], events: [windowOpened(EVM_DEPLOYER, { target: VAULT })] },
   91: {
     gasUsed: 472_141,
-    logs: [{ event: "Fronted", address: VAULT, args: { payout: OOJAE_QOREX_EVM, batchIndex: 15n, withdrawalIndex: 3n, paid: 99_500n * WEI_PER_UQOR } }],
+    logs: [
+      {
+        event: "Fronted",
+        address: VAULT,
+        args: { payout: OOJAE_QOREX_EVM, batchIndex: 15n, withdrawalIndex: 3n, paid: 99_500n * WEI_PER_UQOR, fee: 500n * WEI_PER_UQOR },
+      },
+    ],
   },
   92: { msgs: ["MsgCloseEVMWindow"], events: [windowClosed(EVM_DEPLOYER)] },
   93: { msgs: ["MsgExecuteWithdrawal"], events: [hybrid(KEEPALIVE), withdrawal(15, EXIT_ADDRESS, "100000uqor", 3)] },
@@ -380,7 +400,7 @@ export const EXPECT: Record<number, RowExpect> = {
     msgs: ["MsgOpenEVMWindow"],
     events: [windowOpened(EVM_DEPLOYER, { height: 10_691_040, blocks: 200, maxTxs: 2, maxValueUqor: 250_000, target: VERIFIER })],
   },
-  112: { gasUsed: 1_163_793, logs: attestedRange(15, 19) },
+  112: { gasUsed: 1_163_793, feeQor: "0.131", logs: attestedRange(15, 19) },
   113: { msgs: ["MsgCloseEVMWindow"], events: [windowClosed(EVM_DEPLOYER)] },
   114: { msgs: ["MsgPostRollupData"], events: [hybrid(EMPLOYER1), posted(23, { poster: EMPLOYER1, data_hash: "0854763a…a9a1" })] },
   115: { msgs: ["MsgPostRollupData"], events: [posted(24, { size: "5905", poster: EMPLOYER1 })] },

@@ -50,6 +50,18 @@ export function matchesAbbrev(expected: string, actual: string | undefined): boo
   return actual.length >= head.length + tail.length && actual.startsWith(head) && actual.endsWith(tail);
 }
 
+/**
+ * An amount in QOR rounded (half up) to the places a row writes it with. `amount` is in units of
+ * 10^-`decimals` QOR: 6 for uqor, 18 for wei. qorAt(240358n, 6, "0.24") -> "0.24".
+ */
+export function qorAt(amount: bigint, decimals: number, stated: string): string {
+  const places = stated.split(".")[1]?.length ?? 0;
+  if (places > decimals) throw new Error(`${stated}: more places than ${decimals}`);
+  const unit = 10n ** BigInt(decimals - places);
+  const digits = ((amount + unit / 2n) / unit).toString().padStart(places + 1, "0");
+  return places === 0 ? digits : `${digits.slice(0, -places)}.${digits.slice(-places)}`;
+}
+
 // ------------------------------------------------------------------ native transactions
 
 interface Attr {
@@ -71,9 +83,15 @@ interface TxResponse {
   events: TxEvent[];
 }
 interface NativeBody {
-  tx?: { body?: { messages?: { "@type": string }[] }; auth_info?: { fee?: { amount?: { denom: string; amount: string }[] } } };
+  tx?: {
+    body?: { messages?: ({ "@type": string } & Record<string, unknown>)[] };
+    auth_info?: { fee?: { amount?: { denom: string; amount: string }[]; gas_limit?: string } };
+  };
   tx_response?: TxResponse;
 }
+
+/** A bytes field of a message, which the REST answer gives in base64, as lower-case hex. */
+const bytesHex = (v: unknown) => (typeof v === "string" ? Buffer.from(v, "base64").toString("hex") : undefined);
 
 const describeAttrs = (attrs: Record<string, string | null> = {}) =>
   Object.entries(attrs)
@@ -130,9 +148,20 @@ function judgeNative(row: TxRow, x: RowExpect, body: NativeBody): Check[] {
   if (x.msgs) eq("messages", x.msgs.join(", "), (body.tx?.body?.messages ?? []).map((m) => msgName(m["@type"])).join(", "));
   if (x.gasUsed !== undefined) eq("gas used", x.gasUsed, Number(t.gas_used));
   if (x.gasWanted !== undefined) eq("gas limit", x.gasWanted, Number(t.gas_wanted));
-  if (x.feeUqor !== undefined) {
-    const fee = body.tx?.auth_info?.fee?.amount?.find((c) => c.denom === "uqor")?.amount;
-    eq("fee (uqor)", x.feeUqor, fee === undefined ? undefined : Number(fee));
+  const fee = body.tx?.auth_info?.fee?.amount?.find((c) => c.denom === "uqor")?.amount;
+  if (x.feeUqor !== undefined) eq("fee (uqor)", x.feeUqor, fee === undefined ? undefined : Number(fee));
+  if (x.feeQor !== undefined) eq("fee (QOR, as the row rounds it)", x.feeQor, fee === undefined ? undefined : qorAt(BigInt(fee), 6, x.feeQor));
+  if (x.gasPriceUqor !== undefined) {
+    // The price the fee pays per unit of gas limit, to the row's places.
+    const limit = Number(body.tx?.auth_info?.fee?.gas_limit ?? t.gas_wanted);
+    const places = x.gasPriceUqor.split(".")[1]?.length ?? 0;
+    eq("gas price (uqor)", x.gasPriceUqor, fee === undefined || !(limit > 0) ? undefined : (Number(fee) / limit).toFixed(places));
+  }
+  const first = body.tx?.body?.messages?.[0];
+  for (const [field, value] of Object.entries(x.msgBytes ?? {})) {
+    const actual = bytesHex(first?.[field]);
+    const ok = matchesAbbrev(value, actual);
+    checks.push({ what: `message ${field}`, ok, expected: value, ...(ok ? {} : { actual: actual ?? "(none)" }) });
   }
   for (const c of x.events ?? []) checks.push(checkEvent(t.events ?? [], c));
   return checks;
@@ -150,6 +179,7 @@ interface EvmReceipt {
   blockNumber: Hex;
   status: Hex;
   gasUsed: Hex;
+  effectiveGasPrice?: Hex;
   from: string;
   contractAddress: string | null;
   logs: EvmLog[];
@@ -176,9 +206,10 @@ const describeLog = (c: LogClaim) => {
   return `${c.event}${args.length ? `(${args.join(", ")})` : ""}${c.test ? `: ${c.test.says}` : ""}`;
 };
 
+/** Integers must be equal; hex strings match ignoring case, and `0xabcd…wxyz` as the ledger abbreviates it. */
 function argMatches(expected: bigint | string, actual: unknown): boolean {
   if (typeof expected === "bigint") return typeof actual === "bigint" && actual === expected;
-  return typeof actual === "string" && actual.toLowerCase() === expected.toLowerCase();
+  return typeof actual === "string" && matchesAbbrev(expected.toLowerCase(), actual.toLowerCase());
 }
 
 export function checkLog(decoded: Decoded[], claim: LogClaim): Check {
@@ -210,6 +241,11 @@ function judgeEvm(row: TxRow, x: RowExpect, r: EvmReceipt): Check[] {
   if (x.contract) eq("contract created", x.contract.toLowerCase(), r.contractAddress?.toLowerCase());
   if (x.from) eq("sender", x.from.toLowerCase(), r.from.toLowerCase());
   if (x.gasUsed !== undefined) eq("gas used", x.gasUsed, Number(BigInt(r.gasUsed)));
+  if (x.feeQor !== undefined) {
+    // What the sender paid: gas used times the price it paid per gas, in wei.
+    const paid = r.effectiveGasPrice ? BigInt(r.gasUsed) * BigInt(r.effectiveGasPrice) : undefined;
+    eq("fee (QOR, as the row rounds it)", x.feeQor, paid === undefined ? undefined : qorAt(paid, 18, x.feeQor));
+  }
   const decoded = decodeLogs(r.logs);
   for (const c of x.logs ?? []) checks.push(checkLog(decoded, c));
   return checks;
@@ -220,15 +256,26 @@ function judgeEvm(row: TxRow, x: RowExpect, r: EvmReceipt): Check[] {
 const isTransient = (f: Fetched) => f.httpStatus === 0 || f.httpStatus === 429 || f.httpStatus >= 500;
 const brief = (body: unknown) => (typeof body === "string" ? body : JSON.stringify(body)).slice(0, 200);
 
+/**
+ * The node's own answer for a transaction it does not hold: a JSON body whose message says
+ * "tx not found" (live, a 404 with `{"code":5,"message":"tx not found: …"}`). Any other answer that is
+ * not a 200, such as an HTML 404 from a proxy, or the gateway's `{"code":5,"message":"Not Found"}`
+ * for a route that does not exist, is an error, so it cannot pass as "not found" and keep a run green.
+ */
+export function isTxNotFound(f: Fetched): boolean {
+  if (f.httpStatus === 200 || typeof f.body !== "object" || f.body === null) return false;
+  const message = (f.body as { message?: unknown }).message;
+  return typeof message === "string" && /^tx not found\b/i.test(message);
+}
+
 export function judgeRow(row: TxRow, expect: RowExpect | undefined, f: Fetched): RowResult {
   const base = { n: row.n, kind: row.kind, hash: row.hash, claimsListed: expect !== undefined };
   const x = expect ?? {};
   if (isTransient(f)) return { ...base, status: "error", checks: [], note: `HTTP ${f.httpStatus || "error"}: ${brief(f.body)}` };
 
   if (row.kind === "native") {
-    const body = f.body as NativeBody & { code?: number; message?: string };
-    const message = typeof f.body === "string" ? f.body : (body?.message ?? "");
-    if (f.httpStatus === 404 || (f.httpStatus !== 200 && /not found/i.test(message))) {
+    const body = f.body as NativeBody;
+    if (isTxNotFound(f)) {
       return { ...base, status: "not found", checks: [], note: "the node does not return this transaction (it may no longer index it)" };
     }
     if (f.httpStatus !== 200 || !body?.tx_response) {
