@@ -5,11 +5,11 @@
  * render them.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { shareFragment } from "@vigil/sealed/disclose";
+import { shareFragment, shareLink } from "@vigil/sealed/disclose";
 import type { InboxPost } from "@vigil/sealed/inbox";
 import type { Payslip } from "@vigil/sealed/payslip";
-import { KNOWN, qor, shortAddr, utcStamp } from "../config.ts";
-import { disclosureChecks, forgeFirstLine, type NamedTransfer, type ReceiptState } from "../disclosure.ts";
+import { KNOWN, qor, short, shortAddr, utcStamp } from "../config.ts";
+import { disclosureChecks, disclosureVerdict, forgeFirstLine, type NamedTransfer, type ReceiptState } from "../disclosure.ts";
 import { salaryExit, type ExitSeen, type SalaryPayment, type TransferSeen } from "../salary-exit.ts";
 import { Mark } from "../ui.tsx";
 
@@ -43,6 +43,15 @@ export function PayslipBody({ payslip, poster, changed }: { payslip: Payslip; po
         <dt>Employee</dt>
         <dd>
           <Name addr={payslip.employee} />
+        </dd>
+        <dt>Paid from</dt>
+        <dd>
+          <code title={payslip.payment.fromAccount}>{short(payslip.payment.fromAccount, 6)}</code>{" "}
+          <span className="note">L2 account, as the payslip names it. The chain does not tie it to the employer.</span>
+        </dd>
+        <dt>Paid to</dt>
+        <dd>
+          <code title={payslip.payment.toAccount}>{short(payslip.payment.toAccount, 6)}</code> <span className="note">L2 account</span>
         </dd>
         <dt>Issued</dt>
         <dd>{Number.isFinite(Date.parse(payslip.issuedAt)) ? utcStamp(Date.parse(payslip.issuedAt)) : payslip.issuedAt}</dd>
@@ -109,7 +118,7 @@ export function QrCode({ text }: { text: string }) {
 /** The share link of one opened payslip (`base` is the page's address before the "#"): the link, a copy button, its QR code and a printable copy. */
 export function ShareBox({ id, base, entry, dataKey, onPrint }: { id: string; base: string; entry: number; dataKey: Uint8Array; onPrint: () => void }) {
   const fragment = shareFragment(entry, dataKey);
-  const link = `${base}${fragment}`;
+  const link = shareLink(base, entry, dataKey);
   const [copied, setCopied] = useState<boolean>();
   const input = useRef<HTMLInputElement>(null);
   const copy = () => {
@@ -134,7 +143,7 @@ export function ShareBox({ id, base, entry, dataKey, onPrint }: { id: string; ba
         </button>
       </div>
       <p className="note" role="status">
-        {copied === false && "This browser did not allow copying: select the link and copy it."}
+        {copied === true ? "Link copied." : copied === false ? "This browser did not allow copying: select the link and copy it." : ""}
       </p>
       <div className="share-qr">
         <QrCode text={link} />
@@ -155,8 +164,28 @@ export function ShareBox({ id, base, entry, dataKey, onPrint }: { id: string; ba
   );
 }
 
-/** "This salary left the rollup through an instant exit", when one matches (salary-exit.ts); otherwise nothing. */
-export function SalaryExitLine({ salary, transfers, exits }: { salary: SalaryPayment | undefined; transfers: TransferSeen[] | undefined; exits: ExitSeen[] | undefined }) {
+/**
+ * "This salary left the rollup through an instant exit", when one matches (salary-exit.ts); otherwise
+ * nothing. `error` is set when the exits could not be read for this salary, which is not "no match".
+ */
+export function SalaryExitLine({
+  salary,
+  transfers,
+  exits,
+  error,
+}: {
+  salary: SalaryPayment | undefined;
+  transfers: TransferSeen[] | undefined;
+  exits: ExitSeen[] | undefined;
+  error?: string | undefined;
+}) {
+  if (salary && error)
+    return (
+      <p className="note" title={error}>
+        A later withdrawal from the paid account has the same amount, but the instant exits could not be read to see whether this salary left through
+        one. Reload to try again.
+      </p>
+    );
   if (!salary || !transfers || !exits) return null;
   const m = salaryExit(salary, transfers, exits);
   if (!m) return null;
@@ -198,8 +227,7 @@ export function DisclosedDoc({
   useEffect(() => setForged(false), [entry, payslip]);
   const shown = forged ? forgeFirstLine(payslip) : payslip;
   const checks = disclosureChecks({ entry, payslip: shown, poster: post.poster, receipt, transfer });
-  const failed = checks.filter((c) => c.tone === "bad").length;
-  const passed = checks.filter((c) => c.tone === "ok").length;
+  const verdict = disclosureVerdict(checks, forged);
   return (
     <article className={`pdoc${forged ? " forged" : ""}${printing ? " print-me" : ""}`} id="disclosed-payslip" aria-label={`Payslip in inbox entry ${entry}, shared with you`}>
       <header className="rdoc-top">
@@ -219,12 +247,8 @@ export function DisclosedDoc({
           </li>
         ))}
       </ul>
-      <p className={failed ? "verdict bad" : passed === checks.length ? "verdict ok" : "verdict warn"} role="status">
-        {failed
-          ? `${failed} of ${checks.length} checks fail.${forged ? " The forged line no longer adds up to the public payment." : ""}`
-          : passed === checks.length
-            ? "All four checks pass. The amount paid is public and matches; the lines are what the employer wrote."
-            : `${passed} of ${checks.length} checks pass and none fails; the rest are still running or could not run.`}
+      <p className={`verdict ${verdict.tone}`} role="status">
+        {verdict.text}
       </p>
       {salaryLine}
       <div className="row forge-row no-print">
@@ -242,7 +266,7 @@ export function DisclosedDoc({
         </p>
       )}
       <p className="note print-only share-print-link">{href}</p>
-      <p className={`rdoc-stamp pdoc-stamp ${forged ? "bad" : failed ? "bad" : "ok"}`}>{forged ? "Forged here" : "Opened · shared key"}</p>
+      <p className={`rdoc-stamp pdoc-stamp ${forged || verdict.tone === "bad" ? "bad" : "ok"}`}>{forged ? "Forged here" : "Opened · shared key"}</p>
     </article>
   );
 }

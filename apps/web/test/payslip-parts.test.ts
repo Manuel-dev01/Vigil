@@ -47,8 +47,13 @@ describe("DisclosedDoc", () => {
     expect(html).toContain(`<p class="note print-only share-print-link">${href.replace(/&/g, "&amp;")}</p>`);
   });
 
-  it("says none fails while a check is still running", () => {
-    expect(disclosed({ kind: "checking" })).toContain("3 of 4 checks pass and none fails");
+  it("says none fails while a check is still running, or when the node could not be asked", () => {
+    expect(disclosed({ kind: "checking" })).toContain("3 of 4 checks pass and none fails; 1 is still running or could not run.");
+    const html = disclosed({ kind: "unchecked", batchIndex: 24, detail: "Could not read batch 24 from the node: HTTP 429" });
+    expect(html).toContain("3 of 4 checks pass and none fails");
+    expect(html).toContain("which could not be checked just now");
+    expect(html).not.toContain("fails against");
+    expect(html).toContain('class="verdict warn"');
   });
 });
 
@@ -57,6 +62,13 @@ describe("PayslipBody", () => {
     const html = renderToStaticMarkup(createElement(PayslipBody, { payslip, poster: employer, changed: 0 }));
     expect(html).toContain('<tr class="pdoc-forged"><td>Gross pay<span class="sr-only"> (changed in this page)</span>');
     expect(html).toContain("is the poster");
+  });
+
+  it("shows the paying and paid L2 accounts, and that the chain does not tie the paying one to the employer", () => {
+    const html = renderToStaticMarkup(createElement(PayslipBody, { payslip, poster: employer }));
+    expect(html).toContain(`<dt>Paid from</dt><dd><code title="${"aa".repeat(32)}">aaaaaa…aaaaaa</code>`);
+    expect(html).toContain("L2 account, as the payslip names it. The chain does not tie it to the employer.");
+    expect(html).toContain(`<dt>Paid to</dt><dd><code title="${to}">6b6c0b…000000</code>`);
   });
 });
 
@@ -86,5 +98,12 @@ describe("SalaryExitLine", () => {
     expect(line([])).toBe("");
     expect(line([{ ...exit, fronted: undefined }])).toBe("");
     expect(line(undefined)).toBe("");
+  });
+
+  it("says so when the exits could not be read, which is not 'no match'", () => {
+    const html = renderToStaticMarkup(createElement(SalaryExitLine, { salary, transfers, exits: undefined, error: "HTTP 429" }));
+    expect(html).toContain("the instant exits could not be read");
+    expect(html).toContain('title="HTTP 429"');
+    expect(renderToStaticMarkup(createElement(SalaryExitLine, { salary: undefined, transfers, exits: undefined, error: "HTTP 429" }))).toBe("");
   });
 });

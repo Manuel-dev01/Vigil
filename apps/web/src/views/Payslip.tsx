@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { EMPTY_INBOX_ACC, bytesToHex, qledgerAccumulate, type BatchView, type RdkClient } from "@qorechain/rdk";
+import type { BatchView } from "@qorechain/rdk";
 import { fromHex, generateSealKeys, sealKeysFromSeed, type SealKeyPair } from "@qorechain/qoreseal";
-import { checkDataReceiptOnChain, dataReceiptFrom, verifyDataReceipt } from "@vigil/sealed/data-receipt";
 import { openPayslipWithDataKey, payslipDataKey } from "@vigil/sealed/disclose";
 import { batchHolding, readInbox, transferOf, type InboxPost } from "@vigil/sealed/inbox";
 import { isSealedEnvelope, openPayslip, type Payslip } from "@vigil/sealed/payslip";
@@ -9,7 +8,8 @@ import { chain, isNotFound } from "../chain.ts";
 import { CHAIN_ID, DEMO_READER_KEY_URL, NODE_HOST, REPO, ROLLUP, short, shortAddr } from "../config.ts";
 import { parseShareFragment, type NamedTransfer, type ReceiptState } from "../disclosure.ts";
 import { reveal } from "../reveal.ts";
-import { couldHaveLeft, withdrawalsIn, type ExitSeen, type SalaryPayment, type TransferSeen } from "../salary-exit.ts";
+import { leavingWithdrawals, withdrawalsIn, type ExitSeen, type SalaryPayment, type TransferSeen } from "../salary-exit.ts";
+import { settlementOf, type Settlement } from "../settlement.ts";
 import { Ext } from "../ui.tsx";
 import { PageHead, Reading, type Sounding } from "./Head.tsx";
 import { InboxStrip, kindOf } from "./Inbox.tsx";
@@ -17,15 +17,6 @@ import { DisclosedDoc, Name, PayslipBody, SalaryExitLine, ShareBox } from "./Pay
 import "./payslip.css";
 
 const env = { chainId: CHAIN_ID, rollupId: ROLLUP };
-
-type Settlement =
-  /** A batch record holds the entry and its data receipt verifies against it. */
-  | { kind: "receipt"; batch: BatchView; valid: boolean; onChain: boolean; finalized: boolean; detail: string }
-  /** The inbox says the entry was consumed, but no batch record holding it is left (pruned). */
-  | { kind: "record pruned"; consumed: number }
-  /** Not consumed by any batch yet. */
-  | { kind: "not batched" }
-  | { kind: "checking" };
 
 interface Sealed {
   post: InboxPost;
@@ -57,7 +48,6 @@ function parseKeyFile(text: string): { address: string; keys: SealKeyPair } {
 }
 
 const errText = (e: unknown): string => String(e instanceof Error ? e.message : e);
-const hex = (b: Uint8Array): string => bytesToHex(b).toLowerCase();
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** The public transfer a payslip names (by its post's hash), read from the inbox. */
@@ -85,33 +75,9 @@ const receiptStateOf = (s: Settlement | undefined): ReceiptState =>
     ? { kind: "checking" }
     : s.kind === "receipt"
       ? { kind: "receipt", batchIndex: s.batch.batchIndex, status: s.batch.status, valid: s.valid, onChain: s.onChain, finalized: s.finalized, detail: s.detail }
-      : s;
-
-/**
- * A data receipt for `post`, built from the inbox entries the page read (each from the transaction that
- * posted it, all together checked against the chain's inbox accumulator), so it does not need the chain's
- * posted-data records, which are pruned after 648,000 blocks. Then checked offline and against the batch.
- */
-async function settlementOf(rdk: RdkClient, posts: InboxPost[], post: InboxPost, batch: BatchView): Promise<Settlement> {
-  try {
-    const before = posts.filter((p) => p.sequence <= batch.inboxStart);
-    if (before.length !== batch.inboxStart) throw new Error(`the page read ${before.length} of the ${batch.inboxStart} entries before this batch`);
-    const accFrom = hex(qledgerAccumulate({ ...env, from: 0, accFrom: EMPTY_INBOX_ACC, entries: before.map((p) => ({ height: BigInt(p.height), poster: p.poster, payload: p.payload })) }));
-    const range = posts.filter((p) => p.sequence > batch.inboxStart && p.sequence <= batch.inboxEnd);
-    const receipt = dataReceiptFrom({
-      ...env,
-      sequence: post.sequence,
-      batch: { batchIndex: batch.batchIndex, inboxStart: batch.inboxStart, inboxEnd: batch.inboxEnd, dataHash: batch.dataHash, stateRoot: batch.stateRoot, status: batch.status },
-      accFrom,
-      posts: range.map((p) => ({ sequence: p.sequence, height: p.height, poster: p.poster, dataHash: p.dataHash })),
-    });
-    const local = verifyDataReceipt(receipt, post.payload);
-    const live = await checkDataReceiptOnChain(rdk.rest, receipt);
-    return { kind: "receipt", batch, valid: local.valid, ...live };
-  } catch (e) {
-    return { kind: "receipt", batch, valid: false, onChain: false, finalized: false, detail: errText(e) };
-  }
-}
+      : s.kind === "unchecked"
+        ? { kind: "unchecked", batchIndex: s.batch.batchIndex, detail: s.detail }
+        : s;
 
 function SettledCell({ s }: { s: Sealed }) {
   const st = s.settled;
@@ -123,6 +89,15 @@ function SettledCell({ s }: { s: Sealed }) {
   ) : null;
   if (st.kind === "checking") return <span className="note">checking…</span>;
   if (st.kind === "not batched") return <span className="chip warn">not yet batched</span>;
+  if (st.kind === "unchecked")
+    return (
+      <>
+        <span className="chip warn" title={`${st.detail}. Reload to try again.`}>
+          in batch {st.batch.batchIndex} · could not check
+        </span>
+        {pruneNote}
+      </>
+    );
   if (st.kind === "record pruned")
     return (
       <>
@@ -165,7 +140,8 @@ export function PayslipView() {
   const [printing, setPrinting] = useState<string>();
   const [share, setShare] = useState(() => parseShareFragment(location.hash));
   const [exits, setExits] = useState<ExitSeen[]>();
-  const exitsStarted = useRef(false);
+  const [exitsError, setExitsError] = useState<string>();
+  const exitsFor = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
@@ -189,7 +165,7 @@ export function PayslipView() {
           rows.map(async (row): Promise<Sealed> => {
             const b = batchHolding(batches, row.post.sequence);
             const [settled, postedDataPruned] = await Promise.all([
-              b ? settlementOf(rdk, all, row.post, b) : Promise.resolve(row.settled),
+              b ? settlementOf(rdk.rest, env, all, row.post, b) : Promise.resolve(row.settled),
               rdk.rest.getPostedData(ROLLUP, row.post.sequence).then(
                 () => false,
                 (e: unknown) => isNotFound(e),
@@ -331,20 +307,37 @@ export function PayslipView() {
     }
   }, [share, posts]);
 
-  // ---- instant exits: loaded only if a withdrawal in the inbox could be one of these salaries leaving
+  // ---- instant exits: loaded only if a withdrawal in the inbox could be one of these salaries leaving,
+  // and only the exits of the batches that hold such a withdrawal
   const withdrawals = useMemo(() => (posts ? withdrawalsIn(posts) : []), [posts]);
   const disclosedSalary = disclosed && !("error" in disclosed) ? salaryOf(disclosed.payslip, disclosed.transfer) : undefined;
-  const needExits = [...(opened ?? []).map((o) => o.salary), disclosedSalary].some((s) => !!s && couldHaveLeft(s, withdrawals));
+  const leaving = [...(opened ?? []).map((o) => o.salary), disclosedSalary].flatMap((s) => (s ? leavingWithdrawals(s, withdrawals) : []));
+  const leavingBatches = leaving.map((w) => (batches ? batchHolding(batches, w.sequence)?.batchIndex : undefined));
+  // A withdrawal whose batch record the page does not have (pruned, say): read every exit.
+  const exitsKey = leaving.length === 0 ? undefined : leavingBatches.every((b) => b !== undefined) ? [...new Set(leavingBatches)].sort((a, b) => a - b).join(",") : "all";
   useEffect(() => {
-    if (!needExits || exitsStarted.current) return;
-    exitsStarted.current = true;
+    if (!exitsKey || exitsFor.current === exitsKey) return;
+    const key = exitsKey;
+    exitsFor.current = key;
+    const wanted = new Set(key === "all" ? [] : key.split(",").map(Number));
     import("../exits.ts")
-      .then((m) => m.loadExits())
+      .then((m) => m.loadExits(Number.MAX_SAFE_INTEGER, key === "all" ? undefined : (i) => wanted.has(i)))
       .then(
-        (s) => setExits(s.exits),
-        () => setExits([]),
+        (s) => {
+          if (exitsFor.current !== key) return;
+          setExits(s.exits);
+          setExitsError(undefined);
+        },
+        (e: unknown) => {
+          if (exitsFor.current !== key) return;
+          // Not "no match": the line under each such payslip says the exits could not be read.
+          setExits(undefined);
+          setExitsError(errText(e));
+        },
       );
-  }, [needExits]);
+  }, [exitsKey]);
+  /** The exits' read error, for a salary that a withdrawal could be leaving with (no other salary needs the exits). */
+  const exitsErrorFor = (s: SalaryPayment | undefined): string | undefined => (s && exitsError && leavingWithdrawals(s, withdrawals).length > 0 ? exitsError : undefined);
   const transfers = useMemo((): TransferSeen[] | undefined => {
     if (!exits || !posts) return undefined;
     return posts.flatMap((p) => {
@@ -424,7 +417,7 @@ export function PayslipView() {
               payslip={disclosed.payslip}
               transfer={disclosed.transfer}
               receipt={receiptStateOf(sealed.find((s) => s.post.sequence === share.entry)?.settled)}
-              salaryLine={<SalaryExitLine salary={disclosedSalary} transfers={transfers} exits={exits} />}
+              salaryLine={<SalaryExitLine salary={disclosedSalary} transfers={transfers} exits={exits} error={exitsErrorFor(disclosedSalary)} />}
               printing={printing === "disclosed"}
               onPrint={() => setPrinting("disclosed")}
             />
@@ -558,10 +551,10 @@ export function PayslipView() {
                 ) : (
                   <p className="note">The transfer it explains is not in the inbox.</p>
                 )}
-                <SalaryExitLine salary={o.salary} transfers={transfers} exits={exits} />
+                <SalaryExitLine salary={o.salary} transfers={transfers} exits={exits} error={exitsErrorFor(o.salary)} />
                 <p className="note" style={{ marginTop: 6 }}>
                   The transfer is signed with ML-DSA-44. The payslip, its lines and its employer field are encrypted but not signed: they say what the sender
-                  wrote. Only the poster of the envelope is vouched for by the chain.
+                  wrote. Only the poster of the envelope is vouched for by the chain, which does not tie the paying L2 account to the employer.
                 </p>
                 {o.payslip.note && <p className="note">{o.payslip.note}</p>}
                 {o.dataKey && (

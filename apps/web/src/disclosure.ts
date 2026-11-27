@@ -8,10 +8,12 @@
  * 2. the account that posted it is the employer the payslip names;
  * 3. the public ML-DSA-44 transfer it names has its accounts and amount;
  * 4. its lines add up to the amount paid.
+ * The chain does not tie the paying L2 account to the employer: that link is only what the payslip says,
+ * and the checks and the verdict say so.
  * The functions here are pure, so test/disclosure.test.ts runs them offline.
  */
 import { dataKeyFromText } from "@vigil/sealed/disclose";
-import type { Payslip } from "@vigil/sealed/payslip";
+import { payslipLinesTotal, type Payslip } from "@vigil/sealed/payslip";
 
 /** The link's fragment for entry `entry` and its data key (the CLI prints the same, `inbox --share`). */
 export { shareFragment } from "@vigil/sealed/disclose";
@@ -46,9 +48,11 @@ export interface DisclosureCheck {
   why: string;
 }
 
-/** Where the envelope's data receipt stands (Payslip.tsx works this out for every envelope in the inbox). */
+/** Where the envelope's data receipt stands (settlement.ts works this out for every envelope in the inbox). */
 export type ReceiptState =
   | { kind: "receipt"; batchIndex: number; status: string; valid: boolean; onChain: boolean; finalized: boolean; detail: string }
+  /** The page could not check it this time (the node did not answer, say): not a failure. */
+  | { kind: "unchecked"; batchIndex: number; detail: string }
   | { kind: "record pruned"; consumed: number }
   | { kind: "not batched" }
   | { kind: "checking" };
@@ -87,6 +91,13 @@ export function disclosureChecks(input: { entry: number; payslip: Payslip; poste
       what: `Entry ${entry} was batched, but the batch record is gone`,
       why: `The inbox shows entries up to ${r.consumed} consumed by batches, so this one was batched. The chain no longer keeps that batch's record, so its data receipt cannot be checked here.`,
     });
+  else if (r.kind === "unchecked")
+    out.push({
+      key: "settled",
+      tone: "skip",
+      what: `Entry ${entry} is in batch ${r.batchIndex}, which could not be checked just now`,
+      why: `${r.detail}. That is not a failed check: reload the page to try again.`,
+    });
   else if (r.valid && r.onChain && r.finalized) out.push({ key: "settled", tone: "ok", what: `Entry ${entry} is in batch ${r.batchIndex}, which is final`, why: receiptWhy });
   else if (r.valid && r.onChain) out.push({ key: "settled", tone: "wait", what: `Entry ${entry} is in batch ${r.batchIndex}, not final yet (${r.status})`, why: receiptWhy });
   else out.push({ key: "settled", tone: "bad", what: `The data receipt for entry ${entry} fails against batch ${r.batchIndex}`, why: r.detail || receiptWhy });
@@ -94,7 +105,7 @@ export function disclosureChecks(input: { entry: number; payslip: Payslip; poste
   // 2. The poster is the employer the payslip names.
   out.push(
     p.employer === poster
-      ? { key: "poster", tone: "ok", what: "Posted by the employer it names", why: `The chain says ${poster} posted the envelope (a hybrid-signed transaction), and the payslip's employer field names the same account.` }
+      ? { key: "poster", tone: "ok", what: "Posted by the employer it names", why: `The chain says ${poster} posted the envelope, and the payslip's employer field names the same account.` }
       : {
           key: "poster",
           tone: "bad",
@@ -120,14 +131,14 @@ export function disclosureChecks(input: { entry: number; payslip: Payslip; poste
             key: "transfer",
             tone: "ok",
             what: `Matches public transfer #${t.sequence}: ${qorOf(BigInt(t.amountUqor))}`,
-            why: "Same paying account, same paid account, same amount, and the transfer's ML-DSA-44 signature verifies in this browser. The amount paid is public; the payslip explains it.",
+            why: "Same paying L2 account, same paid L2 account and same amount as the payslip gives, and the transfer's ML-DSA-44 signature verifies in this browser. The chain does not tie the paying L2 account to the employer: that is only what the payslip says.",
           }
         : { key: "transfer", tone: "bad", what: `Does not match public transfer #${t.sequence}`, why: `It differs in ${diffs.join(", ")}.` },
     );
   }
 
   // 4. The lines add up to the amount paid.
-  const total = p.lines.reduce((s, l) => s + BigInt(l.amountUqor), 0n);
+  const total = payslipLinesTotal(p);
   const paid = BigInt(p.payment.amountUqor);
   out.push(
     total === paid
@@ -135,6 +146,28 @@ export function disclosureChecks(input: { entry: number; payslip: Payslip; poste
       : { key: "lines", tone: "bad", what: `The lines add up to ${qorOf(total)}, not the ${qorOf(paid)} paid`, why: "A payslip's lines must add up to the amount of its public transfer. Someone changed a line." },
   );
   return out;
+}
+
+/** The verdict under the checks. `forged` is set while "Forge it" has changed a line in the page. */
+export function disclosureVerdict(checks: DisclosureCheck[], forged: boolean): { tone: "ok" | "bad" | "warn"; text: string } {
+  const n = checks.length;
+  const failed = checks.filter((c) => c.tone === "bad").length;
+  const passed = checks.filter((c) => c.tone === "ok").length;
+  const linesFail = checks.some((c) => c.key === "lines" && c.tone === "bad");
+  if (failed)
+    return {
+      tone: "bad",
+      text: `${failed} of ${n} checks ${failed === 1 ? "fails" : "fail"}.${forged && linesFail ? " The changed line no longer adds up to the public payment." : ""}`,
+    };
+  // A poster could write lines that are 1 QOR short, so that "Forge it" makes them add up.
+  if (forged) return { tone: "warn", text: "Changed in this page, so this is not the payslip on chain, even though no check fails." };
+  if (passed === n)
+    return {
+      tone: "ok",
+      text: "All four checks pass. The amount paid is public and matches. The lines, and whose the paying L2 account is, are only what the payslip says: the chain does not tie that account to the employer.",
+    };
+  const rest = n - passed;
+  return { tone: "warn", text: `${passed} of ${n} checks pass and none fails; ${rest} ${rest === 1 ? "is" : "are"} still running or could not run.` };
 }
 
 /** The payslip with its first line raised by 1 QOR, as "Forge it" shows: only the lines check should fail. */

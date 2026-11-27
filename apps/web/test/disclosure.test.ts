@@ -11,7 +11,7 @@ import { generateSealKeys, recipientOf } from "@qorechain/qoreseal";
 import { openPayslipWithDataKey, payslipDataKey } from "@vigil/sealed/disclose";
 import { transferOf } from "@vigil/sealed/inbox";
 import { sealPayslip, type Payslip } from "@vigil/sealed/payslip";
-import { disclosureChecks, forgeFirstLine, parseShareFragment, qorOf, shareFragment, type NamedTransfer, type ReceiptState } from "../src/disclosure.ts";
+import { disclosureChecks, disclosureVerdict, forgeFirstLine, parseShareFragment, qorOf, shareFragment, type NamedTransfer, type ReceiptState } from "../src/disclosure.ts";
 
 const chainId = "qorechain-diana";
 const rollupId = "vigil-pay-1";
@@ -80,6 +80,16 @@ describe("the four checks", () => {
     expect(cs[2]!.what).toBe("Matches public transfer #26: 0.1 QOR");
   });
 
+  it("claim no more than the chain shows: who posted it, and not who owns the paying L2 account", () => {
+    const cs = disclosureChecks({ entry: 28, payslip: opened, poster: employer1, receipt: final, transfer });
+    expect(cs[1]!.why).toBe(`The chain says ${employer1} posted the envelope, and the payslip's employer field names the same account.`);
+    expect(cs[2]!.why).toContain("The chain does not tie the paying L2 account to the employer");
+    const v = disclosureVerdict(cs, false);
+    expect(v.tone).toBe("ok");
+    expect(v.text).toMatch(/^All four checks pass\. The amount paid is public and matches\./);
+    expect(v.text).toContain("the chain does not tie that account to the employer");
+  });
+
   it("'Forge it' changes one line, and exactly one check fails: the lines", () => {
     const forged = forgeFirstLine(opened);
     expect(forged.lines[0]!.amountUqor).toBe("1120000");
@@ -87,6 +97,15 @@ describe("the four checks", () => {
     const cs = disclosureChecks({ entry: 28, payslip: forged, poster: employer1, receipt: final, transfer });
     expect(tones(cs)).toEqual({ settled: "ok", poster: "ok", transfer: "ok", lines: "bad" });
     expect(cs[3]!.what).toBe("The lines add up to 1.1 QOR, not the 0.1 QOR paid");
+    expect(disclosureVerdict(cs, true)).toEqual({ tone: "bad", text: "1 of 4 checks fails. The changed line no longer adds up to the public payment." });
+  });
+
+  it("never say all pass for a payslip changed in the page, even one whose lines a poster left 1 QOR short", () => {
+    const short = { ...opened, lines: [{ label: "Advance repaid", amountUqor: "-880000" }, { label: "Fee", amountUqor: "-20000" }] };
+    expect(tones(disclosureChecks({ entry: 28, payslip: short, poster: employer1, receipt: final, transfer })).lines).toBe("bad");
+    const cs = disclosureChecks({ entry: 28, payslip: forgeFirstLine(short), poster: employer1, receipt: final, transfer });
+    expect(cs.every((c) => c.tone === "ok")).toBe(true);
+    expect(disclosureVerdict(cs, true)).toEqual({ tone: "warn", text: "Changed in this page, so this is not the payslip on chain, even though no check fails." });
   });
 
   it("fail the poster when someone else posted it", () => {
@@ -113,6 +132,15 @@ describe("the four checks", () => {
     expect(r({ kind: "record pruned", consumed: 30 })).toBe("skip");
     expect(r({ kind: "not batched" })).toBe("wait");
     expect(r({ kind: "checking" })).toBe("wait");
+  });
+
+  it("tell 'could not check' apart from 'fails': a node that does not answer is not a failed payslip", () => {
+    const receipt: ReceiptState = { kind: "unchecked", batchIndex: 24, detail: "Could not read batch 24 from the node: HTTP 429" };
+    const cs = disclosureChecks({ entry: 28, payslip: opened, poster: employer1, receipt, transfer });
+    expect(tones(cs)).toEqual({ settled: "skip", poster: "ok", transfer: "ok", lines: "ok" });
+    expect(cs[0]!.what).toBe("Entry 28 is in batch 24, which could not be checked just now");
+    expect(cs[0]!.why).toBe("Could not read batch 24 from the node: HTTP 429. That is not a failed check: reload the page to try again.");
+    expect(disclosureVerdict(cs, false)).toEqual({ tone: "warn", text: "3 of 4 checks pass and none fails; 1 is still running or could not run." });
   });
 });
 
