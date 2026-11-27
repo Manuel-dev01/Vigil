@@ -31,6 +31,8 @@ export default defineConfig({
             // The landing page's scene and smooth scrolling: loaded after its first paint.
             { name: "vendor-three", test: /node_modules[\\/](three|lenis)[\\/]/, priority: 25 },
             { name: "vendor-viem", test: /node_modules[\\/](viem|abitype|ox|@adraffy|isows)[\\/]/, priority: 20 },
+            // The QR code of a payslip share link: loaded only when a link is shown.
+            { name: "vendor-qr", test: /node_modules[\\/]uqr[\\/]/, priority: 20 },
             { name: "vendor-chain", test: /node_modules[\\/]/, priority: 10 },
           ],
         },
