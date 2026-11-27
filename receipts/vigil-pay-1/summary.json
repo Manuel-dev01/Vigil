@@ -1,7 +1,7 @@
 {
   "rollupId": "vigil-pay-1",
-  "checkedAt": "2026-11-19T07:17:02.371Z",
-  "height": 10362355,
+  "checkedAt": "2026-11-27T16:50:23.474Z",
+  "height": 10860020,
   "summary": [
     {
       "batchIndex": 0,
@@ -22,6 +22,114 @@
       "batchIndex": 3,
       "valid": true,
       "failed": []
+    },
+    {
+      "batchIndex": 4,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 5,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 6,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 7,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 8,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 9,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 10,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 12,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 13,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 14,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 15,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 16,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 17,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 18,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 19,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 20,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 21,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 22,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 23,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 24,
+      "valid": true,
+      "failed": []
+    },
+    {
+      "batchIndex": 25,
+      "valid": true,
+      "failed": []
     }
+  ],
+  "unanchored": [
+    11
   ]
 }
