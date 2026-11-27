@@ -6,6 +6,11 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   assetsInclude: ["**/*.binpb"],
+  // The browser watchtower's Web Worker (src/replay/worker.ts), an ES module file of its own. It uses only
+  // pure qledger-v1 functions from the RDK, whose one-file bundle would otherwise drag in cosmjs (about
+  // 1.4 MB). Treating modules as side-effect-free cuts it to about 73 kB; `smoke:worker` (run in CI) proves
+  // the built file still re-executes vigil-pay-1's recorded history correctly.
+  worker: { format: "es", rolldownOptions: { treeshake: { moduleSideEffects: false } } },
   build: {
     target: "es2022",
     outDir: "dist",

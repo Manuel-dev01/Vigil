@@ -293,7 +293,15 @@ describe("the committed archive", () => {
   });
 });
 
-describe("batch identity", () => {
+describe("no way to send anything", () => {
+  it("the replay modules and the worker never sign or broadcast", () => {
+    const src = ["core.ts", "chain-data.ts", "worker.ts", "client.ts", "read.ts"].map((f) => readFileSync(join(here, "..", "src", "replay", f), "utf8")).join("\n");
+    const view = readFileSync(join(here, "..", "src", "views", "Replay.tsx"), "utf8");
+    for (const s of [src, view]) {
+      expect(s).not.toMatch(/broadcast_tx|signAndBroadcast|RdkTxClient|SigningStargate|challengeBatchMsg|mnemonic|secretKey/);
+    }
+  });
+
   it("batch keys use every published field", () => {
     const b = fx.batches[6]!;
     expect(batchKey(b)).not.toBe(batchKey({ ...b, withdrawalsRoot: "ab".repeat(32) }));
