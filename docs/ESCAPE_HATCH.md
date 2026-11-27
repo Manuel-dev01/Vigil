@@ -19,7 +19,7 @@ pnpm install --frozen-lockfile
 
 ## 1. Read your balance by replaying the chain
 
-No key and no transaction. The script replays every batch from the chain's own data, checks each state root and withdrawals root against what the chain published, and prints your balance and nonce. With `--to` it lists every withdrawal to that L1 address and says whether it is paid, final (anyone can execute it now) or waiting for its batch's challenge window. It also says how long the oldest unbatched entry has waited, which tells you whether step 3 is needed.
+No key and no transaction. The script replays every batch from the chain's own data, checks each state root and withdrawals root against what the chain published, and prints your balance and nonce. With `--to` it lists every withdrawal to that L1 address and says whether it is paid, final (anyone can execute it now) or waiting for its batch's challenge window. It also says how long the oldest unbatched entry has waited, which tells you whether step 3 is needed. If the chain has deleted some batch records, the script names those batches: their withdrawals are not in the list.
 
 ```bash
 pnpm --filter @vigil/keel balance -- --key <your l2 key file> --to <your qor1 address>
@@ -50,6 +50,8 @@ pnpm --filter @vigil/keel send -- --env <your L1 account file> --key <your l2 ke
   --amount 0.25 --withdraw-to <your qor1 address>
 # add --broadcast to post it
 ```
+
+Amounts of 100 QOR or more also need `--approved`. The script's message asks for the team's written OK: that rule is for our own accounts. With your own account, the flag is your confirmation.
 
 **Dry-run checked on 27 Nov 2026, 17:01 UTC**, with a throwaway L2 key that holds nothing: it replayed to batch 25, signed a 0.01 QOR withdrawal with ML-DSA-44 (3,794 bytes) and refused it before any post, because the rollup would skip it (`refused: the rollup would skip this transaction`). With a funded key it goes on to check your L1 account and simulate the post. On chain from our accounts: a user's withdrawal posted by a non-operator account while our sequencer was stopped (EVIDENCE 68), and others (EVIDENCE 19, 86, 99).
 
@@ -83,7 +85,7 @@ pnpm --filter @vigil/keel claim -- --env <your L1 account file> --batch <N>
 
 **Dry-run checked on 27 Nov 2026, 17:02 UTC**, with the throwaway account and batch 18: it replayed from the first batch, found `batch 18: finalized, 1 withdrawal(s), 0.1 QOR in all`, and stopped at the key check before signing. On chain: withdrawals executed with this script (EVIDENCE 21), by our standby (EVIDENCE 72), by the keep-alive account (EVIDENCE 93) and by the relayer (EVIDENCE 106).
 
-**Claim within about a week of finality.** The chain's parameters allow it to delete a finalized batch's record after 432,000 blocks; we have not seen that happen (EVIDENCE 73), but once a record is gone its withdrawals can no longer be executed.
+**Claim within about a week of finality.** The chain's parameters allow it to delete a finalized batch's record after 432,000 blocks; we have not seen that happen (EVIDENCE 73). We expect its withdrawals could then no longer be executed (not yet exercised).
 
 ## Keep the inbox data
 
@@ -111,7 +113,7 @@ Built from the fresh clone on 27 Nov 2026. It needs no server of ours, and its C
 - batching, by any account with the bond, using Keel or any other qledger-v1 sequencer (EVIDENCE 65 to 72);
 - fraud proofs, from anyone; another team's watcher won our first fraud drill (EVIDENCE 44);
 - withdrawals from final batches, executed by anyone, paid to the recipient the user signed for (EVIDENCE 72, 93);
-- old settlement receipts: anchors stay on chain, and `SettlementReceiptVerifier` has no owner (EVIDENCE 60).
+- checking a settlement receipt you hold in Solidity: `SettlementReceiptVerifier` has no owner, and checks the anchor's ML-DSA-87 signature against the creator's key in the chain's key registry (EVIDENCE 60). A check against the rollup module needs the batch record, which the chain's parameters allow it to delete after 432,000 blocks (not yet observed, EVIDENCE 73).
 
 **Stops:**
 - anchors, and so settlement receipts for new batches: only the creator's key can anchor ([THREAT_MODEL §13](../THREAT_MODEL.md#13-residual-risks));
