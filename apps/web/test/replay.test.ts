@@ -9,8 +9,23 @@ import { fileURLToPath } from "node:url";
 import { QLEDGER_WITHDRAWAL_COUNTER_ID, bytesToHex, createRdkClient, hexToBytes, qledgerAccumulate } from "@qorechain/rdk";
 import { chainRegistry, restOverWs, type WsRpc } from "@vigil/chain-ws";
 import { describe, expect, it } from "vitest";
+import { Challenger } from "@vigil/qledger-watchtower";
 import { executedFrom, fraudsFrom, entriesWithArchive, parseArchive, submissionsFrom, type TxResponse } from "../src/replay/chain-data.ts";
-import { batchKey, challengeCommand, forge, lookup, replay, type AnchorLite, type BatchRecord, type Entry, type ReplayInput } from "../src/replay/core.ts";
+import { ReplayWorker } from "../src/replay/client.ts";
+import {
+  CHALLENGE_GAS_PRICE,
+  batchKey,
+  challengeCommand,
+  challengeGas,
+  forge,
+  lookup,
+  replay,
+  type AnchorLite,
+  type BatchRecord,
+  type Entry,
+  type ReplayInput,
+  type Submission,
+} from "../src/replay/core.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..", "..");
@@ -190,6 +205,57 @@ describe("a pruned batch record", () => {
     expect(t.rows.find((x) => x.batchIndex === 1)?.anchor?.matches).toBe(false);
     expect(t.counts.prunedReproduced).toBe(3);
   });
+
+  it("counts a pruned batch with no anchor apart (batch 11, the standby's)", () => {
+    const t = replay(input({ records: fx.batches.filter((b) => b.batchIndex > 11) })).result;
+    expect(t.counts).toMatchObject({ pruned: 12, prunedReproduced: 12, prunedNoAnchor: 1, prunedNotJudged: 0, kept: 14, keptReproduced: 14 });
+    expect(t.seed).toBeUndefined();
+  });
+
+  const searches: [string, Submission[] | undefined][] = [
+    ["failed", undefined],
+    ["found nothing", []],
+  ];
+  for (const [what, submissions] of searches) {
+    it(`still judges every kept batch when the submissions search ${what}: the state before them is rebuilt from the entries`, () => {
+      const t = replay(input({ records: fx.batches.filter((b) => b.batchIndex > 3), submissions })).result;
+      expect(t.counts).toMatchObject({ kept: 22, keptReproduced: 22, keptNotJudged: 0, pruned: 0 });
+      // Entries 1 to 4 from the empty ledger give batch 4's parent root, which batch 3's anchor names.
+      expect(t.seed).toMatchObject({ batchIndex: 4, entries: 4, matches: true, anchor: "matches" });
+      // Batch 2's withdrawal sits in the rebuilt part; it is still matched to its L1 payment.
+      expect(t.solvency).toMatchObject({ surplus: "0", unpaid: "0", paidWithdrawals: 5 });
+    });
+  }
+
+  it("counts a withdrawal in the rebuilt part with no L1 payment as owed", () => {
+    const executed = executedFrom(fx.executedTxs, fx.rollupId).filter((e) => e.batchIndex !== 2);
+    const t = replay(input({ records: fx.batches.filter((b) => b.batchIndex > 3), submissions: undefined, executed })).result.solvency!;
+    expect(t.paidWithdrawals).toBe(4);
+    expect(t.unpaidList).toHaveLength(1);
+    expect(BigInt(t.surplus)).toBe(-BigInt(t.unpaid));
+  });
+
+  it("calls batches it cannot judge 'not judged', never wrong", () => {
+    // The first kept record names a parent the entries do not give: nothing after it can be judged here.
+    const records = fx.batches.filter((b) => b.batchIndex > 3).map((b) => (b.batchIndex === 4 ? { ...b, prevStateRoot: "33".repeat(32) } : b));
+    const t = replay(input({ records, submissions: undefined })).result;
+    expect(t.seed).toMatchObject({ matches: false });
+    expect(t.counts).toMatchObject({ kept: 22, keptReproduced: 0, keptNotJudged: 22 });
+    expect(t.rows.every((x) => x.verdict === "unknown parent")).toBe(true);
+    expect(t.solvency).toBeUndefined();
+  });
+
+  it("classes a batch dropped after an upheld challenge below it as rolled back, not pruned", () => {
+    // A synthetic victim: batch 7 built on drill 1's wrong batch 6 before the challenge removed both.
+    const subs = submissionsFrom(fx.submitTxs, fx.rollupId);
+    const bad6 = subs.find((x) => x.batchIndex === 6 && x.height === 10_370_239)!;
+    const victim: Submission = { ...bad6, batchIndex: 7, inboxStart: 7, inboxEnd: 8, prevStateRoot: bad6.stateRoot, stateRoot: "22".repeat(32), height: 10_370_241, tx: "VICTIM" };
+    const t = replay(input({ records: fx.batches.filter((b) => b.batchIndex > 8), submissions: [...subs, victim] })).result;
+    const row = t.rows.find((x) => x.tx === "VICTIM")!;
+    expect(row).toMatchObject({ where: "rolled back", verdict: "descends from a wrong batch" });
+    expect(row.fraud).toMatchObject({ batchIndex: 6, height: 10_370_243 });
+    expect(t.counts).toMatchObject({ pruned: 9, prunedReproduced: 9, prunedNotJudged: 0, rolledBack: 3, rolledBackCaught: 2, kept: 17, keptReproduced: 17 });
+  });
 });
 
 describe("looking up an account", () => {
@@ -200,6 +266,12 @@ describe("looking up an account", () => {
     const l = lookup(s, creatorL2);
     const listed = s.result.accounts.find((a) => a.id === creatorL2)!;
     expect(l).toMatchObject({ balance: listed.balance, nonce: listed.nonce, batchIndex: 25, root: s.result.lookupRoot!.root });
+  });
+
+  it("lists the accounts of the state it opens against, even when the newest batch has no anchor", () => {
+    const t = replay(input({ anchors: fx.anchors.filter((a) => a.layerHeight !== 25) }));
+    expect(t.result.lookupRoot?.batchIndex).toBe(24);
+    for (const a of t.result.accounts) expect(lookup(t, a.id)).toMatchObject({ balance: a.balance, nonce: a.nonce, batchIndex: 24 });
   });
 
   it("opens an absent account as zero", () => {
@@ -241,15 +313,29 @@ describe("the tamper demo", () => {
     expect(f.honestRoot).toBe(withTransfer.published.stateRoot);
     expect(f.wins).toBe(true);
     expect(f.winsAgainstReal).toBe(false);
-    const cmd = challengeCommand(fx.rollupId, fx.chainId, f.batchIndex, f.proofHex);
+    const cmd = challengeCommand(fx.rollupId, fx.chainId, f.batchIndex, f.proofHex, f.entries);
     expect(cmd).toContain(`challenge-batch vigil-pay-1 1 `);
     expect(cmd).toContain("--generate-only");
     expect(cmd).not.toMatch(/broadcast/);
   });
 
+  it("prints the gas and fee our watchtower would pay, and the co-signing step only as a comment", () => {
+    const f = forge(s, withTransfer.key, 2, 900_000n);
+    const bytes = f.proofHex.length / 2;
+    const gas = Challenger.gasFor(bytes, f.entries);
+    expect(challengeGas(bytes, f.entries)).toBe(gas);
+    expect(challengeGas(8_194, 2)).toBe(Challenger.gasFor(8_194, 2));
+    expect(challengeGas(10_000_000, 41)).toBe(Challenger.gasFor(10_000_000, 41));
+    const lines = challengeCommand(fx.rollupId, fx.chainId, f.batchIndex, f.proofHex, f.entries).split("\n");
+    expect(lines.join("\n")).toContain(`--gas ${gas} --fees ${Math.ceil(gas * CHALLENGE_GAS_PRICE)}uqor --generate-only`);
+    const run = lines.filter((l) => !l.startsWith("#"));
+    expect(run.join(" ")).not.toMatch(/cosign|broadcast|sign /);
+    expect(lines.filter((l) => l.startsWith("#")).join(" ")).toContain("qorechaind tx pqc cosign challenge.json");
+  });
+
   it("refuses the signed amount and amounts the sender never held", () => {
     expect(() => forge(s, withTransfer.key, 2, 500_000n)).toThrow(/signed amount/);
-    expect(() => forge(s, withTransfer.key, 2, 10n ** 12n)).toThrow(/sender held/);
+    expect(() => forge(s, withTransfer.key, 2, 10n ** 12n)).toThrow(/sender held [\d.]+ QOR before/);
     expect(() => forge(s, withTransfer.key, 3, 1n)).toThrow(/not a transfer/);
   });
 
@@ -290,6 +376,53 @@ describe("the committed archive", () => {
     row.payloadHex = row.payloadHex.replace(/.$/, (c) => (c === "0" ? "1" : "0"));
     lines[9] = JSON.stringify(row);
     expect(parseArchive(lines.join("\n"), env)).toHaveLength(9);
+  });
+});
+
+describe("the page's side of the worker", () => {
+  class FakeWorker extends EventTarget {
+    posted: { id: number; kind: string }[] = [];
+    terminated = false;
+    postMessage(m: { id: number; kind: string }): void {
+      this.posted.push(m);
+    }
+    terminate(): void {
+      this.terminated = true;
+    }
+  }
+  const make = (timeouts = { run: 60_000, other: 60_000 }) => {
+    const fake = new FakeWorker();
+    return { fake, w: new ReplayWorker(() => fake as unknown as Worker, timeouts) };
+  };
+
+  it("answers each request by its id", async () => {
+    const { fake, w } = make();
+    const got = w.lookup("ab".repeat(32));
+    fake.dispatchEvent(new MessageEvent("message", { data: { id: fake.posted[0]!.id, ok: true, value: { balance: "1" } } }));
+    await expect(got).resolves.toEqual({ balance: "1" });
+  });
+
+  it("refuses at once once the worker failed to load, even if nothing was pending then", async () => {
+    const { fake, w } = make();
+    fake.dispatchEvent(Object.assign(new Event("error"), { message: "" }));
+    await expect(w.run(input())).rejects.toThrow(/did not load or stopped/);
+    expect(fake.posted).toHaveLength(0);
+    expect(fake.terminated).toBe(true);
+  });
+
+  it("fails a pending request when the worker throws or sends something unreadable", async () => {
+    const { fake, w } = make();
+    const got = w.lookup("ab".repeat(32));
+    fake.dispatchEvent(new Event("messageerror"));
+    await expect(got).rejects.toThrow(/could not read/);
+    await expect(w.lookup("ab".repeat(32))).rejects.toThrow(/could not read/);
+  });
+
+  it("gives up on a request with no answer in time, and on the worker with it", async () => {
+    const { fake, w } = make({ run: 60_000, other: 20 });
+    await expect(w.lookup("ab".repeat(32))).rejects.toThrow(/did not answer within/);
+    expect(fake.terminated).toBe(true);
+    await expect(w.run(input())).rejects.toThrow(/did not answer within/);
   });
 });
 

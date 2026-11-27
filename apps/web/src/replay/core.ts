@@ -126,7 +126,7 @@ export interface BatchRow {
   mismatches: Field[];
   /** What an honest batch over the same inputs publishes (when it was re-executed). */
   honest: { stateRoot: string; withdrawalsRoot: string; dataHash: string } | undefined;
-  /** The ML-DSA-87 anchor carried by the same transaction, if any, and whether its root is the one re-executed here. */
+  /** The ML-DSA-87 anchor at this layer height recorded in the batch's own block, if any, and whether its root is the one re-executed here. */
   anchor: { stateRoot: string; matches: boolean } | undefined;
   /** For a batch that differs: the fraud proof built here, decided as the chain decides (`checkQledgerFraud`). */
   challenge: { proofBytes: number; wins: boolean } | undefined;
@@ -147,6 +147,7 @@ export interface TransferInfo {
 }
 
 export interface Owed {
+  /** Undefined for a withdrawal not batched yet, or in a pruned batch when that state was rebuilt from entries alone. */
   batchIndex: number | undefined;
   index: string;
   recipient: string;
@@ -169,9 +170,43 @@ export interface Solvency {
   pendingEntries: number;
 }
 
+/**
+ * The honest state where the chain's kept batches begin, rebuilt from inbox entries alone: used when the
+ * chain has pruned the records before the first kept batch and the batches' own submissions were not read.
+ */
+export interface Seed {
+  /** The first kept batch, whose parent root this is meant to be. */
+  batchIndex: number;
+  /** Entries 1..entries were executed from the empty ledger. */
+  entries: number;
+  root: string;
+  /** Whether the first kept batch published this root as its parent. */
+  matches: boolean;
+  /** The ML-DSA-87 anchor at the layer height before it, as the node reports it: does it name this root? */
+  anchor: "matches" | "other root" | "none";
+}
+
 export interface ReplayResult {
   rows: BatchRow[];
-  counts: { kept: number; keptReproduced: number; pruned: number; prunedReproduced: number; rolledBack: number; rolledBackCaught: number; other: number };
+  counts: {
+    kept: number;
+    keptReproduced: number;
+    /** Kept batches that could not be judged here ("unknown parent", "entries missing"): neither reproduced nor wrong. */
+    keptNotJudged: number;
+    /** Kept batches that reproduce but whose ML-DSA-87 anchor names another root, as the node reports it. */
+    keptAnchorOther: number;
+    pruned: number;
+    /** Pruned batches that reproduce their submission and do not contradict a surviving anchor. */
+    prunedReproduced: number;
+    prunedNotJudged: number;
+    /** Pruned batches reproduced with no anchor to compare: checked against their own submission only. */
+    prunedNoAnchor: number;
+    rolledBack: number;
+    rolledBackCaught: number;
+    other: number;
+  };
+  /** Set when the state before the first kept batch was rebuilt from entries alone (see `Seed`). */
+  seed: Seed | undefined;
   /** Time spent re-executing and judging, in this thread. */
   ms: number;
   entries: number;
@@ -182,6 +217,7 @@ export interface ReplayResult {
   latest: { root: string; batchIndex: number } | undefined;
   /** Undefined when the latest kept batch was not reproduced: there is then no honest state to count. */
   solvency: Solvency | undefined;
+  /** Every account in the state `lookupRoot` names, so a listed balance is the one a lookup opens. */
   accounts: { id: string; balance: string; nonce: string }[];
 }
 
@@ -206,7 +242,10 @@ export function accumulators(env: RollupEnv, entries: Entry[]): string[] {
   return out;
 }
 
-/** Valid transfers between two different accounts in `entries`, applied on a copy of `parent`. */
+/**
+ * Valid transfers between two different accounts in `entries`, applied on a copy of `parent`. A sender
+ * that held nothing is left out: no other amount could be written for it.
+ */
 function transfersIn(env: RollupEnv, parent: QledgerLedger, entries: Entry[]): TransferInfo[] {
   const l = parent.clone();
   const out: TransferInfo[] = [];
@@ -217,7 +256,7 @@ function transfersIn(env: RollupEnv, parent: QledgerLedger, entries: Entry[]): T
     executeQledger(env, l, [toEntry(e)]);
     if (!tx || !from || tx.kind !== QLEDGER_KIND_TRANSFER || !tx.to) continue;
     // Applied (the nonce moved) and not to itself (a self-transfer changes no balance).
-    if (l.get(from).nonce === before.nonce + 1n && hex(from) !== hex(tx.to))
+    if (l.get(from).nonce === before.nonce + 1n && hex(from) !== hex(tx.to) && before.balance > 0n)
       out.push({ sequence: e.sequence, from: hex(from), to: hex(tx.to), amount: tx.amount.toString(), max: before.balance.toString() });
   }
   return out;
@@ -237,8 +276,12 @@ export interface Session {
 /**
  * Re-execute every batch in `input` and judge it. Kept batches are compared with their record in the
  * chain's batch list; batches the chain no longer lists are compared with what their own submission
- * published, and, where the chain pruned the record, with the ML-DSA-87 anchor the same transaction
- * carried.
+ * published, and, where the chain pruned the record, with the ML-DSA-87 anchor recorded with it.
+ *
+ * A submission the chain no longer lists was rolled back if a later submission took its index, or if a
+ * challenge at its index or below was upheld after it: an upheld challenge drops the wrong batch and
+ * every later batch not yet final (THREAT_MODEL §10). Otherwise, below the first kept record, the chain
+ * pruned it after it became final.
  */
 export function replay(input: ReplayInput, now: () => number = () => performance.now()): Session {
   const t0 = now();
@@ -259,7 +302,8 @@ export function replay(input: ReplayInput, now: () => number = () => performance
     items.set(batchKey(b), { b, where: "kept", status: r.status, height: r.submittedAt || undefined, tx: undefined, sequencer: undefined });
   }
   const minKept = Math.min(Infinity, ...input.records.map((r) => r.batchIndex));
-  for (const s of input.submissions ?? []) {
+  const subs = input.submissions ?? [];
+  for (const s of subs) {
     const b = clean(s);
     const k = batchKey(b);
     const known = items.get(k);
@@ -269,11 +313,12 @@ export function replay(input: ReplayInput, now: () => number = () => performance
       known.sequencer = s.sequencer;
       continue;
     }
-    const rec = recordAt.get(b.batchIndex);
-    const upheld = input.frauds.some((f) => f.batchIndex === b.batchIndex && f.height > s.height);
-    // The chain lists another batch at this index, or a fraud proof at this index came later: rolled back.
+    // Rolled back: the chain lists another batch at this index, a later submission took the index, or a
+    // challenge at this index or below was upheld after it (which drops every later batch not yet final).
+    const replaced = recordAt.has(b.batchIndex) || subs.some((o) => o.batchIndex === b.batchIndex && o.height > s.height);
+    const upheld = input.frauds.some((f) => f.batchIndex <= b.batchIndex && f.height > s.height);
     // No record at an index below every kept one: the chain pruned a finalized record.
-    const where: Where = rec || upheld ? "rolled back" : b.batchIndex < minKept ? "pruned" : "missing";
+    const where: Where = replaced || upheld ? "rolled back" : b.batchIndex < minKept ? "pruned" : "missing";
     items.set(k, { b, where, status: where, height: s.height, tx: s.tx, sequencer: s.sequencer });
   }
   const ordered = [...items.values()].sort((x, y) => (x.height ?? Infinity) - (y.height ?? Infinity) || x.b.batchIndex - y.b.batchIndex);
@@ -284,6 +329,7 @@ export function replay(input: ReplayInput, now: () => number = () => performance
   const invalidRoots = new Set<string>();
   const rows: BatchRow[] = [];
   const committed: { item: Item; paid: QledgerWithdrawal[] }[] = [];
+  let seed: (Seed & { paid: QledgerWithdrawal[] }) | undefined;
   for (const it of ordered) {
     const b = it.b;
     const anchor = anchorFor(input.anchors, b, it.height);
@@ -312,7 +358,23 @@ export function replay(input: ReplayInput, now: () => number = () => performance
       row.verdict = "entries missing";
       continue;
     }
-    const parent = states.get(b.prevStateRoot);
+    let parent = states.get(b.prevStateRoot);
+    if (!parent && it.where === "kept" && b.batchIndex === minKept && minKept > 0 && !seed) {
+      // The records before the first kept batch are pruned and their submissions did not lead here
+      // (the search failed, or the node no longer indexes them). Rebuild that state from the entries
+      // alone: execution is deterministic, so the honest state after entry N does not depend on how
+      // the entries were cut into batches.
+      const l = new QledgerLedger();
+      const paid = executeQledger(env, l, input.entries.slice(0, b.inboxStart).map(toEntry)).withdrawals;
+      const root = hex(l.root());
+      const before = input.anchors.filter((a) => a.layerHeight === b.batchIndex - 1);
+      const anchor = before.length === 0 ? "none" : before.some((a) => wireHex(a.stateRoot) === root) ? "matches" : "other root";
+      seed = { batchIndex: b.batchIndex, entries: b.inboxStart, root, matches: root === b.prevStateRoot, anchor, paid };
+      if (seed.matches) {
+        states.set(root, l);
+        parent = l;
+      }
+    }
     if (!parent) {
       row.verdict = invalidRoots.has(b.prevStateRoot) ? "descends from a wrong batch" : "unknown parent";
       if (row.verdict === "descends from a wrong batch") invalidRoots.add(b.stateRoot);
@@ -345,17 +407,23 @@ export function replay(input: ReplayInput, now: () => number = () => performance
   const anchoredRow = [...keptRows].sort((x, y) => y.batchIndex - x.batchIndex).find((r) => r.verdict === "reproduced" && r.anchor?.matches);
   const lookupRoot = anchoredRow ? { root: anchoredRow.published.stateRoot, batchIndex: anchoredRow.batchIndex } : undefined;
 
-  const solvency = latest || keptRows.length === 0 ? solvencyOf(input, states, latest, lastKept?.inboxEnd ?? 0, committed) : undefined;
+  const solvency = latest || keptRows.length === 0 ? solvencyOf(input, states, latest, lastKept?.inboxEnd ?? 0, committed, seed?.matches ? seed.paid : [], minKept) : undefined;
+  const n = (f: (r: BatchRow) => boolean): number => rows.filter(f).length;
+  const notJudged = (r: BatchRow): boolean => r.verdict === "unknown parent" || r.verdict === "entries missing";
   const counts = {
-    kept: rows.filter((r) => r.where === "kept").length,
-    keptReproduced: rows.filter((r) => r.where === "kept" && r.verdict === "reproduced").length,
-    pruned: rows.filter((r) => r.where === "pruned").length,
-    prunedReproduced: rows.filter((r) => r.where === "pruned" && r.verdict === "reproduced" && r.anchor?.matches !== false).length,
-    rolledBack: rows.filter((r) => r.where === "rolled back").length,
-    rolledBackCaught: rows.filter((r) => r.where === "rolled back" && r.verdict === "differs" && r.challenge?.wins).length,
-    other: rows.filter((r) => r.where === "missing").length,
+    kept: n((r) => r.where === "kept"),
+    keptReproduced: n((r) => r.where === "kept" && r.verdict === "reproduced"),
+    keptNotJudged: n((r) => r.where === "kept" && notJudged(r)),
+    keptAnchorOther: n((r) => r.where === "kept" && r.verdict === "reproduced" && r.anchor?.matches === false),
+    pruned: n((r) => r.where === "pruned"),
+    prunedReproduced: n((r) => r.where === "pruned" && r.verdict === "reproduced" && r.anchor?.matches !== false),
+    prunedNotJudged: n((r) => r.where === "pruned" && notJudged(r)),
+    prunedNoAnchor: n((r) => r.where === "pruned" && r.verdict === "reproduced" && !r.anchor),
+    rolledBack: n((r) => r.where === "rolled back"),
+    rolledBackCaught: n((r) => r.where === "rolled back" && r.verdict === "differs" && !!r.challenge?.wins),
+    other: n((r) => r.where === "missing"),
   };
-  const ledger = latest ? states.get(latest.root) : undefined;
+  const ledger = lookupRoot ? states.get(lookupRoot.root) : undefined;
   const accounts = (ledger?.accounts() ?? [])
     .filter((a) => hex(a.id) !== hex(QLEDGER_WITHDRAWAL_COUNTER_ID))
     .map((a) => ({ id: hex(a.id), balance: a.balance.toString(), nonce: a.nonce.toString() }));
@@ -365,6 +433,7 @@ export function replay(input: ReplayInput, now: () => number = () => performance
     ms: Math.round(now() - t0),
     entries: head,
     submissionsRead: input.submissions !== undefined,
+    seed: seed && { batchIndex: seed.batchIndex, entries: seed.entries, root: seed.root, matches: seed.matches, anchor: seed.anchor },
     lookupRoot,
     latest,
     solvency,
@@ -377,6 +446,10 @@ export function replay(input: ReplayInput, now: () => number = () => performance
  * What the rollup owes on L2 against what the chain holds for it. Owed: every balance after all inbox
  * entries (pending ones executed as the next batch would), plus every withdrawal committed or pending
  * that has no matching L1 payment. Held: the deposit pool as the node reports it.
+ *
+ * `seedPaid` are the withdrawals in the entries before the first kept batch (`minKept`) when that state
+ * was rebuilt from entries alone: their batch is not known here, so each is matched to an L1 payment
+ * from a batch below `minKept` with the same withdrawal index, recipient and amount.
  */
 function solvencyOf(
   input: ReplayInput,
@@ -384,6 +457,8 @@ function solvencyOf(
   latest: { root: string; batchIndex: number } | undefined,
   consumed: number,
   committed: { item: { b: PublishedBatch; height: number | undefined }; paid: QledgerWithdrawal[] }[],
+  seedPaid: QledgerWithdrawal[],
+  minKept: number,
 ): Solvency {
   const base = latest ? states.get(latest.root) : undefined;
   const ledger = (base ?? new QledgerLedger()).clone();
@@ -406,6 +481,11 @@ function solvencyOf(
       if (hit) paidCount++;
       else unpaidList.push({ batchIndex: item.b.batchIndex, index: w.index.toString(), recipient: w.recipient, amount: w.amount.toString() });
     }
+  }
+  for (const w of seedPaid) {
+    const hit = input.executed.some((e) => e.batchIndex < minKept && e.withdrawalIndex === Number(w.index) && e.recipient === w.recipient && e.amount === w.amount);
+    if (hit) paidCount++;
+    else unpaidList.push({ batchIndex: undefined, index: w.index.toString(), recipient: w.recipient, amount: w.amount.toString() });
   }
   for (const w of pendingPaid) unpaidList.push({ batchIndex: undefined, index: w.index.toString(), recipient: w.recipient, amount: w.amount.toString() });
   const unpaid = unpaidList.reduce((n, w) => n + BigInt(w.amount), 0n);
@@ -452,6 +532,8 @@ export function lookup(s: Session, account: string): Lookup {
 
 export interface Forgery {
   batchIndex: number;
+  /** Inbox entries the batch covers (the chain re-executes each one when it judges the proof). */
+  entries: number;
   sequence: number;
   realAmount: string;
   forgedAmount: string;
@@ -488,7 +570,7 @@ export function forge(s: Session, key: string, sequence: number, forgedAmount: b
   const from = hexToBytes(t.from);
   const to = hexToBytes(t.to);
   const before = l.get(from);
-  if (forgedAmount > before.balance) throw new Error(`the sender held ${before.balance} uqor before this transfer; a forged amount above that cannot be written to the ledger`);
+  if (forgedAmount > before.balance) throw new Error(`the sender held ${qorText(before.balance)} before this transfer; a forged amount above that cannot be written to the ledger`);
   executeQledger(s.env, l, [toEntry(range[at]!)]);
   const recipient = l.get(to);
   // The forgery: the sender pays, and the recipient receives, the forged amount instead of the signed one.
@@ -504,6 +586,7 @@ export function forge(s: Session, key: string, sequence: number, forgedAmount: b
   const honest = buildChallenge(s.env, parent, accFrom, entries, real0);
   return {
     batchIndex: row.batchIndex,
+    entries: range.length,
     sequence,
     realAmount: t.amount,
     forgedAmount: forgedAmount.toString(),
@@ -515,13 +598,32 @@ export function forge(s: Session, key: string, sequence: number, forgedAmount: b
   };
 }
 
-/** The command a challenger would run for `batchIndex` with `proofHex`. Printed, never run: `--generate-only` writes an unsigned file. */
-export function challengeCommand(rollupId: string, chainId: string, batchIndex: number, proofHex: string): string {
+/** uqor per unit of gas our watchtower pays for a challenge (packages/qledger-watchtower, `Challenger`'s default). */
+export const CHALLENGE_GAS_PRICE = 0.3;
+
+/**
+ * Gas for a challenge, sized as our watchtower sizes it: the same arithmetic as `Challenger.gasFor`
+ * (packages/qledger-watchtower/src/challenger.ts), copied because that module signs and sends and must
+ * not reach the browser. A test checks the two agree.
+ */
+export function challengeGas(proofBytes: number, entries: number): number {
+  return Math.min(Math.ceil(500_000 + 40 * proofBytes + 100_000 * entries), 50_000_000);
+}
+
+/**
+ * The challenge our watchtower would build for `batchIndex` with `proofHex` over `entries` inbox
+ * entries. Printed, never run: `--generate-only` writes an unsigned file, and the hybrid co-signature a
+ * Native-lane transaction needs (THREAT_MODEL §5) is left as a comment, the step QoreChain's docs give.
+ */
+export function challengeCommand(rollupId: string, chainId: string, batchIndex: number, proofHex: string, entries: number): string {
+  const gas = challengeGas(proofHex.length / 2, entries);
   return [
     `qorechaind tx rdk challenge-batch ${rollupId} ${batchIndex} \\`,
     `  --proof ${proofHex} \\`,
     `  --from <your-key> --chain-id ${chainId} \\`,
-    `  --gas 400000 --fees 40000uqor --generate-only > challenge.json`,
+    `  --gas ${gas} --fees ${Math.ceil(gas * CHALLENGE_GAS_PRICE)}uqor --generate-only > challenge.json`,
+    `# A Native-lane transaction also needs the account's ML-DSA-87 co-signature. QoreChain's docs add it with:`,
+    `# qorechaind tx pqc cosign challenge.json --from <your-key> --pqc-key <your-pqc-key> --chain-id ${chainId}`,
   ].join("\n");
 }
 
@@ -543,8 +645,9 @@ function clean(b: PublishedBatch): PublishedBatch {
 }
 
 /**
- * The anchor a batch carried: its layer height is the batch index, and it rode in the same transaction
- * (same block) when that block is known. Without a block, an anchor with the same root counts.
+ * The anchor recorded with a batch: its layer height is the batch index, and it was recorded in the
+ * batch's own block when that block is known (Keel anchors in the submitting transaction). Without a
+ * block, an anchor with the same root counts.
  */
 function anchorFor(anchors: AnchorLite[], b: PublishedBatch, height: number | undefined): AnchorLite | undefined {
   const own = anchors.filter((a) => a.layerHeight === b.batchIndex);
@@ -552,7 +655,13 @@ function anchorFor(anchors: AnchorLite[], b: PublishedBatch, height: number | un
   return own.find((a) => wireHex(a.stateRoot) === b.stateRoot);
 }
 
-/** The first upheld challenge at this index after the batch was submitted. */
+/** The first upheld challenge at this index or below after the batch was submitted: the one that dropped it. */
 function fraudFor(frauds: FraudLite[], batchIndex: number, height: number | undefined): FraudLite | undefined {
-  return frauds.filter((f) => f.batchIndex === batchIndex && (height === undefined || f.height > height)).sort((x, y) => x.height - y.height)[0];
+  return frauds.filter((f) => f.batchIndex <= batchIndex && (height === undefined || f.height > height)).sort((x, y) => x.height - y.height)[0];
 }
+
+/** uqor as QOR text for messages ("2.45 QOR"); the view has its own formatter with grouping. */
+const qorText = (uqor: bigint): string => {
+  const frac = (uqor % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return `${uqor / 1_000_000n}${frac ? `.${frac}` : ""} QOR`;
+};

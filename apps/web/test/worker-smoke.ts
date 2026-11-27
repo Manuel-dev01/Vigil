@@ -11,8 +11,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { hexToBytes } from "@qorechain/rdk";
 import { executedFrom, fraudsFrom, parseArchive, submissionsFrom, type TxResponse } from "../src/replay/chain-data.ts";
-import type { BatchRecord, AnchorLite, Forgery, Lookup, ReplayInput, ReplayResult } from "../src/replay/core.ts";
-import type { ReplayRequest, ReplayResponse } from "../src/replay/worker.ts";
+import type { BatchRecord, AnchorLite, Lookup, ReplayInput, ReplayResult } from "../src/replay/core.ts";
+import type { ForgeAnswer, ReplayRequest, ReplayResponse } from "../src/replay/worker.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fx = JSON.parse(readFileSync(join(here, "fixtures", "replay-vigil-pay-1.json"), "utf8")) as {
@@ -73,6 +73,10 @@ expect(`L2 owes ${r.solvency?.owed} uqor, the pool holds ${r.solvency?.pool}`, r
 const l = ask<Lookup>({ id: 2, kind: "lookup", account: r.accounts[0]!.id });
 expect(`account ${l.id.slice(0, 8)}… opened against batch ${l.batchIndex}'s root`, l.root === r.lookupRoot?.root);
 const row = r.rows.find((x) => x.transfers.length > 0)!;
-const f = ask<Forgery>({ id: 3, kind: "forge", key: row.key, sequence: row.transfers[0]!.sequence, amount: row.transfers[0]!.max });
+const f = ask<ForgeAnswer>({ id: 3, kind: "forge", key: row.key, sequence: row.transfers[0]!.sequence, amount: row.transfers[0]!.max });
 expect(`forged batch ${f.batchIndex}: proof wins against the forgery and loses against the real batch`, f.wins && !f.winsAgainstReal && f.forgedRoot !== f.honestRoot);
+expect(
+  `challenge printed with ${f.gas} gas and ${f.feeUqor} uqor, --generate-only, co-signing as a comment`,
+  f.command.includes(`--gas ${f.gas} --fees ${f.feeUqor}uqor --generate-only`) && f.command.split("\n").every((l) => l.startsWith("#") || !l.includes("cosign")),
+);
 console.log(`${file}: re-executed in ${r.ms} ms`);
