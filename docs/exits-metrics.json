@@ -1,0 +1,117 @@
+{
+  "what": "Every instant exit the InstantExitVault has fronted on vigil-pay-1, read from the chain by scripts/exit/metrics.ts. Times are block times as the node reports them.",
+  "readAt": "2026-11-27T17:10:49Z",
+  "chain": {
+    "chainId": "qorechain-diana",
+    "evmChainId": 9800,
+    "rollupId": "vigil-pay-1",
+    "vault": "0x3a897802b62B052A102F55E021bc4668539c29b5",
+    "challengeWindowSec": 3600
+  },
+  "scan": {
+    "fromEvmBlock": 10629388,
+    "toEvmBlock": 10860849,
+    "getLogsRequests": 24,
+    "requests": 38
+  },
+  "sample": "small: 2 fronted exits",
+  "summary": {
+    "fronted": 2,
+    "postToPaidSec": {
+      "n": 2,
+      "median": 104.5,
+      "min": 23,
+      "max": 186
+    },
+    "batchToPaidSec": {
+      "n": 2,
+      "median": 95,
+      "min": 15,
+      "max": 175
+    },
+    "aheadOfFinalitySec": {
+      "n": 2,
+      "median": 3505,
+      "min": 3425,
+      "max": 3585
+    },
+    "repaidAfterSec": {
+      "n": 2,
+      "median": 3961.5,
+      "min": 3603,
+      "max": 4320
+    },
+    "frontGas": {
+      "n": 2,
+      "median": 472159,
+      "min": 472141,
+      "max": 472177
+    },
+    "repaid": 2,
+    "pending": 0,
+    "overdue": 0,
+    "lpLosses": 0,
+    "lpLossQor": "0",
+    "feesEarnedQor": "0.001",
+    "paidQor": "0.199",
+    "latestPaidAt": "2026-11-24T20:05:00Z"
+  },
+  "exits": [
+    {
+      "batchIndex": 18,
+      "withdrawalIndex": 4,
+      "exitId": "0x73f5a6e66fff40bcfa053fe15cea24e6ccb3600ef86da829132e8580fa78ccfc",
+      "amountQor": "0.1",
+      "payout": "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3",
+      "batchStatus": "finalized",
+      "postedAt": "2026-11-24T20:04:37Z",
+      "batchAt": "2026-11-24T20:04:45Z",
+      "paidAt": "2026-11-24T20:05:00Z",
+      "couldBeFinalAt": "2026-11-24T21:04:45Z",
+      "repaidAt": "2026-11-24T21:05:03Z",
+      "postToPaidSec": 23,
+      "batchToPaidSec": 15,
+      "aheadOfFinalitySec": 3585,
+      "repaidAfterSec": 3603,
+      "repaidAfterFinalSec": 18,
+      "outcome": "repaid",
+      "paidQor": "0.0995",
+      "feeQor": "0.0005",
+      "frontGas": 472177,
+      "frontTx": "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f",
+      "frontEvmBlock": 10686385,
+      "sweepTx": "0x08b645d1225ff366b60f2b8db982f0ed08d451999a0107b637a1338fd4464ba7"
+    },
+    {
+      "batchIndex": 15,
+      "withdrawalIndex": 3,
+      "exitId": "0xe0c96ab9e41df01a59b61c2a120f2d0958bcfa3810a6c9d040616b34478602be",
+      "amountQor": "0.1",
+      "payout": "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3",
+      "batchStatus": "finalized",
+      "postedAt": "2026-11-23T21:05:37Z",
+      "batchAt": "2026-11-23T21:05:48Z",
+      "paidAt": "2026-11-23T21:08:43Z",
+      "couldBeFinalAt": "2026-11-23T22:05:48Z",
+      "repaidAt": "2026-11-23T22:20:43Z",
+      "postToPaidSec": 186,
+      "batchToPaidSec": 175,
+      "aheadOfFinalitySec": 3425,
+      "repaidAfterSec": 4320,
+      "repaidAfterFinalSec": 895,
+      "outcome": "repaid",
+      "paidQor": "0.0995",
+      "feeQor": "0.0005",
+      "frontGas": 472141,
+      "frontTx": "0x9705770b52cdb3448277915a778f1e0e6ba4c8ffddcb2ae4ae6d574416637933",
+      "frontEvmBlock": 10629908,
+      "sweepTx": "0x5e70ab419b00748387f6e32d116345f811d334f7aea8a43c43b1837311fb98b4"
+    }
+  ],
+  "notes": [
+    "postToPaid: from the block of the L2 withdrawal's post to the EVM block of front(). batchToPaid: from the batch's submission block. aheadOfFinality: from front() to the earliest time the batch could be final (submitted time plus the challenge window).",
+    "repaidAfter: from front() to the sweep() that completed the vault's repayment for this exit (repayments are attributed first in, first out per payout, as on the Exits page).",
+    "Only fronted exits are rows. An attested exit that nobody fronted is paid in full after finality and does not appear here.",
+    "Recompute: pnpm --filter @vigil/scripts exit:metrics"
+  ]
+}
