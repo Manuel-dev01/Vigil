@@ -10,8 +10,9 @@
  *
  * Requests go one at a time, at least MIN_GAP_MS apart, about 30 in all.
  *
- *   pnpm redteam            print every answer; exit 1 if any differs from the expected one
- *   pnpm redteam --write    also rewrite docs/REDTEAM.md and docs/redteam.json
+ *   pnpm redteam            print every answer; exit 1 if any differs from the expected one, 2 if a case could not run
+ *   pnpm redteam --write    also rewrite docs/REDTEAM.md and docs/redteam.json, only if every case ran
+ *                           (add --force to write an incomplete run over the committed one)
  *   pnpm redteam --render   rewrite docs/REDTEAM.md from docs/redteam.json (no network)
  */
 import "./lib/net.ts";
@@ -39,6 +40,7 @@ import {
   VAULT_CTOR,
   buildCases,
   decodeRevert,
+  exitCode,
   judge,
   realExits,
   renderMarkdown,
@@ -65,10 +67,8 @@ const FRONTED: Record<number, Fronted> = {
   15: { frontBlock: 10_629_908n, tx: "0x9705770b52cdb3448277915a778f1e0e6ba4c8ffddcb2ae4ae6d574416637933", evidence: "EVIDENCE 91" },
   18: { frontBlock: 10_686_385n, tx: "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f", evidence: "EVIDENCE 104" },
 };
-/** The rollup id of the vault copy in the replay attack; any id other than ROLLUP will do. */
-const OTHER_ROLLUP = "another-rollup";
-
 const write = process.argv.includes("--write");
+const force = process.argv.includes("--force");
 
 if (process.argv.includes("--render")) {
   const saved = JSON.parse(readFileSync(resolve(ROOT, "docs/redteam.json"), "utf8")) as Report;
@@ -152,19 +152,18 @@ await pace();
 const head = await client.getBlockNumber({ cacheTime: 0 });
 console.log(`head block ${head}`);
 
-// The vault's own creation code, from its deploy tx, with another rollup id.
-let otherVault: Inputs["otherVault"];
+// The vault's deploy-tx input (creation code and its own constructor arguments): run in place, it is the same
+// vault at another address.
+let vaultCopy: Inputs["vaultCopy"];
 try {
   await pace();
   const tx = await client.getTransaction({ hash: V.deployTx });
   const args = encodeAbiParameters(VAULT_CTOR, [CHAIN_ID, ROLLUP, V.quorum, BigInt(V.threshold), V.lp, V.feeBps]);
   if (tx.to !== null || !tx.input.toLowerCase().endsWith(args.slice(2).toLowerCase())) throw new Error("the deploy tx does not end with the recorded constructor arguments");
-  const creation = tx.input.slice(0, tx.input.length - (args.length - 2)) as Hex;
-  const other = encodeAbiParameters(VAULT_CTOR, [CHAIN_ID, OTHER_ROLLUP, V.quorum, BigInt(V.threshold), V.lp, V.feeBps]);
-  otherVault = { code: `${creation}${other.slice(2)}`, rollupId: OTHER_ROLLUP };
+  vaultCopy = { code: tx.input };
 } catch (e) {
   console.log(`  the replay-at-another-vault attack is left out: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
-  otherVault = undefined;
+  vaultCopy = undefined;
 }
 
 // The exact messages the LP and the guardian would sign now, so the attacker's key signs those bytes.
@@ -210,7 +209,7 @@ const inputs: Inputs = {
   },
   lpWithdraw,
   release,
-  otherVault,
+  vaultCopy,
 };
 pq.secretKey.fill(0);
 
@@ -234,9 +233,11 @@ console.log(
   `\n${summary.refused} of ${summary.attacks} attacks refused, ${summary.asExpected} with the expected error; ` +
     `${summary.controlsPassed} of ${summary.controls} controls passed; ${summary.notRun} not run; ${requests} requests`,
 );
-if (write) {
+if (write && summary.notRun > 0 && !force) {
+  console.log(`not writing: ${summary.notRun} case(s) did not run, and docs/redteam.json keeps the last complete run (--force writes this one anyway)`);
+} else if (write) {
   writeFileSync(resolve(ROOT, "docs/redteam.json"), `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(resolve(ROOT, "docs/REDTEAM.md"), renderMarkdown(report));
   console.log("wrote docs/REDTEAM.md and docs/redteam.json");
 }
-process.exit(results.some((r) => r.ok === false) ? 1 : 0);
+process.exit(exitCode(results));

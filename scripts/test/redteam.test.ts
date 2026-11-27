@@ -15,6 +15,7 @@ import {
   NOT_RUN,
   buildCases,
   decodeRevert,
+  exitCode,
   exitStruct,
   flipBit,
   judge,
@@ -44,7 +45,7 @@ const exits = realExits(read("data/inbox/vigil-pay-1.jsonl"), VAULT, dep.Instant
 const PAYOUT = "0x7BaAa4638c10dFB64D6ae593C2f019782E7773E3" as Hex;
 const ATTACKER = getAddress("0x00000000000000000000000000000000000a77ac");
 
-function inputs(withOtherVault = true): Inputs {
+function inputs(withVaultCopy = true): Inputs {
   const [a, b] = exits as [(typeof exits)[number], (typeof exits)[number]];
   const junk = (n: number) => new Uint8Array(n).fill(7);
   return {
@@ -62,7 +63,7 @@ function inputs(withOtherVault = true): Inputs {
     fresh: { exitSig: junk(4627), anchorSig: junk(4627), withdrawSig: junk(4627), releaseSig: junk(4627), ecdsaSig: junk(65) },
     lpWithdraw: { amount: 10n ** 18n, nonce: 0n, deadline: 2_000_000_000n },
     release: { amount: 25n * 10n ** 18n, nonce: 0n, deadline: 2_000_000_000n },
-    otherVault: withOtherVault ? { code: "0x6080", rollupId: "another-rollup" } : undefined,
+    vaultCopy: withVaultCopy ? { code: "0x6080" } : undefined,
   };
 }
 
@@ -156,6 +157,15 @@ describe("the cases", () => {
     expect(fieldAttacks).toBe(5);
   });
 
+  it("replays the honest exit, unchanged, at the copy of the vault, so only the vault's address differs", () => {
+    const copy = cases.filter((c) => c.code !== undefined);
+    expect(copy).toHaveLength(1);
+    expect(copy[0]!.to).toBeUndefined();
+    const c1 = cases.find((c) => c.id === "C1")!;
+    expect(copy[0]!.data).toBe(c1.data);
+    expect(copy[0]!.block).toBe(c1.block);
+  });
+
   it("forges one bit of a real signature, which then fails", () => {
     const e = exits[0]!;
     const forged = flipBit(e.sigs[0], 100);
@@ -190,6 +200,15 @@ describe("answers", () => {
     const s = summarize(results);
     expect(s).toEqual({ attacks: 23, refused: 21, asExpected: 20, controls: 3, controlsPassed: 3, notRun: 1 });
     expect(results[4]!.ok).toBeNull();
+  });
+
+  it("exits 1 on a wrong answer, else 2 when a case did not run, else 0", () => {
+    const cases = buildCases(inputs());
+    const clean = cases.map((c) => judge(c, c.expect));
+    expect(exitCode(clean)).toBe(0);
+    const notRun = clean.map((r, i) => (i === 4 ? judge(cases[4]!, `${NOT_RUN}timeout`) : r));
+    expect(exitCode(notRun)).toBe(2);
+    expect(exitCode(notRun.map((r, i) => (i === 5 ? judge(cases[5]!, "ok") : r)))).toBe(1);
   });
 });
 
@@ -241,5 +260,8 @@ describe("docs/REDTEAM.md", () => {
 
   it("makes none of the claims the repo rules out", () => {
     expect(md).not.toMatch(/quantum-(proof|safe)|unbreakable|\bfirst\b|\bonly\b.*\bproject\b|\bunique\b/i);
+    // PQGuardVault was prepared for the drill on a second account; it was not the drill's target (THREAT_MODEL §6).
+    expect(md).toContain("not the registered drill target");
+    expect(md).not.toMatch(/The Q-Day Drill vault/);
   });
 });

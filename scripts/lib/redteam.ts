@@ -174,8 +174,11 @@ export interface Inputs {
   };
   lpWithdraw: { amount: bigint; nonce: bigint; deadline: bigint };
   release: { amount: bigint; nonce: bigint; deadline: bigint };
-  /** The vault's own creation code with another rollup id, to run in place; undefined if it could not be built. */
-  otherVault: { code: Hex; rollupId: string } | undefined;
+  /**
+   * The vault's deploy-tx input (its creation code and its own constructor arguments), to run in place: a copy
+   * that differs from the deployed vault only in its address. Undefined if it could not be read.
+   */
+  vaultCopy: { code: Hex } | undefined;
 }
 
 // ---------------------------------------------------------------- cases
@@ -458,20 +461,22 @@ export function buildCases(inp: Inputs): Case[] {
       expect: "Expired()",
       evidence: ev18,
     },
-    ...(inp.otherVault
+    ...(inp.vaultCopy
       ? [
           {
             ...vault,
             kind: "attack" as const,
             fn: "front",
-            title: "Replayed at a vault for another rollup",
-            how: `Both real signatures, sent to a copy of the vault built for rollup "${inp.otherVault.rollupId}" (the deployed vault's own creation code, run in place; nothing is deployed).`,
+            title: "Replayed at another vault",
+            how:
+              "Both real signatures, sent to an exact copy of the vault (its own deploy-tx input: the same chain, rollup, quorum and LP) run in place at another address; nothing is deployed. " +
+              "Only the vault's address differs, and every exit message names it.",
             block: before15,
             to: undefined,
-            code: inp.otherVault.code,
+            code: inp.vaultCopy.code,
             data: frontData(x15, both, s15),
             expect: "BadSignature(0)",
-            evidence: `${ev15}; creation code from the vault's deploy tx (EVIDENCE 83)`,
+            evidence: `${ev15}; deploy tx (EVIDENCE 83)`,
           },
         ]
       : []),
@@ -496,8 +501,10 @@ export function buildCases(inp: Inputs): Case[] {
       ...vault,
       kind: "attack",
       fn: "settle",
-      title: "Clear a payout's debt from another account",
-      how: "The attacker calls settle for the real payout, as if it were that payout's exit address.",
+      title: "Call settle as someone other than the payout's exit address",
+      how:
+        "The attacker calls settle for the real payout, sending no value. Only the caller check is exercised: settle lowers a debt only by the value sent, " +
+        "and the payout owed nothing once the vault was repaid (EVIDENCE 108).",
       block: inp.head,
       data: encodeFunctionData({ abi: ABIS.InstantExitVault, functionName: "settle", args: [inp.payout] }),
       expect: "NotExitAddress()",
@@ -655,6 +662,13 @@ export function summarize(results: readonly Result[]): Summary {
   };
 }
 
+/** The runner's exit code: 1 if any answer differs from the expected one, else 2 if any case could not run, else 0. */
+export function exitCode(results: readonly Result[]): 0 | 1 | 2 {
+  if (results.some((r) => r.ok === false)) return 1;
+  if (results.some((r) => r.ok === null)) return 2;
+  return 0;
+}
+
 /** Everything one run produced, as written to docs/redteam.json. */
 export interface Report {
   run: {
@@ -675,7 +689,9 @@ export interface Report {
 const CONTRACT_NOTES: Record<ContractName, string> = {
   InstantExitVault: "Pays a withdrawal before its batch is final, once both watchtowers have signed it with ML-DSA-87 (THREAT_MODEL §14).",
   SettlementReceiptVerifier: "Records a rollup anchor once the creator's ML-DSA-87 signature verifies through `pqcVerify` (THREAT_MODEL §5).",
-  PQGuardVault: "The Q-Day Drill vault, funded with 25 QOR (EVIDENCE 8): funds move only with the guardian's ML-DSA-87 signature (THREAT_MODEL §6).",
+  PQGuardVault:
+    "The vault prepared for the Q-Day Drill on a second account (not the registered drill target, THREAT_MODEL §6), funded with 25 QOR (EVIDENCE 8): " +
+    "funds move only with the guardian's ML-DSA-87 signature.",
 };
 
 const utcDay = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" });
@@ -693,7 +709,8 @@ export function renderMarkdown(rep: Report): string {
   lines.push("");
   lines.push(
     "`pnpm redteam` tries to break Vigil's three deployed contracts the way an attacker would, and records what each one answered. " +
-      "Every call is a free `eth_call` to the public EVM endpoint: no real key signs anything, no transaction is sent and nothing changes on chain.",
+      "Every attack and control is a free `eth_call` to the public EVM endpoint, after a few other read-only requests (the head block, the vault's deploy transaction, and the nonces and messages to sign over): " +
+      "no real key signs anything, no transaction is sent and nothing changes on chain.",
   );
   lines.push("");
   lines.push(
@@ -707,8 +724,8 @@ export function renderMarkdown(rep: Report): string {
   lines.push("");
   lines.push("```bash");
   lines.push("pnpm install");
-  lines.push("pnpm redteam           # prints every answer; exits non-zero if one differs from the expected one");
-  lines.push("pnpm redteam --write   # also rewrites this file and docs/redteam.json");
+  lines.push("pnpm redteam           # prints every answer; exits 1 if one differs from the expected one, 2 if a case could not run");
+  lines.push("pnpm redteam --write   # also rewrites this file and docs/redteam.json, only from a run in which every case ran");
   lines.push("```");
   lines.push("");
   lines.push(
@@ -758,7 +775,8 @@ export function renderMarkdown(rep: Report): string {
   );
   lines.push(
     "- **Not exercised here:** a PQGuardVault release with a real guardian signature and a changed amount, which needs the guardian's key (`test_RedirectedRecipientOrAmountFails` covers it in Foundry, and THREAT_MODEL §6 records the live check of 17 Nov); " +
-      "a vault for another chain, which cannot run here because the constructor accepts only `qorechain-diana` on EVM chain 9800 (both chain ids are in every exit message, pinned byte for byte by `test_exitMessageLayout`); " +
+      "a changed rollup id or chain id on its own, because a copy run in place always has another address, and the constructor accepts only `qorechain-diana` on EVM chain 9800 " +
+      "(the rollup id and both chain ids are in every exit message, pinned byte for byte by `test_exitMessageLayout`); " +
       "and a quorum or LP key that is stolen or colludes, which is a design risk rather than a bug (THREAT_MODEL §13 and §14).",
   );
   lines.push("");
