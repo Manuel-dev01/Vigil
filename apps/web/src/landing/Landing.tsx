@@ -11,6 +11,8 @@ import type { Watch } from "./scene.ts";
 import "./landing.css";
 
 const EVIDENCE = `${REPO}/blob/main/EVIDENCE.md`;
+/** A numbered row of the evidence ledger (each row carries an `rN` anchor). */
+const row = (n: number): string => `${EVIDENCE}#r${n}`;
 
 interface Step {
   n: string;
@@ -30,7 +32,7 @@ const STEPS: Step[] = [
     n: "02",
     title: "Batched",
     body: "Keel, the sequencer, orders the inbox into a batch and anchors its state root with an ML-DSA-87 signature, in the same transaction.",
-    sounding: { label: "EVIDENCE 13 to 23", href: EVIDENCE },
+    sounding: { label: "EVIDENCE 13 to 23", href: row(13) },
   },
   {
     n: "03",
@@ -41,8 +43,8 @@ const STEPS: Step[] = [
   {
     n: "04",
     title: "Fronted",
-    body: "Leaving early? Both watchtowers sign your withdrawal, the vault checks their ML-DSA-87 signatures with pqcVerify and can pay you before the batch is final. Our first automatic exit was paid 11 blocks after its batch.",
-    sounding: { label: "EVIDENCE 104 · block 10,686,385", href: EVIDENCE },
+    body: "Leaving early? Both watchtowers sign your withdrawal, the vault checks their ML-DSA-87 signatures with pqcVerify and can pay you before the batch is final. Our first automatic exit was paid 11 blocks after its batch: about 23 seconds from the block that took the withdrawal to the block that paid it.",
+    sounding: { label: "EVIDENCE 99 to 104", href: row(99) },
   },
   {
     n: "05",
@@ -57,16 +59,16 @@ interface Entry {
   height: string;
   what: string;
   tx: string;
-  /** EVM transactions don't resolve in the explorer: they link to the ledger instead. */
-  evm?: boolean;
+  /** EVM transactions don't resolve in the explorer: they link to their row of the ledger instead. */
+  evm?: number;
 }
 
 const LOG: Entry[] = [
   { date: "19 Nov", height: "10,351,825", what: "Rollup vigil-pay-1 created, hybrid-signed, by an account that has never opened an EVM window", tx: "02993B293296A749036459D56D2C9C4A9D84DB5AB66059F3B7F62F4771F692F0" },
   { date: "19 Nov", height: "10,382,607", what: "A forged batch 8 challenged by our watchtower and rejected in the next block; 1,000 QOR bond slashed", tx: "4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915" },
   { date: "20 Nov", height: "10,433,596", what: "Our own sequencer stopped; a bonded standby in another region batched a user's withdrawal", tx: "07FF243ADEC001154ADA0B35A4850BFE5010D790AF1AB1C1EA4D5D9954929941" },
-  { date: "24 Nov", height: "10,686,385", what: "An instant exit paid 11 blocks after its batch, with nobody in the loop", tx: "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f", evm: true },
-  { date: "24 Nov", height: "10,688,909", what: "After finality, the vault repaid itself", tx: "0x08b645d1225ff366b60f2b8db982f0ed08d451999a0107b637a1338fd4464ba7", evm: true },
+  { date: "24 Nov", height: "10,686,385", what: "An instant exit paid 11 blocks after its batch and about 23 s after the withdrawal was posted, with nobody in the loop", tx: "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f", evm: 104 },
+  { date: "24 Nov", height: "10,688,909", what: "After finality, the vault repaid itself", tx: "0x08b645d1225ff366b60f2b8db982f0ed08d451999a0107b637a1338fd4464ba7", evm: 108 },
   { date: "24 Nov", height: "10,691,360", what: "A December payslip sealed with ML-KEM-1024 to three recipients", tx: "8ADA7C5E04F5A1CB66C3372A4DA3C8A81CD7B3094DFF0BED6D7A17F0068A1739" },
 ];
 
@@ -272,9 +274,9 @@ export function Landing() {
               <dt>Anchors on chain</dt>
               <dd>{facts ? facts.anchors : "reading…"}</dd>
             </div>
-            <div>
-              <dt>Watchtowers</dt>
-              <dd>2</dd>
+            <div title="Watchtowers that must sign an instant exit, of those in the quorum: InstantExitVault's threshold() and quorum(), read from QoreChain's EVM">
+              <dt>Exit quorum</dt>
+              <dd>{facts ? (facts.quorum ? `${facts.quorum.threshold} of ${facts.quorum.members}` : "—") : "reading…"}</dd>
             </div>
           </dl>
         </aside>
@@ -333,7 +335,7 @@ export function Landing() {
           <article data-reveal style={{ "--i": 1 } as CSSProperties}>
             <h3>A standby sequencer</h3>
             <p>We stopped our own sequencer. A bonded standby on another key, in another region, took over, and a user's withdrawal was still paid.</p>
-            <a href={EVIDENCE} target="_blank" rel="noopener noreferrer">
+            <a href={row(65)} target="_blank" rel="noopener noreferrer">
               EVIDENCE 65 to 72 →
             </a>
           </article>
@@ -361,7 +363,7 @@ export function Landing() {
               <span className="lb-height mono">{e.height}</span>
               <span className="lb-what">{e.what}</span>
               {e.evm ? (
-                <a className="lb-tx mono" href={EVIDENCE} target="_blank" rel="noopener noreferrer" title={e.tx}>
+                <a className="lb-tx mono" href={row(e.evm)} target="_blank" rel="noopener noreferrer" title={e.tx}>
                   {e.tx.slice(0, 10)}… (EVM)
                 </a>
               ) : (
