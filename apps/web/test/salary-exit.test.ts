@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { hexToBytes } from "@qorechain/rdk";
 import { transferOf } from "@vigil/sealed/inbox";
-import { couldHaveLeft, salaryExit, withdrawalsIn, type ExitSeen, type SalaryPayment, type TransferSeen } from "../src/salary-exit.ts";
+import { couldHaveLeft, leavingWithdrawals, salaryExit, withdrawalsIn, type ExitSeen, type SalaryPayment, type TransferSeen } from "../src/salary-exit.ts";
 
 const env = { chainId: "qorechain-diana", rollupId: "vigil-pay-1" };
 const posts = readFileSync(resolve(import.meta.dirname, "../../../data/inbox/vigil-pay-1.jsonl"), "utf8")
@@ -73,6 +73,19 @@ describe("salaryExit", () => {
   it("leaves the seconds out when a time is unknown", () => {
     expect(salaryExit(salary, transfers, [exit(30, {}, { time: 0 })])?.seconds).toBeUndefined();
     expect(salaryExit(salary, transfers, [exit(30, { entry: { sequence: 30, time: 0 } })])?.seconds).toBeUndefined();
+  });
+
+  it("lists the withdrawals worth loading the exits for: from the account paid, for the amount paid, after it", () => {
+    const ws = [
+      { sequence: 20, account, amount: 100_000n },
+      { sequence: 30, account, amount: 100_000n },
+      { sequence: 31, account, amount: 99_999n },
+      { sequence: 32, account: "21285312".padEnd(64, "0"), amount: 100_000n },
+      { sequence: 33, account, amount: 100_000n },
+    ];
+    expect(leavingWithdrawals(salary, ws).map((w) => w.sequence)).toEqual([30, 33]);
+    expect(couldHaveLeft(salary, ws)).toBe(true);
+    expect(couldHaveLeft(salary, ws.slice(0, 1))).toBe(false);
   });
 
   it("compares accounts in any hex case", () => {

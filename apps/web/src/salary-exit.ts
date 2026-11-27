@@ -7,7 +7,8 @@
  * again before the withdrawal, the withdrawal is the later salary's, not this one's. No match, nothing shown.
  *
  * The inbox is already on the payslip page, so it says first whether any withdrawal could match; only
- * then does the page load the exits (exits.ts, which also reads the vault on the EVM endpoint).
+ * then does the page load the exits (exits.ts, which also reads the vault on the EVM endpoint), and only
+ * those in the batches that hold such a withdrawal.
  */
 import { QLEDGER_KIND_WITHDRAW, bytesToHex, decodeQledgerTx, qledgerAccountId } from "@qorechain/rdk";
 
@@ -64,9 +65,12 @@ export function withdrawalsIn(posts: { sequence: number; payload: Uint8Array }[]
   });
 }
 
+/** The withdrawals in the inbox that could be this salary leaving: from the account paid, for the amount paid, after it. */
+export const leavingWithdrawals = (payment: SalaryPayment, withdrawals: WithdrawalSeen[]): WithdrawalSeen[] =>
+  withdrawals.filter((w) => w.sequence > payment.sequence && w.account === lower(payment.toAccount) && w.amount === BigInt(payment.amountUqor));
+
 /** Whether any withdrawal in the inbox could be this salary leaving: worth loading the exits for. */
-export const couldHaveLeft = (payment: SalaryPayment, withdrawals: WithdrawalSeen[]): boolean =>
-  withdrawals.some((w) => w.sequence > payment.sequence && w.account === lower(payment.toAccount) && w.amount === BigInt(payment.amountUqor));
+export const couldHaveLeft = (payment: SalaryPayment, withdrawals: WithdrawalSeen[]): boolean => leavingWithdrawals(payment, withdrawals).length > 0;
 
 /** The instant exit this salary left through, if one matches. */
 export function salaryExit(payment: SalaryPayment, transfers: TransferSeen[], exits: ExitSeen[]): SalaryExit | undefined {
