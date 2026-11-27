@@ -209,7 +209,7 @@ Moving one watchtower to a second provider is open work.
 
 ## 11. Exercised so far
 
-**Tests (27 Nov 2026):** 318 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 27 more vitest tests run against the live chain only when `VIGIL_LIVE=1` (one per saved `vigil-pay-1` receipt, plus two), and one only after a local Foundry build.
+**Tests (27 Nov 2026):** 342 TypeScript tests (vitest) and 110 Foundry tests, all passing, run by GitHub Actions on every push and pull request. 27 more vitest tests run against the live chain only when `VIGIL_LIVE=1` (one per saved `vigil-pay-1` receipt, plus two), and one only after a local Foundry build.
 
 | Suite | Tests | What it pins down |
 |---|---|---|
