@@ -1,0 +1,20 @@
+{
+  "name": "@vigil/exit-canary",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A daily instant exit of its own money, from its own key: an L2 withdrawal to exitAddressOf(its own payout) with a payout notice, so the watchtowers, the relayer and the vault are exercised every day. Dry run unless given --broadcast and its key file.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@qorechain/rdk": "0.9.0",
+    "@qorechain/sdk": "0.14.0",
+    "@vigil/core": "workspace:*",
+    "@vigil/keel": "workspace:*",
+    "@vigil/qledger-watchtower": "workspace:*",
+    "viem": "2.57.20"
+  }
+}
