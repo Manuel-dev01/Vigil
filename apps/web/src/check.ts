@@ -1,7 +1,7 @@
 /**
- * The Verify page's checks on one receipt, without the page: the RDK's `verifySettlementReceipt` against
- * the chain, the pruned-record path when pruning explains a missing batch record (pruned.ts), and the
- * batch's status. Kept apart from the view so tests run exactly what the page runs.
+ * Everything the Verify page checks on one receipt, run without the page so the tests run exactly what the
+ * page runs: the receipt checks against the chain (through pruned.ts when pruning explains a missing batch
+ * record), and the batch's status as the node reports it.
  */
 import { verifySettlementReceipt, type RdkClient, type ReceiptVerification, type SettlementReceipt } from "@qorechain/rdk";
 import { prunedBatch, verifyPrunedReceipt, type PrunedVerification } from "./pruned.ts";
@@ -44,8 +44,7 @@ export async function checkReceipt(rdk: RdkClient, r: SettlementReceipt): Promis
     const p = v as PrunedVerification;
     return { v, ms, finality: { final: p.valid && p.fraudSearched, status: "pruned" } };
   }
-  // A receipt's anchor exists from the moment the batch is submitted. The
-  // batch is settled only once its challenge window has closed.
+  // The batch's status, as the node reports it, says whether it is final.
   const [batch, rollup] = await Promise.all([rdk.rest.getBatch(r.rollupId, r.batchIndex).catch(() => undefined), rdk.rest.getRollup(r.rollupId).catch(() => undefined)]);
   const finality: Finality = batch
     ? {

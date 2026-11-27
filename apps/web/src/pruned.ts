@@ -39,7 +39,7 @@ export interface Pruning {
   headHeight: number;
 }
 
-/** A check the Verify page lists; `ownAnchor` and `final` are the page's own two. */
+/** A check the Verify page lists, by key. */
 export type CheckKey = keyof ReceiptVerification["checks"] | "ownAnchor" | "final";
 
 export interface PrunedVerification extends ReceiptVerification {
