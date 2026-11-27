@@ -1,7 +1,7 @@
 {
   "ledger": {
     "file": "EVIDENCE.md",
-    "sha256": "84c4fe52d89fb232390bb123828cf53ec7741d61bcd979b4f23cb75e36ec6635",
+    "sha256": "b16c7e10487bca04d410bee801b7938f6424d7cc8828a1d0f5cb3c3bfbccdb4b",
     "rows": 123,
     "readOnlyRows": 6
   },
@@ -15,7 +15,9 @@
   "run": {
     "firstRead": "2026-11-27T16:42:58.949Z",
     "lastRead": "2026-11-27T16:45:43.882Z",
-    "minGapMs": 1000
+    "minGapMs": 1000,
+    "requests": 0,
+    "reusedFromCache": 124
   },
   "summary": {
     "rows": 123,
@@ -24,8 +26,8 @@
     "not found": 0,
     "error": 0,
     "claimsListed": 123,
-    "checks": 709,
-    "checksPassed": 709
+    "checks": 716,
+    "checksPassed": 716
   },
   "headline": "123 of 123 rows re-verified at height 10,859,709 (27 Nov 2026, 16:42 UTC), as the node reports",
   "rows": [
@@ -1450,6 +1452,11 @@
           "expected": "MsgSubmitBatch"
         },
         {
+          "what": "message data_hash",
+          "ok": true,
+          "expected": "a3b68326…f327"
+        },
+        {
           "what": "event batch_submitted",
           "ok": true,
           "expected": "rollup_id=vigil-pay-1, batch_index=5"
@@ -1711,6 +1718,11 @@
           "what": "messages",
           "ok": true,
           "expected": "MsgChallengeBatch"
+        },
+        {
+          "what": "fee (QOR, as the row rounds it)",
+          "ok": true,
+          "expected": "0.24"
         },
         {
           "what": "event pqc_hybrid_verify",
@@ -2083,6 +2095,16 @@
           "expected": "605960"
         },
         {
+          "what": "fee (QOR, as the row rounds it)",
+          "ok": true,
+          "expected": "0.18"
+        },
+        {
+          "what": "gas price (uqor)",
+          "ok": true,
+          "expected": "0.3"
+        },
+        {
           "what": "event pqc_hybrid_verify",
           "ok": true,
           "expected": "status=verified, address=qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd"
@@ -2351,9 +2373,14 @@
           "expected": "279928"
         },
         {
+          "what": "fee (QOR, as the row rounds it)",
+          "ok": true,
+          "expected": "0.0315"
+        },
+        {
           "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
           "ok": true,
-          "expected": "Attested(layerHeight=0, stateRoot=0x27cc24911b144e354f0154d22fbf5a9a2143655cc9763e90614b2aba6761959e)"
+          "expected": "Attested(layerHeight=0, stateRoot=0x27cc…959e)"
         }
       ]
     },
@@ -3082,6 +3109,11 @@
           "expected": "712745"
         },
         {
+          "what": "fee (QOR, as the row rounds it)",
+          "ok": true,
+          "expected": "0.080"
+        },
+        {
           "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
           "ok": true,
           "expected": "Attested(layerHeight=12)"
@@ -3473,7 +3505,7 @@
         {
           "what": "log Fronted from 0x3a897802b62b052a102f55e021bc4668539c29b5",
           "ok": true,
-          "expected": "Fronted(payout=0x7baaa4638c10dfb64d6ae593c2f019782e7773e3, batchIndex=15, withdrawalIndex=3, paid=99500000000000000)"
+          "expected": "Fronted(payout=0x7baaa4638c10dfb64d6ae593c2f019782e7773e3, batchIndex=15, withdrawalIndex=3, paid=99500000000000000, fee=500000000000000)"
         }
       ]
     },
@@ -4225,6 +4257,11 @@
           "expected": "1163793"
         },
         {
+          "what": "fee (QOR, as the row rounds it)",
+          "ok": true,
+          "expected": "0.131"
+        },
+        {
           "what": "log Attested from 0xc87c7680b70e21464aac4e2308a9caa5324e4590",
           "ok": true,
           "expected": "Attested(layerHeight=15)"
@@ -4696,7 +4733,7 @@
       "height": "~10,212,550",
       "status": "by command",
       "command": "pnpm --filter @vigil/scripts spike:a <rollupId>; pnpm test",
-      "why": "it replays batches from chain data, which takes far more reads than this check makes at one a second"
+      "why": "it replays batches from chain data, which takes far more reads than this check makes at one a second; its offline part (`pnpm test`) runs in CI"
     },
     {
       "index": 3,
@@ -4728,7 +4765,7 @@
       "height": "see vector",
       "status": "by command",
       "command": "pnpm --filter @vigil/scripts spike:b",
-      "why": "it calls the PQC precompiles with crafted inputs: a separate probe, not a read-back of a transaction"
+      "why": "it is a separate probe of the PQC precompiles (calls with crafted inputs and throwaway keys), not a read-back of a transaction; left out to keep this check's requests few"
     }
   ]
 }
