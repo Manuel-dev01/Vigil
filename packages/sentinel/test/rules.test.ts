@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ACCOUNTS } from "../src/accounts.ts";
 import type { ExitWatch } from "../src/exits.ts";
 import type { Verdict } from "../src/judge.ts";
-import { DEFAULT_THRESHOLDS, diff, evaluate, formatAlert, formatCleared, repeats, type Observation } from "../src/rules.ts";
+import { DEFAULT_THRESHOLDS, diff, evaluate, formatAlert, formatCleared, repeats, unseen, type Observation } from "../src/rules.ts";
 
 const NOW = 1_800_000_000;
 const creator = ACCOUNTS.find((a) => a.name.startsWith("Creator"))!;
@@ -117,6 +117,30 @@ describe("sentinel rules", () => {
     expect(repeats([loud!, quiet], said, 1000 + 600).map((c) => c.id)).toEqual([loud!.id]);
   });
 
+  it("alert about a bad batch whose submission time the node does not report (0), rather than never", () => {
+    const [c, ...rest] = evaluate(withBad(SUBMITTED + 10, { submittedTime: 0 }), ACCOUNTS);
+    expect(rest).toEqual([]);
+    expect(c!.id).toBe("bad-batch:21:91b0fa6a5d88a8e6");
+    expect(c!.severity).toBe("critical");
+    expect(c!.text).toMatch(/no challenge has been upheld\. The node does not report when it was submitted/);
+    expect(c!.text).not.toMatch(/closes in|has closed/);
+  });
+
+  it("keep a bad-batch alert active, not resolved, through a check that could not re-execute the batches", () => {
+    const active = new Map(evaluate(withBad(SUBMITTED + 1800), ACCOUNTS).map((c) => [c.id, c]));
+    // A read failed: no verdicts this check.
+    const failed: Observation = { ...healthy(), now: SUBMITTED + 1860, challengeWindowSec: 3600, judgeFailures: { count: 1, error: "timeout" } };
+    expect(diff(active, evaluate(failed, ACCOUNTS), unseen(failed)).cleared).toEqual([]);
+    // Without that knowledge the alert would have been announced as resolved.
+    expect(diff(active, evaluate(failed, ACCOUNTS)).cleared.map((c) => c.id)).toEqual(["bad-batch:21:91b0fa6a5d88a8e6"]);
+    // Nothing could be judged from the batches the chain lists.
+    const blind = withBad(SUBMITTED + 1860, { kind: "unjudged", mismatches: [], reason: "no honest starting state" });
+    expect(diff(active, evaluate(blind, ACCOUNTS), unseen(blind)).cleared).toEqual([]);
+    // Once it can look again, an upheld challenge does clear it.
+    const upheld = withBad(SUBMITTED + 1920, { status: "rejected" });
+    expect(diff(active, evaluate(upheld, ACCOUNTS), unseen(upheld)).cleared.map((c) => c.id)).toEqual(["bad-batch:21:91b0fa6a5d88a8e6"]);
+  });
+
   it("warn when re-execution keeps failing or cannot start, so a blind check is known", () => {
     const o = healthy();
     o.judgeFailures = { count: DEFAULT_THRESHOLDS.judgeFailures - 1, error: "timeout" };
@@ -158,6 +182,22 @@ describe("sentinel rules", () => {
     delete unknown.exits![0]!.fronted;
     expect(evaluate(unknown, ACCOUNTS)).toEqual([]);
     expect(evaluate(withExit(BATCH_AT + 900, { exempt: "it is below the relayer's minimum exit" }), ACCOUNTS)).toEqual([]);
+  });
+
+  it("keep an exit warning active, not resolved, when the exits or that exit's fronted flag could not be read", () => {
+    const active = new Map(evaluate(withExit(BATCH_AT + 400), ACCOUNTS).map((c) => [c.id, c]));
+    const id = "exit-not-fronted:18:e7a18f24df1884b1:4";
+    expect([...active.keys()]).toEqual([id]);
+    const noExits: Observation = { ...healthy(), now: BATCH_AT + 460 };
+    expect(diff(active, evaluate(noExits, ACCOUNTS), unseen(noExits)).cleared).toEqual([]);
+    const unread = withExit(BATCH_AT + 460);
+    delete unread.exits![0]!.fronted;
+    expect(diff(active, evaluate(unread, ACCOUNTS), unseen(unread)).cleared).toEqual([]);
+    // Fronted late, or its batch final (no longer watched): resolved.
+    const fronted = withExit(BATCH_AT + 520, { fronted: true });
+    expect(diff(active, evaluate(fronted, ACCOUNTS), unseen(fronted)).cleared.map((c) => c.id)).toEqual([id]);
+    const final: Observation = { ...healthy(), now: BATCH_AT + 3700, exits: [] };
+    expect(diff(active, evaluate(final, ACCOUNTS), unseen(final)).cleared.map((c) => c.id)).toEqual([id]);
   });
 });
 

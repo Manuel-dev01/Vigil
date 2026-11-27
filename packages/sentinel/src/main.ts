@@ -22,7 +22,7 @@ import { bech32ToHex } from "@qorechain/rdk";
 import { getAddress, type Hex } from "viem";
 import { observer, type Memory } from "./observe.ts";
 import { ACCOUNTS } from "./accounts.ts";
-import { DEFAULT_THRESHOLDS, diff, evaluate, formatAlert, formatCleared, repeats, type Condition } from "./rules.ts";
+import { DEFAULT_THRESHOLDS, diff, evaluate, formatAlert, formatCleared, repeats, unseen, type Condition } from "./rules.ts";
 import { telegram } from "./telegram.ts";
 
 const args = process.argv.slice(2);
@@ -88,7 +88,8 @@ for (;;) {
     const o = await observe(mem);
     failures = 0;
     const now = evaluate(o, ACCOUNTS, DEFAULT_THRESHOLDS);
-    const { started, cleared } = diff(active, now);
+    // A check that could not re-execute the batches or read an exit does not resolve their alerts.
+    const { started, cleared } = diff(active, now, unseen(o));
     for (const c of started) {
       active.set(c.id, c);
       lastSaid.set(c.id, o.now);
@@ -99,11 +100,12 @@ for (;;) {
       lastSaid.delete(c.id);
       await say(formatCleared(c));
     }
-    // Loud ones (an unchallenged bad batch) are said again, with fresh numbers, until they clear.
+    // Loud ones (an unchallenged bad batch) are said again, with fresh numbers, until they clear. One this
+    // check could not see is said again as last read, and marked so.
     const fresh = new Map(now.map((c) => [c.id, c]));
     for (const c of repeats(active.values(), lastSaid, o.now)) {
       lastSaid.set(c.id, o.now);
-      await say(formatAlert(fresh.get(c.id) ?? c));
+      await say(formatAlert(fresh.get(c.id) ?? { ...c, text: `${c.text} (As last read: this check could not re-read it.)` }));
     }
     const today = new Date().toISOString().slice(0, 10);
     if (once) console.log(summary(o));

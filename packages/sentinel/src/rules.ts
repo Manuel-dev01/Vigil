@@ -98,6 +98,7 @@ const DEFAULT_WINDOW_SEC = 3600;
 
 const qor = (uqor: bigint): string => `${(Number(uqor) / 1e6).toFixed(3)} QOR`;
 const mins = (s: number): string => (s >= 7200 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 60)} min`);
+const exitConditionId = (x: ExitWatch): string => `exit-not-fronted:${x.batchIndex}:${x.stateRoot.slice(0, 16)}:${x.withdrawalIndex}`;
 
 export function evaluate(o: Observation, accounts: Account[], t: Thresholds = DEFAULT_THRESHOLDS): Condition[] {
   const out: Condition[] = [];
@@ -137,23 +138,27 @@ export function evaluate(o: Observation, accounts: Account[], t: Thresholds = DE
   const window = o.challengeWindowSec ?? DEFAULT_WINDOW_SEC;
   for (const v of o.judged ?? []) {
     if (v.kind !== "invalid" || v.status === "rejected") continue;
+    // A batch whose submission time the node does not report (0) cannot be timed: alert at once rather than never.
+    const timed = v.submittedTime > 0;
     const age = o.now - v.submittedTime;
-    if (!(v.submittedTime > 0) || age < window / 2) continue;
+    if (timed && age < window / 2) continue;
     const left = v.submittedTime + window - o.now;
+    const differ = `${v.mismatches.join(", ")} differ${v.mismatches.length === 1 ? "s" : ""}`;
     out.push({
       id: `bad-batch:${v.batchIndex}:${v.stateRoot.slice(0, 16)}`,
       severity: "critical",
       repeatSec: t.badBatchRepeatSec,
       text:
-        `UNCHALLENGED BAD BATCH: vigil-pay-1 batch ${v.batchIndex} does not re-execute (${v.mismatches.join(", ")} differ${v.mismatches.length === 1 ? "s" : ""}) and no challenge has been upheld ${mins(age)} after it was submitted. ` +
-        (v.status === "finalized" ? "It is already final. " : left > 0 ? `Its challenge window closes in ${mins(left)}. ` : "Its challenge window has closed. ") +
+        `UNCHALLENGED BAD BATCH: vigil-pay-1 batch ${v.batchIndex} does not re-execute (${differ}) and no challenge has been upheld` +
+        (timed ? ` ${mins(age)} after it was submitted. ` : ". The node does not report when it was submitted, so its challenge window cannot be timed. ") +
+        (v.status === "finalized" ? "It is already final. " : !timed ? "" : left > 0 ? `Its challenge window closes in ${mins(left)}. ` : "Its challenge window has closed. ") +
         "Check both watchtowers now; anyone can challenge it with packages/qledger-watchtower.",
       cleared: `vigil-pay-1 batch ${v.batchIndex} is no longer an unchallenged bad batch (a challenge was upheld, or the chain no longer lists it).`,
     });
   }
   const jf = o.judgeFailures;
   if (jf && jf.count >= t.judgeFailures) {
-    out.push({ id: "judge-failed", severity: "warning", text: `The sentinel could not re-execute vigil-pay-1's batches on ${jf.count} checks in a row, so the bad-batch check is blind: ${jf.error.slice(0, 160)}` });
+    out.push({ id: "judge-failed", severity: "warning", text: `The sentinel could not re-execute vigil-pay-1's batches, or read their exits, on ${jf.count} checks in a row, so the bad-batch and exit checks are blind: ${jf.error.slice(0, 160)}` });
   }
   for (const v of o.judged ?? []) {
     if (v.kind === "unjudged") {
@@ -168,7 +173,7 @@ export function evaluate(o: Observation, accounts: Account[], t: Thresholds = DE
     const age = o.now - x.batchAt;
     if (!(x.batchAt > 0) || age <= t.frontSec) continue;
     out.push({
-      id: `exit-not-fronted:${x.batchIndex}:${x.stateRoot.slice(0, 16)}:${x.withdrawalIndex}`,
+      id: exitConditionId(x),
       severity: "warning",
       text:
         `Batch ${x.batchIndex}'s withdrawal ${x.withdrawalIndex} to an exit address was not fronted within ${mins(t.frontSec)} of its batch (${mins(age)} so far). ` +
@@ -185,12 +190,27 @@ export function repeats(active: Iterable<Condition>, lastSaid: ReadonlyMap<strin
   return [...active].filter((c) => c.repeatSec !== undefined && now - (lastSaid.get(c.id) ?? 0) >= c.repeatSec);
 }
 
-/** What changed since the last check: conditions that started, and ones that cleared. */
-export function diff(before: Map<string, Condition>, now: Condition[]): { started: Condition[]; cleared: Condition[] } {
+/**
+ * Conditions this observation could not see, so their absence says nothing: an unchallenged bad batch
+ * when the batches were not re-executed (a read failed, or nothing could be judged), and an exit not
+ * fronted when the exits were not read, or the vault's `fronted` could not be read for that exit. `diff`
+ * keeps these active instead of announcing them as resolved.
+ */
+export function unseen(o: Observation): (id: string) => boolean {
+  const blindToBatches = o.judged === undefined || o.judged.some((v) => v.kind === "unjudged");
+  const unread = new Set((o.exits ?? []).filter((x) => x.fronted === undefined && !x.exempt).map(exitConditionId));
+  return (id) => (id.startsWith("bad-batch:") && blindToBatches) || (id.startsWith("exit-not-fronted:") && (o.exits === undefined || unread.has(id)));
+}
+
+/**
+ * What changed since the last check: conditions that started, and ones that cleared. A condition for
+ * which `held(id)` is true (see `unseen`) is not cleared, since this check could not look.
+ */
+export function diff(before: Map<string, Condition>, now: Condition[], held: (id: string) => boolean = () => false): { started: Condition[]; cleared: Condition[] } {
   const ids = new Set(now.map((c) => c.id));
   return {
     started: now.filter((c) => !before.has(c.id)),
-    cleared: [...before.values()].filter((c) => !ids.has(c.id)),
+    cleared: [...before.values()].filter((c) => !ids.has(c.id) && !held(c.id)),
   };
 }
 

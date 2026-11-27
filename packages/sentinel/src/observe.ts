@@ -48,10 +48,10 @@ export function observer(cfg: ObserverConfig) {
   const reader = openInboxReader(env, { log: (event, fields) => log(`inbox-${event}`, fields) });
   const judge = new BatchJudge(env, readerSource(reader));
   const configured = new Set((cfg.payouts ?? []).map((p) => p.toLowerCase()));
-  /** exit address (qor1) → payout (0x); payouts already looked up; exits known to be fronted. */
+  /** exit address (qor1) → payout (0x); payouts already looked up; the last `fronted` read for each exit id. */
   const exitToPayout = new Map<string, string>();
   const looked = new Set<string>();
-  const frontedIds = new Set<string>();
+  const frontedKnown = new Map<string, boolean>();
   let payoutsThrough = 0;
   let windowSec: number | undefined;
 
@@ -119,7 +119,8 @@ export function observer(cfg: ObserverConfig) {
       .filter((b) => (b.status === "challenged" || b.status === "rejected") && (b.submittedTime ?? 0) > now - 2 * 86_400)
       .map((b) => `${b.batchIndex}:${b.status}`);
 
-    // Re-execute every batch not judged yet; a failure here must not stop the other checks.
+    // Re-execute every batch not judged yet; a failure here must not stop the other checks. When it fails,
+    // `judged` or `exits` stay undefined and rules.ts `unseen` keeps their alerts active rather than resolved.
     windowSec ??= await rdk.rest.getRollup(cfg.rollupId).then(
       (r) => r.challengeWindowSec,
       () => undefined,
@@ -128,18 +129,19 @@ export function observer(cfg: ObserverConfig) {
     let exits: Observation["exits"];
     try {
       judged = await judge.sync(batches as ChainBatch[]);
-      delete mem.judgeFailures;
       await learnPayouts(batchedThrough);
       exits = exitsToWatch(judged, exitToPayout, cfg.exitRules ?? DEFAULT_EXIT_RULES);
       for (const x of exits) {
         if (x.exempt) continue;
-        if (!frontedIds.has(x.exitId)) {
-          const f = await evm.readContract({ address: cfg.vault, abi: VAULT_ABI, functionName: "fronted", args: [x.exitId] }).catch(() => undefined);
-          if (f) frontedIds.add(x.exitId);
-          if (f === undefined) continue; // not known: say nothing rather than guess
+        let f = frontedKnown.get(x.exitId);
+        if (f !== true) {
+          // A failed read keeps the last value read (or none: then nothing is said either way).
+          const read = await evm.readContract({ address: cfg.vault, abi: VAULT_ABI, functionName: "fronted", args: [x.exitId] }).catch(() => undefined);
+          if (read !== undefined) frontedKnown.set(x.exitId, (f = read));
         }
-        x.fronted = frontedIds.has(x.exitId);
+        if (f !== undefined) x.fronted = f;
       }
+      delete mem.judgeFailures;
     } catch (e) {
       const error = (e as Error).message.slice(0, 200);
       mem.judgeFailures = { count: (mem.judgeFailures?.count ?? 0) + 1, error };
