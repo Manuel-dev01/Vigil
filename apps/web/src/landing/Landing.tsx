@@ -372,8 +372,14 @@ export function Landing() {
         <div className="also-grid">
           <article data-reveal style={{ "--i": 0 } as CSSProperties}>
             <h3>Sealed payslips</h3>
-            <p>Payslips sealed with ML-KEM-1024 sit in the rollup's public inbox. Anyone can see each one was posted and settled; only its recipients can open it.</p>
-            <a href="#/payslip">Open a payslip →</a>
+            <p>
+              Payslips sealed with ML-KEM-1024 sit in the rollup's public inbox. Anyone can see each one was posted and settled; only its recipients can open
+              it, and one can share a single payslip by link. When a salary leaves early through an instant exit, its payslip says so (not yet exercised).
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px 24px" }}>
+              <a href="#/payslip">Open a payslip →</a>
+              <a href="#/exits">Instant exits →</a>
+            </div>
           </article>
           <article data-reveal style={{ "--i": 1 } as CSSProperties}>
             <h3>A standby sequencer</h3>
