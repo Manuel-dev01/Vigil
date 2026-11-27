@@ -133,6 +133,7 @@ function Marked({ value, was }: { value: string; was: string }) {
 }
 
 const DIFFERS = "differs from the receipt built from the chain";
+const SHOWN = new Set<keyof SettlementReceipt>(["rollupId", "chainId", "creator", "stateRoot", "pqcSignature"]);
 
 export function ReceiptDoc({ r, built, stampTone, stampText }: { r: SettlementReceipt; built: SettlementReceipt | undefined; stampTone: string | undefined; stampText: string | undefined }) {
   // Compared only with the receipt the page built for the same batch, field by field.
@@ -142,6 +143,8 @@ export function ReceiptDoc({ r, built, stampTone, stampText }: { r: SettlementRe
   const sigByte = base && diff.has("pqcSignature") ? Math.floor([...r.pqcSignature].findIndex((c, i) => base.pqcSignature[i] !== c) / 2) + 1 : 0;
   const sigBytes = Math.floor(r.pqcSignature.length / 2);
   const tag = (what: string) => <span className="rdoc-diff">{what}</span>;
+  // Fields the document does not show, named so a pasted receipt that differs in them says so.
+  const others = [...diff].filter((k) => !SHOWN.has(k));
   return (
     <article className={diff.size ? "rdoc forged" : "rdoc"} aria-label={`Settlement receipt for batch ${r.batchIndex} of ${r.rollupId}`}>
       <header className="rdoc-top">
@@ -149,9 +152,10 @@ export function ReceiptDoc({ r, built, stampTone, stampText }: { r: SettlementRe
         <span>version {r.version}</span>
       </header>
       <h3 className="rdoc-t">
-        {base && diff.has("rollupId") ? <Marked value={r.rollupId} was={base.rollupId} /> : r.rollupId} <span>·</span> batch {r.batchIndex}
+        {base && diff.has("rollupId") ? <mark>{r.rollupId}</mark> : r.rollupId} <span>·</span> batch {r.batchIndex}
       </h3>
       {base && diff.has("rollupId") && <p className="rdoc-note">{tag(`Rollup ${DIFFERS} (${base.rollupId})`)}</p>}
+      {others.length > 0 && <p className="rdoc-note">{tag(`Also ${others.length === 1 ? "differs" : "differ"} from the receipt built from the chain: ${others.join(", ")}`)}</p>}
       <dl className="rdoc-kv">
         <div>
           <dt>Chain {base && diff.has("chainId") && tag(DIFFERS)}</dt>
