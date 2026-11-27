@@ -51,6 +51,13 @@
   font-weight: 600;
   fill: var(--night);
 }
+/* The lamp is the same amber in both themes, so its number is always dark ink; the empty slice takes the page's ink. */
+.tr-n-caution {
+  fill: #0a1016;
+}
+.tr-n-unknown {
+  fill: var(--chart);
+}
 .tr-slices {
   margin: 0;
   padding-left: 1.4em;

@@ -146,7 +146,7 @@ function Rosette({ slices }: { slices: Slice[] }) {
         {slices.map((s, i) => {
           const a = ((360 / slices.length) * (i + 0.5) - 90) * (Math.PI / 180);
           return (
-            <text key={s.key} x={100 + 60 * Math.cos(a)} y={100 + 60 * Math.sin(a)} className="tr-n" textAnchor="middle" dominantBaseline="central" aria-hidden="true">
+            <text key={s.key} x={100 + 60 * Math.cos(a)} y={100 + 60 * Math.sin(a)} className={`tr-n tr-n-${s.level}`} textAnchor="middle" dominantBaseline="central" aria-hidden="true">
               {i + 1}
             </text>
           );
