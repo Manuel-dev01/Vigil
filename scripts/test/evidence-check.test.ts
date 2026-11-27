@@ -44,7 +44,7 @@ describe("EVIDENCE.md parser", () => {
     expect(ledger.readOnly.map((r) => r.index)).toEqual(ledger.readOnly.map((_, i) => i + 1));
   });
 
-  it("reads rows that start with a link target, as every row of EVIDENCE.md does", () => {
+  it("reads rows that start with a link target, as EVIDENCE.md's numbered rows do", () => {
     const head = "| # | Date (UTC) | Network | Height | Tx hash | Explorer | What it proves | How to re-verify |\n|---|---|---|---|---|---|---|---|\n";
     const hash = "A".repeat(64);
     const md =
