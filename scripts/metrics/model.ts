@@ -12,6 +12,15 @@ export const UQOR_PER_QOR = 1_000_000n;
 /** 1 uqor (the rollup's unit) is 10^12 wei of the same balance on the EVM side. */
 export const WEI_PER_UQOR = 1_000_000_000_000n;
 
+/** Our watchtowers, past and present, by account (README, Testnet addresses). */
+export const WATCHTOWERS: Record<string, string> = {
+  qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m: "watchtower-1",
+  qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd: "watchtower-2",
+  qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33: "watchtower-3",
+};
+/** employer-1, the account that posts the sealed payslips (EVIDENCE 28, 29). */
+export const EMPLOYER = "qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws";
+
 // ------------------------------------------------------------------ inputs (what the script reads)
 
 /** The fields of the RDK's BatchView that the numbers use. */
@@ -92,6 +101,10 @@ export interface FraudRow {
   challenger: string;
   /** Whether the challenger is one of our watchtowers. */
   ours: boolean;
+  /** The bond the chain slashed, in uqor, from the `rdk_fraud_upheld` event. */
+  slashedUqor?: string;
+  /** Which of our fraud drills forged the batch, when it was one (EVIDENCE). */
+  drill?: string;
   /** The forged batch's submission, when we know its transaction (EVIDENCE). */
   forgedTx?: string;
   forgedHeight?: number;
@@ -119,6 +132,8 @@ export interface ExitRow {
   frontHeight: number;
   frontTime: string;
   batchHeight: number;
+  /** Whether the exit's batch was final when the chain was read. The vault is repaid after finality. */
+  batchFinal: boolean;
   blocksAfterBatch: number;
   /** The inbox entry that carried the L2 withdrawal, found in the committed archive. */
   postEntry?: number;
@@ -157,7 +172,11 @@ export interface Snapshot {
   /** Read-only requests made for this snapshot. */
   requests: number;
   live: { createdHeight: number; createdTime: string; days: number };
-  archive: { entries: number; head: number; confirmedByChain: boolean };
+  /**
+   * The committed inbox archive. `chainInboxEnd` is the highest entry the listed batches have consumed;
+   * when it is above `head`, the newer entries are not in the archive and nothing here counts them.
+   */
+  archive: { entries: number; head: number; confirmedByChain: boolean; chainInboxEnd: number };
   batches: BatchCounts;
   anchors: AnchorCounts;
   fraud: {
@@ -175,7 +194,8 @@ export interface Snapshot {
     /** Batches whose challenge window was searched for `Fronted` events. */
     searchedBatches: number[];
   };
-  payslips: { sealedEntries: number[]; rounds: PayslipRound[] };
+  /** QoreSeal envelopes in the archive posted by `poster` (employer-1), and the rounds EVIDENCE names. */
+  payslips: { poster: string; sealedEntries: number[]; rounds: PayslipRound[] };
   strip: StripItem[];
 }
 
@@ -263,6 +283,7 @@ export function exitRow(input: {
     frontHeight: front.height,
     frontTime: isoUtc(input.frontTime),
     batchHeight: batch.submittedAt,
+    batchFinal: batch.status === "finalized",
     blocksAfterBatch: front.height - batch.submittedAt,
   };
   if (input.post && input.postTime !== undefined) {
@@ -277,11 +298,36 @@ export function exitRow(input: {
   return row;
 }
 
+/** Inbox entries carrying a sealed envelope posted by `poster`. Anyone can post to a based rollup's inbox, so the poster matters. */
+export function sealedBy(entries: EntryIn[], poster: string, isSealed: (payloadHex: string) => boolean): number[] {
+  return entries.filter((e) => e.poster === poster && isSealed(e.payloadHex)).map((e) => e.sequence);
+}
+
+/** The highest inbox entry consumed by a listed batch that the chain did not reject. */
+export function consumedTo(batches: BatchIn[]): number {
+  return batches.filter((b) => b.status !== "rejected").reduce((m, b) => Math.max(m, b.inboxEnd), 0);
+}
+
 /** Share of fronted money repaid, in percent with one decimal, or null when nothing was fronted. */
 export function repaidPercent(frontedUqor: bigint, owedUqor: bigint): number | null {
   if (frontedUqor <= 0n) return null;
   const repaid = frontedUqor - (owedUqor > frontedUqor ? frontedUqor : owedUqor);
   return Number((repaid * 1000n) / frontedUqor) / 10;
+}
+
+/**
+ * How far the vault is repaid, in words. It is repaid once an exit's batch is final, so when all
+ * that is owed belongs to exits whose batch is not final yet, that is what it says.
+ */
+export function repaidWords(e: Pick<Snapshot["exits"], "rows" | "owedUqor" | "repaidPercent">): string {
+  const owed = BigInt(e.owedUqor);
+  if (owed === 0n) return "the vault is fully repaid";
+  const pending = e.rows.filter((r) => !r.batchFinal);
+  const pendingUqor = pending.reduce((sum, r) => sum + BigInt(r.amountUqor), 0n);
+  if (pending.length > 0 && owed === pendingUqor) {
+    return `every exit whose batch is final is repaid; ${qor(owed)} is owed on ${pending.length === 1 ? "1 exit" : `${pending.length} exits`} whose batch is not final yet`;
+  }
+  return `the vault is ${e.repaidPercent ?? 0}% repaid`;
 }
 
 export function median(xs: number[]): number | undefined {
@@ -311,12 +357,12 @@ export function spentBy(events: { type: string; attributes?: { key: string; valu
 
 // ------------------------------------------------------------------ words and tables
 
-/** "0.0995 QOR": uqor as QOR, without trailing zeros. */
+/** "0.0995 QOR", "1,000 QOR": uqor as QOR, without trailing zeros. */
 export function qor(uqor: bigint | string): string {
   const v = BigInt(uqor);
   const sign = v < 0n ? "-" : "";
   const a = v < 0n ? -v : v;
-  const whole = a / UQOR_PER_QOR;
+  const whole = (a / UQOR_PER_QOR).toLocaleString("en-GB");
   const frac = (a % UQOR_PER_QOR).toString().padStart(6, "0").replace(/0+$/, "");
   return `${sign}${whole}${frac ? `.${frac}` : ""} QOR`;
 }
@@ -343,6 +389,15 @@ export function timeUtc(iso: string): string {
 
 const grouped = (n: number): string => n.toLocaleString("en-GB");
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;
+/** "watchtower-2", or "watchtower" for one of ours we have no name for. */
+const towerName = (account: string): string => WATCHTOWERS[account] ?? "watchtower";
+
+/** The strip's words for an upheld challenge by one of our watchtowers, built from its row. */
+export function fraudNote(f: FraudRow): string {
+  const parts = [`batch ${f.batchIndex}, our ${towerName(f.challenger)}'s challenge`];
+  if (f.slashedUqor) parts.push(`${qor(f.slashedUqor)} bond slashed`);
+  return `${f.drill ? `${f.drill}: ` : ""}${parts.join("; ")}`;
+}
 
 /** The six numbers shown in the README and on the landing page. */
 export function buildStrip(s: Omit<Snapshot, "strip">): StripItem[] {
@@ -368,13 +423,13 @@ export function buildStrip(s: Omit<Snapshot, "strip">): StripItem[] {
       value: String(s.anchors.attestedInSolidity),
       label: "anchors verified in Solidity",
       note: `recorded by SettlementReceiptVerifier through pqcVerify, through layer height ${s.anchors.highestAttested}; ${plural(s.anchors.conflicts, "conflict")}`,
-      source: `EVIDENCE 62, 63, 80, 112; ${read}`,
+      source: `EVIDENCE 62, 63, 80, 112, 125; ${read}`,
     },
     {
       value: ourFraud ? plural(ourFraud.blocksAfterBatch!, "block") : "not yet exercised",
       label: "from forged batch to upheld challenge",
-      note: ourFraud ? `fraud drill 2: batch ${ourFraud.batchIndex}, our watchtower-2's challenge; 1,000 QOR bond slashed` : "no upheld challenge from our watchtowers yet",
-      source: ourFraud ? `EVIDENCE ${ourFraud.evidence.join(", ")}` : read,
+      note: ourFraud ? fraudNote(ourFraud) : "no upheld challenge from our watchtowers yet",
+      source: ourFraud && ourFraud.evidence.length ? `EVIDENCE ${ourFraud.evidence.join(", ")}` : read,
     },
     {
       value: plural(s.exits.rows.length, "instant exit"),
@@ -382,13 +437,15 @@ export function buildStrip(s: Omit<Snapshot, "strip">): StripItem[] {
       note:
         s.exits.rows.length === 0
           ? "not yet exercised"
-          : `a small sample (n = ${s.exits.rows.length}); the fastest was paid ${fastest} s after its withdrawal was posted; the vault is ${s.exits.repaidPercent ?? 0}% repaid`,
+          : [`a small sample (n = ${s.exits.rows.length})`, ...(fastest !== undefined ? [`the fastest was paid ${fastest} s after its withdrawal was posted`] : []), repaidWords(s.exits)].join("; "),
       source: `EVIDENCE 91, 104; ${read}`,
     },
     {
       value: String(s.payslips.sealedEntries.length),
       label: "payslips sealed with ML-KEM-1024",
-      note: rounds.length ? `posted in the rollup's inbox; a payment and its payslip cost about ${qorAbout(average(rounds.map((r) => BigInt(r.spentUqor!))))} in fees` : "posted in the rollup's inbox",
+      note: rounds.length
+        ? `posted in the rollup's inbox by employer-1; a payment and its payslip cost about ${qorAbout(average(rounds.map((r) => BigInt(r.spentUqor!))))} in fees`
+        : "posted in the rollup's inbox by employer-1",
       source: `EVIDENCE 37, 115, 122; ${read}`,
     },
   ];
@@ -421,7 +478,16 @@ export function replaceBlock(text: string, block: string): string {
   return text.slice(0, a) + block + text.slice(b + README_END.length);
 }
 
-const txLink = (h: string): string => (h.startsWith("0x") ? `\`${h.slice(0, 10)}…\`` : `[\`${h.slice(0, 8)}…\`](https://explore.qore.network/tx/${h})`);
+/** An L1 hash links to the explorer; an EVM hash does not resolve there, so it is printed in full for `cast receipt`. */
+export const txLink = (h: string): string => (h.startsWith("0x") ? `\`${h}\`` : `[\`${h.slice(0, 8)}…\`](https://explore.qore.network/tx/${h})`);
+
+/** A warning when the chain has consumed inbox entries the committed archive does not hold yet. */
+function archiveLag(s: Snapshot): string {
+  const { head, chainInboxEnd } = s.archive;
+  if (chainInboxEnd <= head) return "";
+  const range = chainInboxEnd === head + 1 ? `entry ${chainInboxEnd} is` : `entries ${head + 1} to ${chainInboxEnd} are`;
+  return `. **The chain's batches have consumed entries to ${chainInboxEnd}**, so ${range} not in the archive and not counted here`;
+}
 
 /** docs/METRICS.md. */
 export function renderMarkdown(s: Snapshot): string {
@@ -446,7 +512,7 @@ export function renderMarkdown(s: Snapshot): string {
     `| Batches the chain lists | ${b.listed} (indices 0 to ${b.latestIndex}): ${b.final} final, ${b.pending} inside their challenge window, ${b.rejectedListed} rejected and still listed |`,
     `| Batches carrying their own ML-DSA-87 anchor | ${b.anchored} of ${b.listed} |`,
     `| Final batches with no anchor | ${b.unanchoredFinal.length ? b.unanchoredFinal.map((i) => `batch ${i}`).join(", ") : "none"}: anchoring needs the creator's key, so a batch from the bonded standby has no anchor (EVIDENCE 69) |`,
-    `| Inbox entries in the committed archive | ${s.archive.entries} (to entry ${s.archive.head}); ${s.archive.confirmedByChain ? "its last accumulator matches the chain's commitment for that entry" : "**not** confirmed against the chain at this run"} |`,
+    `| Inbox entries in the committed archive | ${s.archive.entries} (to entry ${s.archive.head}); ${s.archive.confirmedByChain ? "its last accumulator matches the chain's commitment for that entry" : "**not** confirmed against the chain at this run"}${archiveLag(s)} |`,
     "",
     "## Settlement receipts",
     "",
@@ -455,7 +521,7 @@ export function renderMarkdown(s: Snapshot): string {
     `| Anchors on chain | ${a.onChain} |`,
     `| Anchors whose ML-DSA-87 signature verifies | ${a.verified} of ${a.onChain}${a.failed.length ? ` (failed: layer heights ${a.failed.join(", ")})` : ""}. Checked here with the RDK's \`verifySettlementReceipt\` (signature-only mode), against the creator's key as the node reports it |`,
     `| Final batches whose own anchor verifies and carries the batch's state root | ${a.finalWithVerifiedAnchor} |`,
-    `| Anchors verified and recorded in Solidity | ${a.attestedInSolidity}, through layer height ${a.highestAttested}, ${plural(a.conflicts, "conflict")} (\`SettlementReceiptVerifier\`, \`pqcVerify\`; EVIDENCE 62, 63, 80, 112). Anyone can record newer ones with \`attest\` |`,
+    `| Anchors verified and recorded in Solidity | ${a.attestedInSolidity}, through layer height ${a.highestAttested}, ${plural(a.conflicts, "conflict")} (\`SettlementReceiptVerifier\`, \`pqcVerify\`; EVIDENCE 62, 63, 80, 112, 125). Anyone can record newer ones with \`attest\` |`,
     "",
     "## Fraud caught",
     "",
@@ -465,13 +531,13 @@ export function renderMarkdown(s: Snapshot): string {
     L.push("| Forged batch | Challenge upheld | Blocks after the batch | Challenger | Evidence |", "|---|---|---|---|---|");
     for (const f of s.fraud.upheld) {
       L.push(
-        `| ${f.batchIndex}${f.forgedTx ? ` (${txLink(f.forgedTx)}, block ${grouped(f.forgedHeight!)})` : ""} | ${txLink(f.tx)}, block ${grouped(f.height)} | ${f.blocksAfterBatch ?? "not known"} | ${f.ours ? `our watchtower \`${f.challenger}\`` : `another team's watcher \`${f.challenger}\``} | ${f.evidence.join(", ")} |`,
+        `| ${f.batchIndex}${f.forgedTx ? ` (${txLink(f.forgedTx)}, block ${grouped(f.forgedHeight!)})` : ""} | ${txLink(f.tx)}, block ${grouped(f.height)} | ${f.blocksAfterBatch ?? "not known"} | ${f.ours ? `our ${towerName(f.challenger)} \`${f.challenger}\`` : `another team's watcher \`${f.challenger}\``} | ${f.evidence.join(", ") || "not in EVIDENCE"} |`,
       );
     }
     const fp = s.fraud.fastPath;
     L.push(
       "",
-      `In fraud drill 2, watchtower-2's logs show it saw the forged batch about ${fp.seenAfterBlockSeconds} s after the block's timestamp, judged it in ${fp.judgedMs} ms and broadcast its challenge ${fp.broadcastAfterMs} ms later (EVIDENCE ${fp.evidence}). Those times come from our logs, not from the chain; the block heights above do.`,
+      `In fraud drill 2 (batch 8), watchtower-2's logs show it saw the forged batch about ${fp.seenAfterBlockSeconds} s after the block's timestamp, judged it in ${fp.judgedMs} ms and broadcast its challenge ${fp.broadcastAfterMs} ms later (EVIDENCE ${fp.evidence}). Those times come from our logs, not from the chain; the block heights above do.`,
       "",
     );
   }
@@ -480,11 +546,12 @@ export function renderMarkdown(s: Snapshot): string {
   else {
     L.push("| Batch | Entry it starts with | Posted at block | Batched at block | Blocks after the post |", "|---|---|---|---|---|");
     for (const r of s.standby) L.push(`| ${r.batchIndex} | ${r.firstEntry} | ${grouped(r.postHeight)} | ${grouped(r.submittedHeight)} | ${r.blocksAfterPost} |`);
-    L.push(
-      "",
-      "The standby waits 30 blocks before it batches. Batch 11 came sooner because of an off-by-one in that wait, fixed in PR #29 (EVIDENCE 69), so the number above is not the designed margin.",
-      "",
-    );
+    L.push("", "The standby waits 30 blocks before it batches (EVIDENCE 65 to 72).");
+    // Keyed to batch 11, the one takeover so far; another standby batch gets no explanation it may not deserve.
+    if (s.standby.some((r) => r.batchIndex === 11)) {
+      L.push("Batch 11 came sooner because of an off-by-one in that wait, fixed in PR #29 (EVIDENCE 69), so its number is not the designed margin.");
+    }
+    L.push("");
   }
   const e = s.exits;
   L.push("## Instant exits", "");
@@ -498,20 +565,20 @@ export function renderMarkdown(s: Snapshot): string {
     );
     for (const r of e.rows) {
       L.push(
-        `| ${r.batchIndex} (withdrawal ${r.withdrawalIndex}) | ${qor(r.paidUqor)} (fee ${qor(r.feeUqor)}) | ${txLink(r.frontTx)}, block ${grouped(r.frontHeight)} | ${r.blocksAfterBatch} | ${r.postToPaidSeconds !== undefined ? `${r.postToPaidSeconds} s (entry ${r.postEntry}, block ${grouped(r.postHeight!)})` : "the post is not in the committed archive"} | ${r.secondsBeforeFinal !== undefined ? `${grouped(r.secondsBeforeFinal)} s` : "not known"} |`,
+        `| ${r.batchIndex} (withdrawal ${r.withdrawalIndex})${r.batchFinal ? "" : ", not final yet"} | ${qor(r.paidUqor)} (fee ${qor(r.feeUqor)}) | ${txLink(r.frontTx)}, block ${grouped(r.frontHeight)} | ${r.blocksAfterBatch} | ${r.postToPaidSeconds !== undefined ? `${r.postToPaidSeconds} s (entry ${r.postEntry}, block ${grouped(r.postHeight!)})` : "the post is not in the committed archive"} | ${r.secondsBeforeFinal !== undefined ? `${grouped(r.secondsBeforeFinal)} s` : "not known"} |`,
       );
     }
     L.push(
       "",
-      `Fronted ${qor(e.frontedUqor)} in all; the vault is still owed ${qor(e.owedUqor)}, so ${e.repaidPercent ?? 0}% has been repaid after finality (\`totalOwed\` on the vault, EVIDENCE 95, 108). Seconds here come from block timestamps, so they can differ by a second or two from times in EVIDENCE.md.`,
+      `Fronted ${qor(e.frontedUqor)} in all; the vault is still owed ${qor(e.owedUqor)} (\`totalOwed\`), so ${repaidWords(e)}. The vault is repaid from the withdrawal once its batch is final (EVIDENCE 95, 108). Seconds here come from block timestamps, so they can differ by a second or two from times in EVIDENCE.md.`,
       "",
     );
   }
   L.push("## Sealed payslips", "");
   L.push(
-    `${plural(s.payslips.sealedEntries.length, "QoreSeal envelope")} (ML-KEM-1024 with X25519) in the archive: inbox entries ${s.payslips.sealedEntries.join(", ") || "none"}.`,
+    `${plural(s.payslips.sealedEntries.length, "QoreSeal envelope")} (ML-KEM-1024 with X25519) posted by employer-1 (\`${s.payslips.poster}\`) in the archive: inbox entries ${s.payslips.sealedEntries.join(", ") || "none"}. The rollup is based, so anyone can post to its inbox; envelopes from other posters are not counted.`,
     "",
-    "| Period | Payment entry | Payslip entry | Payslip size | QOR spent by the posters | Evidence |",
+    "| Period (from EVIDENCE) | Payment entry | Payslip entry | Payslip size | QOR spent by the posters | Evidence |",
     "|---|---|---|---|---|---|",
   );
   for (const r of s.payslips.rounds) {
@@ -521,12 +588,12 @@ export function renderMarkdown(s: Snapshot): string {
   }
   L.push(
     "",
-    "QOR spent is what each transaction's poster paid, from its `coin_spent` events: the gas fee and the chain's fee per posted byte.",
+    "The period is sealed inside each payslip, so that column comes from EVIDENCE, not from the chain. QOR spent is what each transaction's poster paid, from its `coin_spent` events: the gas fee and the chain's fee per posted byte.",
     "",
     "## What this does not show",
     "",
-    "- Nearly all traffic on the rollup is ours. These are testnet numbers from a small team, not usage.",
-    "- Two instant exits and two fraud drills are small samples.",
+    "- Most posts in the committed archive are ours. These are testnet numbers from a small team, not usage.",
+    `- ${plural(s.exits.rows.length, "instant exit")} and two fraud drills are small samples.`,
     "- The node is trusted to report chain state truthfully; signatures are checked here, the rest is read.",
     "",
   );

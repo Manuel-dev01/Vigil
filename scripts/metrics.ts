@@ -36,9 +36,12 @@ import { isSealedEnvelope } from "@vigil/sealed/payslip";
 import { decodeEventLog, decodeFunctionResult, encodeEventTopics, encodeFunctionData, parseAbi, toHex, type Abi, type Hex } from "viem";
 import { REPO_ROOT } from "./lib/env.ts";
 import {
+  EMPLOYER,
   METRICS_SCHEMA,
+  WATCHTOWERS,
   WEI_PER_UQOR,
   buildStrip,
+  consumedTo,
   countBatches,
   daysBetween,
   exitRow,
@@ -49,6 +52,7 @@ import {
   renderReadmeStrip,
   repaidPercent,
   replaceBlock,
+  sealedBy,
   spentBy,
   standbyRows,
   type ExitRow,
@@ -79,16 +83,10 @@ if (process.argv.includes("--render")) {
   process.exit(0);
 }
 
-/** Our watchtowers, past and present (README, Testnet addresses). */
-const OUR_WATCHTOWERS = new Set([
-  "qor1s7t0tq7n6a3m6kp4qkannfd7s04wyuh8hjkh6m",
-  "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd",
-  "qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33",
-]);
 /** The forged batches of the two fraud drills (EVIDENCE 43 and 54), read back for their heights. */
-const FORGED: { batchIndex: number; tx: string; evidence: number[] }[] = [
-  { batchIndex: 6, tx: "E3E71FB6BFE0A2102C9490A11F18205913926513DA524E225B59CB931DF7D11E", evidence: [43, 44] },
-  { batchIndex: 8, tx: "6802887DBC277445377D70C1D2474AEC30ED3C00059F08943DF16DFB8E1D1A9A", evidence: [54, 55] },
+const FORGED: { batchIndex: number; tx: string; drill: string; evidence: number[] }[] = [
+  { batchIndex: 6, tx: "E3E71FB6BFE0A2102C9490A11F18205913926513DA524E225B59CB931DF7D11E", drill: "fraud drill 1", evidence: [43, 44] },
+  { batchIndex: 8, tx: "6802887DBC277445377D70C1D2474AEC30ED3C00059F08943DF16DFB8E1D1A9A", drill: "fraud drill 2", evidence: [54, 55] },
 ];
 /** Payslip rounds: the public payment and the sealed payslip that explains it. */
 const ROUNDS: Omit<PayslipRound, "spentUqor" | "envelopeBytes">[] = [
@@ -195,6 +193,8 @@ try {
   confirmedByChain = false;
 }
 log(`archive: ${rows.length} entries to ${head}, ${confirmedByChain ? "confirmed by the chain" : "NOT confirmed by the chain"}`);
+const chainInboxEnd = consumedTo(batches);
+if (chainInboxEnd > head) log(`WARNING: the chain's batches have consumed entries to ${chainInboxEnd}, beyond the archive's ${head}; refresh it with pnpm --filter @vigil/scripts inbox:archive`);
 
 // Every anchor's ML-DSA-87 signature, checked here by the RDK (signature-only mode) against the key the node reports.
 const creatorKey = (await rest.getPqcAccount(rollup.creator)).publicKey;
@@ -243,13 +243,23 @@ for (const t of fraudTxs) {
     const a = Object.fromEntries((ev.attributes ?? []).map((x) => [x.key, x.value]));
     if (a["rollup_id"] !== ROLLUP) continue;
     const challenger = a["challenger"] ?? "";
-    upheld.push({ batchIndex: Number(a["batch_index"]), tx: t.txhash ?? "", height: Number(t.height ?? 0), challenger, ours: OUR_WATCHTOWERS.has(challenger), evidence: [] });
+    const slashed = /^\d+/.exec(a["slashed"] ?? "")?.[0];
+    upheld.push({
+      batchIndex: Number(a["batch_index"]),
+      tx: t.txhash ?? "",
+      height: Number(t.height ?? 0),
+      challenger,
+      ours: challenger in WATCHTOWERS,
+      ...(slashed ? { slashedUqor: slashed } : {}),
+      evidence: [],
+    });
   }
 }
 for (const f of upheld) {
   const known = FORGED.find((x) => x.batchIndex === f.batchIndex);
   if (!known) continue;
   f.evidence = known.evidence;
+  f.drill = known.drill;
   const h = Number(((await rest.getTx(known.tx)) as TxRecord).tx_response?.height ?? 0);
   if (h > 0 && h <= f.height) {
     f.forgedTx = known.tx;
@@ -322,7 +332,7 @@ log(`exits: ${exitRows.length} (searched batches ${withWithdrawals.map((b) => b.
 // ------------------------------------------------------------------ payslips
 
 const bySeq = new Map(rows.map((r) => [r.sequence, r]));
-const sealedEntries = rows.filter((r) => isSealedEnvelope(Buffer.from(r.payloadHex, "hex"))).map((r) => r.sequence);
+const sealedEntries = sealedBy(rows, EMPLOYER, (hex) => isSealedEnvelope(Buffer.from(hex, "hex")));
 const rounds: PayslipRound[] = [];
 for (const r of ROUNDS) {
   const round: PayslipRound = { ...r };
@@ -356,7 +366,7 @@ const base: Omit<Snapshot, "strip"> = {
   asOf: { height: tip.height, time: isoUtc(tip.time) },
   requests: 0,
   live: { createdHeight: rollup.createdHeight, createdTime: isoUtc(created.time), days: daysBetween(created.time, tip.time) },
-  archive: { entries: rows.length, head, confirmedByChain },
+  archive: { entries: rows.length, head, confirmedByChain, chainInboxEnd },
   batches: counts,
   anchors: {
     onChain: anchors.length,
@@ -376,7 +386,7 @@ const base: Omit<Snapshot, "strip"> = {
     repaidPercent: repaidPercent(frontedUqor, owedUqor),
     searchedBatches: withWithdrawals.map((b) => b.batchIndex),
   },
-  payslips: { sealedEntries, rounds },
+  payslips: { poster: EMPLOYER, sealedEntries, rounds },
 };
 base.requests = requests;
 const snapshot: Snapshot = { ...base, strip: buildStrip(base) };

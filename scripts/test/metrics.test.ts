@@ -7,32 +7,41 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { committedArchivePath, readArchiveFile } from "@vigil/core/inbox";
+import { isSealedEnvelope } from "@vigil/sealed/payslip";
 import {
+  EMPLOYER,
   README_END,
   README_START,
   WEI_PER_UQOR,
   buildStrip,
+  consumedTo,
   countBatches,
   daysBetween,
   exitRow,
   finalWithVerifiedAnchor,
   findWithdrawalPost,
+  fraudNote,
   median,
   qor,
   renderMarkdown,
   renderReadmeStrip,
   repaidPercent,
+  repaidWords,
   replaceBlock,
+  sealedBy,
   spentBy,
   standbyRows,
   timeUtc,
+  txLink,
   type BatchIn,
+  type FraudRow,
   type Snapshot,
 } from "../metrics/model.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const archive = readArchiveFile(committedArchivePath("vigil-pay-1")).rows;
 const EXIT_ADDRESS = "qor1k44vs60vpjqn6rlgy62d8e6v79lsln9a9eyucy";
+const snapshot = JSON.parse(readFileSync(resolve(ROOT, "docs/metrics.json"), "utf8")) as Snapshot;
 
 const batch = (i: number, over: Partial<BatchIn> = {}): BatchIn => ({
   batchIndex: i,
@@ -128,6 +137,7 @@ describe("exitRow", () => {
       postHeight: 10_686_369,
       postToPaidSeconds: 23,
       secondsBeforeFinal: 3_583,
+      batchFinal: true,
       frontTime: "2025-11-24T16:00:17Z",
     });
   });
@@ -137,6 +147,18 @@ describe("exitRow", () => {
     expect(row.postToPaidSeconds).toBeUndefined();
     expect(row.secondsBeforeFinal).toBeUndefined();
     expect(row.postEntry).toBeUndefined();
+    expect(exitRow({ front, batch: { ...b18, status: "submitted" }, frontTime: 1_764_000_017 }).batchFinal).toBe(false);
+  });
+
+  it("says what is still owed, and why", () => {
+    const final = exitRow({ front, batch: b18, frontTime: 1_764_000_017 });
+    const pending = exitRow({ front: { ...front, batchIndex: 29 }, batch: { ...b18, batchIndex: 29, status: "submitted" }, frontTime: 1_764_000_017 });
+    expect(repaidWords({ rows: [final], owedUqor: "0", repaidPercent: 100 })).toBe("the vault is fully repaid");
+    expect(repaidWords({ rows: [final, pending], owedUqor: "100000", repaidPercent: 50 })).toBe(
+      "every exit whose batch is final is repaid; 0.1 QOR is owed on 1 exit whose batch is not final yet",
+    );
+    // Owed on a final batch: the plain share, with no excuse.
+    expect(repaidWords({ rows: [final, pending], owedUqor: "200000", repaidPercent: 0 })).toBe("the vault is 0% repaid");
   });
 });
 
@@ -156,6 +178,7 @@ describe("small helpers", () => {
     expect(qor(99_500n)).toBe("0.0995 QOR");
     expect(qor("1000000")).toBe("1 QOR");
     expect(qor(1_000_500n)).toBe("1.0005 QOR");
+    expect(qor(1_000_000_000n)).toBe("1,000 QOR");
     expect(timeUtc("2026-11-27T09:05:00Z")).toBe("27 Nov 2026, 09:05 UTC");
   });
 
@@ -171,6 +194,55 @@ describe("small helpers", () => {
   });
 });
 
+describe("payslips and the archive", () => {
+  const sealed = (hex: string): boolean => isSealedEnvelope(Buffer.from(hex, "hex"));
+
+  it("counts employer-1's sealed envelopes in the archive, and nobody else's", () => {
+    expect(sealedBy(archive, EMPLOYER, sealed)).toEqual([6, 24, 27]);
+    // The same envelope from another poster is not a Vigil payslip.
+    const env = archive.find((e) => e.sequence === 6)!;
+    expect(sealedBy([{ ...env, poster: "qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk" }], EMPLOYER, sealed)).toEqual([]);
+  });
+
+  it("finds how far the chain's batches have consumed the inbox, ignoring rejected ones", () => {
+    expect(consumedTo([batch(0, { inboxEnd: 3 }), batch(1, { inboxEnd: 28 }), batch(2, { status: "rejected", inboxEnd: 40 })])).toBe(28);
+    expect(consumedTo([])).toBe(0);
+  });
+});
+
+describe("words built from the rows", () => {
+  const row = (over: Partial<FraudRow>): FraudRow => ({ batchIndex: 8, tx: "4963FCFD", height: 10_382_607, challenger: "qor1y6z2767n0uhann4q9dvdzujad8euj2x2z6z6yd", ours: true, evidence: [], ...over });
+
+  it("names the drill, the watchtower and the bond from the row", () => {
+    expect(fraudNote(row({ drill: "fraud drill 2", slashedUqor: "1000000000" }))).toBe("fraud drill 2: batch 8, our watchtower-2's challenge; 1,000 QOR bond slashed");
+    expect(fraudNote(row({ batchIndex: 30, challenger: "qor1z0mxtgun49kfwfsx4naww4m4g3paew50v3lp33" }))).toBe("batch 30, our watchtower-3's challenge");
+    expect(fraudNote(row({ challenger: "qor1unknown" }))).toBe("batch 8, our watchtower's challenge");
+  });
+
+  it("prints EVM hashes in full and links L1 hashes to the explorer", () => {
+    const evm = "0x6542b5f393cd4b37f349ef3b2e9edfe103d81b2f675d4ee48c0bd2f2de627c8f";
+    expect(txLink(evm)).toBe(`\`${evm}\``);
+    expect(txLink("4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915")).toBe(
+      "[`4963FCFD…`](https://explore.qore.network/tx/4963FCFD2D33188456572D27C16D96DD2CB03604767DCBEEF0EDFB54E0F5B915)",
+    );
+  });
+
+  it("explains the off-by-one for batch 11 and for no other standby batch", () => {
+    const at = (batchIndex: number) => ({ ...snapshot, standby: [{ batchIndex, firstEntry: 40, postHeight: 1, submittedHeight: 31, blocksAfterPost: 30 }] });
+    expect(renderMarkdown(at(11))).toMatch(/Batch 11 came sooner because of an off-by-one/);
+    const other = renderMarkdown(at(40));
+    expect(other).toMatch(/The standby waits 30 blocks/);
+    expect(other).not.toMatch(/off-by-one/);
+  });
+
+  it("says when the chain has consumed entries the archive does not hold", () => {
+    const { head } = snapshot.archive;
+    expect(renderMarkdown({ ...snapshot, archive: { ...snapshot.archive, chainInboxEnd: head } })).not.toMatch(/not in the archive and not counted/);
+    expect(renderMarkdown({ ...snapshot, archive: { ...snapshot.archive, chainInboxEnd: head + 1 } })).toMatch(new RegExp(`entry ${head + 1} is not in the archive and not counted here`));
+    expect(renderMarkdown({ ...snapshot, archive: { ...snapshot.archive, chainInboxEnd: head + 3 } })).toMatch(new RegExp(`entries ${head + 1} to ${head + 3} are not in the archive`));
+  });
+});
+
 describe("README markers", () => {
   it("replaces only the block between the markers", () => {
     const text = `a\n${README_START}\nold\n${README_END}\nb`;
@@ -180,8 +252,6 @@ describe("README markers", () => {
 });
 
 // ------------------------------------------------------------------ the committed snapshot
-
-const snapshot = JSON.parse(readFileSync(resolve(ROOT, "docs/metrics.json"), "utf8")) as Snapshot;
 
 /** Words the repo does not use about itself. "Read-only" and "signature-only" are not claims. */
 const BANNED = /quantum-proof|quantum-safe|unbreakable|(?<![-\w])(only|first|unique)(?![-\w])/i;
@@ -203,6 +273,11 @@ describe("docs/metrics.json", () => {
   it("labels the exits as a small sample", () => {
     const exits = snapshot.strip.find((i) => i.label === "paid before finality")!;
     if (snapshot.exits.rows.length > 0 && snapshot.exits.rows.length < 10) expect(exits.note).toMatch(/small sample/);
+  });
+
+  it("prints every EVM hash in METRICS.md in full", () => {
+    // `cast receipt` needs the whole hash: none may be cut short with an ellipsis.
+    expect(renderMarkdown(snapshot)).not.toMatch(/0x[0-9a-fA-F]+…/);
   });
 
   it("matches docs/METRICS.md and the README's numbers", () => {
