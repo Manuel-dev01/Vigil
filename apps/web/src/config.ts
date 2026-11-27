@@ -25,6 +25,8 @@ export const KNOWN: Record<string, string> = {
   qor1r74gzxy9u495j0jz9xl2gf69uy2gwxfa7l5pws: "employer-1 (sealed payroll demo)",
   qor1caz97rcllrw3q4agg8rp69mfve9ar6tygzczry: "employee-1 (sealed payroll demo)",
   qor1u7tkkkd56h27lcl3qgzzcavaukuj74mjvxqf9d: "auditor-1 (sealed payroll demo)",
+  qor10f3gpnyh9aty8m70492wpk692dkw27y3nzdk5k: "demo reader (its seal key is public on purpose)",
+  qor10qf5vuuv8gy4xm3vm8tpeua8tw45x8ddanl9wr: "Vigil exit demo poster",
   qor1fvrd7gscnq6xkmrcrdm4gzzwnv4f3lfk0ummn2: "evil submitter, fraud drill 2",
   qor1kgvdpmv87386eyp7k577r55ttx9tf5m77jwygk: "evil submitter, fraud drill 1",
   qor1ua2dl0nuf3qxr5yfhr3x9ah5cdh9vw7qczvdj5: "another team's watcher",
@@ -48,11 +50,12 @@ export const PINNED_KEYS: Record<string, string> = {
 };
 
 /**
- * Where the page fetches a demo reader's seal key (same origin), for the "Open as the demo reader" button.
- * The key would be published on purpose: a testnet key that opens only envelopes sealed to demo-reader
- * and cannot sign or spend. None is published yet: while this is null, the button is not shown.
+ * Where the page fetches the demo reader's seal key (same origin), for the "Open as the demo reader" button.
+ * The key is published on purpose (public/demo/demo-reader.seal.txt, 27 Nov 2026): a testnet seal key that
+ * opens only envelopes sealed to demo-reader (qor10f3g…dk5k) and cannot sign or spend. Set this to null to
+ * hide the button.
  */
-export const DEMO_READER_KEY_URL: string | null = null;
+export const DEMO_READER_KEY_URL: string | null = "demo/demo-reader.seal.txt";
 
 export const qor = (uqor: string | number | bigint): string => {
   const n = BigInt(String(uqor).replace(/uqor$/, "") || "0");
