@@ -201,7 +201,7 @@ describe("the error list matches the contracts", () => {
   };
   for (const [contract, file] of Object.entries(files) as [ContractName, string][]) {
     it(`${contract}: every error the contract declares, with the same parameter types`, () => {
-      // Only the first contract in the file (InstantExitVault.sol also holds ExitAddress, which declares none).
+      // InstantExitVault.sol also holds ExitAddress, which declares no errors, so every error in each file is its contract's.
       const src = read(file);
       const declared = [...src.matchAll(/^\s*error (\w+)\(([^)]*)\);/gm)].map(([, name, params]) => {
         const types = (params ?? "")
