@@ -1,9 +1,12 @@
 /**
  * The landing page: what Vigil is, in one scroll. A lattice sea at night is swept by Vigil's lamp; one
  * batch goes through its life as you scroll; the page ends at dawn and hands you to the live app.
- * Every number on it is read from the chain or links to a row of EVIDENCE.md.
+ * Every number on it is read from the chain, comes from the dated snapshot that scripts/metrics.ts
+ * writes (docs/metrics.json), or links to a row of EVIDENCE.md.
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+// The dated snapshot written by scripts/metrics.ts: bundled with the page, so it costs no request.
+import { asOf, strip } from "../../../../docs/metrics.json";
 import { REPO, txUrl } from "../config.ts";
 import { listen } from "../live.ts";
 import type { Facts, Quorum } from "./facts.ts";
@@ -74,6 +77,8 @@ const LOG: Entry[] = [
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
 const grouped = (n: number): string => n.toLocaleString("en-US");
+const METRICS = `${REPO}/blob/main/docs/METRICS.md`;
+const readOn = new Date(asOf.time).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export function Landing() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -330,6 +335,34 @@ export function Landing() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="numbers" aria-labelledby="numbers-title">
+        <div className="log-head" data-reveal>
+          <h2 id="numbers-title" className="sec-title">
+            Vigil in numbers
+          </h2>
+          <p>
+            Read from the chain at block {grouped(asOf.height)} on {readOn} (UTC) by <span className="mono">scripts/metrics.ts</span>. Each number names
+            its source.
+          </p>
+        </div>
+        <ul className="numbers-grid" data-reveal>
+          {strip.map((n) => (
+            <li key={n.label}>
+              <h3>
+                <span className="num-value">{n.value}</span> <span className="num-label">{n.label}</span>
+              </h3>
+              <p className="num-note">{n.note}</p>
+              <p className="num-src mono">{n.source}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="log-more" data-reveal>
+          <a href={METRICS} target="_blank" rel="noopener noreferrer">
+            The full table, and how to re-run it →
+          </a>
+        </p>
       </section>
 
       <section className="also" aria-labelledby="also-title">
