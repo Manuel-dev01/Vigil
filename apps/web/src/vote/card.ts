@@ -1,7 +1,9 @@
 /**
  * The how-to-vote card's words, kept as data so a test can hold them to a 60-second read. Every voting
- * fact here is from the fest's Rules and About pages on build.qorechain.io as read on 27 Nov 2026,
- * nearly word for word; nothing is added to them. Loaded only when someone opens the card.
+ * fact here is from the fest's Rules page (build.qorechain.io/rules) as read on 27 Nov 2026, kept close
+ * to its wording; nothing is added to them. The Results line joins two of its sentences: the People's
+ * Choice section (counts hidden until 16 December) and the Timeline (winners announced at the live demo
+ * show on 16 December). Loaded only when someone opens the card.
  */
 import { PROJECT_PAGE } from "./phase.ts";
 
