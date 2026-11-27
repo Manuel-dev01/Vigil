@@ -2,7 +2,7 @@
 
 Each claim Vigil makes about the chain gets one row here. A claim without a row is not a claim. All dates and times are UTC. Network is `qorechain-diana` (testnet) unless stated.
 
-`pnpm evidence:check` reads every numbered row's transaction back from the chain and checks its height, date, result and the events, logs, gas and fees the row claims (read-only, no key). The last saved run is [docs/evidence-check.md](docs/evidence-check.md).
+`pnpm evidence:check` reads every numbered row's transaction back from the chain and checks its height, its result, its date where the answer carries one, and the events, logs, gas and fees listed for it in `scripts/evidence/expect.ts` (read-only, no key). The last saved run, with its exact scope, is [docs/evidence-check.md](docs/evidence-check.md).
 
 | # | Date (UTC) | Network | Height | Tx hash | Explorer | What it proves | How to re-verify |
 |---|---|---|---|---|---|---|---|
